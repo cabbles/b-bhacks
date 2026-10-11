@@ -4,10 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/index.ts",
+    "onchain": "tsx src/onchain.ts",
+    "referee": "tsx src/referee.ts",
+    "report": "tsx src/report.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "shared": "workspace:*"
+    "dotenv": "^16.4.5",
+    "shared": "workspace:*",
+    "tsx": "^4.19.2",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "typescript": "^5.7.2"
   }
 }

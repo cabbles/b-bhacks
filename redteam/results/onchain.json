@@ -1,0 +1,54 @@
+{
+  "ran_at": "2026-10-11T21:24:06.078Z",
+  "pool": "0x1470af4526f820DC7Ca5bE70cA77bBf2400e76f9",
+  "results": [
+    {
+      "category": "onchain_fake_verdict",
+      "attack": "treasury/operator posts a passing verdict",
+      "outcome": "caught",
+      "detail": "reverted: NotReferee"
+    },
+    {
+      "category": "onchain_fake_verdict",
+      "attack": "random address posts a passing verdict",
+      "outcome": "caught",
+      "detail": "reverted: NotReferee"
+    },
+    {
+      "category": "onchain_early_verdict",
+      "attack": "referee posts a verdict before the goal deadline",
+      "outcome": "caught",
+      "detail": "reverted: TooEarly"
+    },
+    {
+      "category": "onchain_early_settle",
+      "attack": "anyone settles before deadline + 10 min",
+      "outcome": "caught",
+      "detail": "reverted: TooEarly"
+    },
+    {
+      "category": "onchain_redirect_auth",
+      "attack": "relayer swaps in a different goal for a valid signature",
+      "outcome": "caught",
+      "detail": "reverted: BadNonce"
+    },
+    {
+      "category": "onchain_replay_auth",
+      "attack": "replay a used stake authorization",
+      "outcome": "caught",
+      "detail": "reverted: AlreadyStaked"
+    },
+    {
+      "category": "onchain_double_claim",
+      "attack": "claim the same stake twice",
+      "outcome": "skipped",
+      "detail": "no settled cohort yet"
+    },
+    {
+      "category": "onchain_operator_withdraw",
+      "attack": "operator looks for a withdraw / sweep / owner function",
+      "outcome": "caught",
+      "detail": "only state-changing functions: claimFor, createCohort, postVerdict, settle, stakeWithAuthorization"
+    }
+  ]
+}
