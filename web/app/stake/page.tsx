@@ -34,7 +34,9 @@ function StakeInner() {
   const [bal, setBal] = useState<bigint | null>(null);
   const [cohortId, setCohortId] = useState<number | null>(null);
 
-  const [text, setText] = useState("");
+  // Invite links from /split carry the member's task, so they only have to confirm it.
+  const [text, setText] = useState(() => params.get("task") ?? "");
+  const fromGroup = params.has("task");
   const [typeHint, setTypeHint] = useState<GoalType | "">("");
 
   const [compiled, setCompiled] = useState<CompileResponse | null>(null);
@@ -128,17 +130,30 @@ function StakeInner() {
   return (
     <div className="grid gap-y-10 lg:grid-cols-12 lg:gap-x-12">
       <header className="lg:col-span-12">
-        <div className="label">Cohort {cohort ? `#${cohort.id}` : "…"}</div>
-        <h1 className="display text-6xl sm:text-8xl">Commit to a task.</h1>
-        <p className="mt-4 max-w-2xl text-lg text-fg/80">
-          Say what you will get done and by when. The referee turns it into exact, checkable criteria before you stake.
-        </p>
+        {fromGroup ? (
+          <>
+            <div className="label">Group {cohort ? `#${cohort.id}` : "…"} · your part of the project</div>
+            <h1 className="display text-6xl sm:text-8xl">Bet on yourself.</h1>
+            <p className="mt-4 max-w-2xl text-lg text-fg/80">
+              A friend split the project and this is your part. Do it and you take your share of the pot; miss it and your stake
+              stays with the friends who delivered.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="label">Cohort {cohort ? `#${cohort.id}` : "…"}</div>
+            <h1 className="display text-6xl sm:text-8xl">Commit to a task.</h1>
+            <p className="mt-4 max-w-2xl text-lg text-fg/80">
+              Say what you will get done and by when. The referee turns it into exact, checkable criteria before you stake.
+            </p>
+          </>
+        )}
       </header>
 
       {/* Left: the form. */}
       <section className="order-2 space-y-8 lg:order-none lg:col-span-7">
         <div>
-          <label className="label" htmlFor="goal">What will you get done by the deadline?</label>
+          <label className="label" htmlFor="goal">{fromGroup ? "Your task" : "What will you get done by the deadline?"}</label>
           <textarea
             id="goal"
             className="input min-h-32 text-lg"
@@ -236,7 +251,8 @@ function StakeInner() {
           <p className="border-t border-line py-3 text-muted">{cfg ? "No cohort available." : <Spinner />}</p>
         )}
         <p className="mt-4 text-xs leading-relaxed text-muted">
-          Passers get their stake back plus an equal share of the forfeits. If no verdict is posted, everyone is refunded.
+          Everyone who delivers gets their stake back plus an equal share of the missed stakes. No house, no fee. If no verdict is
+          posted, everyone is refunded.
         </p>
       </aside>
     </div>

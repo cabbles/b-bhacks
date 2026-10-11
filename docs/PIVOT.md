@@ -1,8 +1,8 @@
-# PIVOT.md: Group prediction markets for school work
+# PIVOT.md: Groups, a prediction-market feature for school work
 
-Written Sun Oct 11, ~3:00 PT. Proposed replacement for PLAN.md sections 1 and 5. PLAN.md is human-owned, so this file is the proposal; the human team decides what to adopt.
+Written Sun Oct 11, ~3:00 PT. **Groups is a feature on top of the existing product, not a replacement.** The core stays as it is: anyone puts AUSD behind any task with checkable evidence, and the AI referee settles it on-chain. Groups adds a social layer for school work. PLAN.md is human-owned; this file is the proposal for that addition.
 
-## 1. The product in one paragraph
+## 1. The feature in one paragraph
 
 Three friends form a **group**. Each term they put their school work on the board: assignments, test scores, project milestones. Every item becomes a small **market** ("Will Maya submit the CS61B project by Friday?", "Will Leo score 85+ on the stats midterm?"). You bet **on yourself**; your friends can bet **against you**. An AI referee gathers the evidence itself and settles each market on-chain. There is **no house and no fee**: every AUSD that goes in stays in the group and is paid out to whoever was right.
 
@@ -121,7 +121,7 @@ Read verdicts aloud on the group board ("Leo passed his midterm market; Maya and
 
 ## 8. Decisions needed from the human team
 
-1. Adopt this pivot and update PLAN.md sections 1 and 5?
+1. Adopt Groups as a feature and add it to PLAN.md (the core product description stays)?
 2. Allow a second chain for the Ripple track, and who owns `xrpl/`?
 3. Ask the YZi table about Base Sepolia vs. BSC Testnet.
 4. Attempt `MarketPool` (betting against friends) before the freeze, or keep it as roadmap?

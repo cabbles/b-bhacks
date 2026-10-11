@@ -49,7 +49,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
             <span className="num text-6xl font-semibold text-accent sm:text-7xl">
               <CountUp to={Number(fmtAmount(stats.pot, dec).replace(/,/g, ""))} duration={1.2} separator="," />
             </span>
-            <span className="label !mb-0">AUSD in the pot</span>
+            <span className="label !mb-0">AUSD in the pot · no house, no fee</span>
           </div>
         </div>
         {joinUrl && (
@@ -58,6 +58,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
               <QRCodeSVG value={joinUrl} size={180} bgColor="#ECEDEE" fgColor="#0D0F12" className="h-40 w-40 lg:h-64 lg:w-64" />
             </div>
             <div className="label !mb-0">Scan to join · no install</div>
+            <Link href="/split" className="label !mb-0 hover:text-fg">Split a project three ways →</Link>
           </div>
         )}
       </section>
@@ -72,13 +73,13 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
 
       <section>
         <div className="flex items-baseline justify-between">
-          <div className="label">Stakers</div>
+          <div className="label">Stakers and their tasks</div>
           <div className="label">
             {stats.human_overrides ?? 0} human overrides · <Link className="hover:text-fg" href="/integrity">How it stays fair →</Link>
           </div>
         </div>
         <ul className="border-t border-line">
-          {sorted.length === 0 && <li className="py-4 text-muted">No stakers yet. Be the first.</li>}
+          {sorted.length === 0 && <li className="py-4 text-muted">No one has put a task on the board yet. Be the first.</li>}
           {sorted.map((g) => (
             <li key={g.goal_id}>
               <Link href={`/goals/${g.goal_id}`} className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-x-4 border-b border-line py-3 hover:bg-panel">
