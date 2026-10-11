@@ -66,7 +66,9 @@ function StakeInner() {
 
   const cohort = cfg?.cohorts.find((c) => c.id === cohortId) || null;
   const stakeAmount = cohort ? BigInt(cohort.stake_amount) : 0n;
-  const closed = cohort ? cohort.stake_deadline * 1000 <= now : true;
+  // A market holds exactly one task: once its owner has staked, nobody else can add one.
+  const taken = !!cohort && kindOf(cohort) === "group" && (cohort.staker_count ?? 0) >= 1;
+  const closed = taken || (cohort ? cohort.stake_deadline * 1000 <= now : true);
   const short = bal !== null && bal < stakeAmount;
   // A real stake needs a deployed pool, and both services live (or both mocked, for rehearsal).
   const blocked = !cfg
@@ -159,6 +161,12 @@ function StakeInner() {
               and it goes to whoever bet NO. Once it is live, share the page so friends can bet YES or NO.
             </p>
           </>
+        )}
+        {taken && (
+          <p className="mt-6 max-w-2xl rounded-xl bg-panel p-4 font-medium">
+            This market already has its task, so you can't add another. <a className="link" href={`/cohorts/${cohort?.id}`}>Bet on it instead</a>, or{" "}
+            <a className="link" href="/cohorts/new">create a market on yourself</a>.
+          </p>
         )}
       </header>
 

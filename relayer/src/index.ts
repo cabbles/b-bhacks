@@ -11,6 +11,8 @@ import { deployments, poolAbi, publicClient, reason, requirePool, send, tokenAbi
 const env = process.env;
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(env.PORT ?? 8788);
+// keccak256('cashcow:group'): rounds created as one-person prediction markets (see web/lib/kinds.ts).
+const MARKET_TAG = '0x5a05ea52b7adfc2c950dd65ee2aa5bd7c39481f5fb3c11666d103147fd1c6487';
 const DRIP = env.DRIP_AMOUNT ?? '100';
 
 const db = new Database(env.RELAYER_DB ?? resolve(here, '../relayer.db'));
@@ -163,6 +165,12 @@ app.post('/stake', async (req, reply) => {
         return bad(reply, 400, 'authorization { validAfter, validBefore, nonce, v, r, s } required');
     const v = Number(a.v);
     if (v !== 27 && v !== 28 && v !== 0 && v !== 1) return bad(reply, 400, 'bad v');
+    // A prediction market is one person's task: refuse a second staker in a round tagged as a market.
+    {
+        const c = (await listCohorts().catch(() => [] as CohortView[])).find((x) => x.id === Number(b.cohort_id));
+        if (c && c.rule_hash.toLowerCase() === MARKET_TAG && c.staker_count >= 1)
+            return bad(reply, 409, 'This market already has its task. Bet on it instead.');
+    }
     try {
         const { hash } = await send({
             address: requirePool(),
