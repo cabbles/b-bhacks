@@ -67,9 +67,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
           </dl>
           {stakingOpen && (
             <div className="mt-5 flex flex-col gap-3">
-              <Link href={`/stake?cohort=${cohort.id}`} className="btn-primary">Stake on a task</Link>
-              <Link href="/split" className="btn-ghost">Split a project with friends</Link>
-            </div>
+              <Link href={`/stake?cohort=${cohort.id}`} className="btn-primary">Stake on a task</Link>            </div>
           )}
         </aside>
       </section>

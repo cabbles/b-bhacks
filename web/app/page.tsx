@@ -54,17 +54,16 @@ export default function JoinPage() {
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link href="/stake" className="btn-primary">Commit to a task</Link>
-          <Link href="/split" className="btn-ghost">Do it with friends</Link>
+          <Link href="/cohorts" className="btn-ghost">See the market</Link>
         </div>
 
         <ol className="mt-16 max-w-xl">
           {[
             ["Any task with evidence", "Today: code pushed to a public repo, or a page that goes live with the content you promised. You describe the task; the referee turns it into exact criteria."],
-            ["Bring your friends", "Split a group project three ways and each of you bets on your part. Whoever delivers splits the stakes of whoever does not. The money stays in the group."],
             ["It looks for itself", "It reads the evidence directly and ignores uploads and claimed timestamps, so old or borrowed work does not count."],
             ["Every ruling is checkable", "Each verdict is posted on-chain with a hash of its full reasoning. Your browser recomputes it and compares."],
             ["Nobody can take the money", "The contract has no owner withdrawal. If no verdict is posted, everyone is refunded."],
-            ["Agents can hire it too", "Other apps and AI agents can buy a ruling for 0.10 AUSD over x402: an HTTP 402, a gasless signature, a signed result. Groups never pay."],
+            ["Agents can hire it too", "Other apps and AI agents can buy a ruling for 0.10 AUSD over x402: an HTTP 402, a gasless signature, a signed result. Stakers never pay."],
           ].map(([t, d], i) => (
             <li key={t} className="grid grid-cols-[3rem_1fr] gap-x-4 border-t border-line py-5">
               <span className="num text-sm text-muted">0{i + 1}</span>

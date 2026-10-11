@@ -35,9 +35,7 @@ function StakeInner() {
   const [bal, setBal] = useState<bigint | null>(null);
   const [cohortId, setCohortId] = useState<number | null>(null);
 
-  // Invite links from /split carry the member's task, so they only have to confirm it.
-  const [text, setText] = useState(() => params.get("task") ?? "");
-  const fromGroup = params.has("task");
+  const [text, setText] = useState("");
   const [typeHint, setTypeHint] = useState<GoalType | "">("");
 
   const [compiled, setCompiled] = useState<CompileResponse | null>(null);
@@ -131,30 +129,17 @@ function StakeInner() {
   return (
     <div className="grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:gap-x-12">
       <header className="lg:col-span-12">
-        {fromGroup ? (
-          <>
-            <div className="label">Market {cohort ? `#${cohort.id}` : "…"} · your part of the project</div>
-            <h1 className="display text-6xl sm:text-8xl">Bet on yourself.</h1>
-            <p className="mt-4 max-w-2xl text-lg text-fg/80">
-              A friend split the project and this is your part. Do it and you take your share of the pot; miss it and your stake
-              stays with the friends who delivered.
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="label">Market {cohort ? `#${cohort.id}` : "…"}</div>
-            <h1 className="display text-6xl sm:text-8xl">Commit to a task.</h1>
-            <p className="mt-4 max-w-2xl text-lg text-fg/80">
-              Say what you will get done and by when. The referee turns it into exact, checkable criteria before you stake.
-            </p>
-          </>
-        )}
+        <div className="label">Market {cohort ? `#${cohort.id}` : "…"}</div>
+        <h1 className="display text-6xl sm:text-8xl">Commit to a task.</h1>
+        <p className="mt-4 max-w-2xl text-lg text-fg/80">
+          Say what you will get done and by when. The referee turns it into exact, checkable criteria before you stake.
+        </p>
       </header>
 
       {/* Left: the form. */}
       <section className="order-2 space-y-8 lg:order-none lg:col-span-7">
         <div>
-          <label className="label" htmlFor="goal">{fromGroup ? "Your task" : "What will you get done by the deadline?"}</label>
+          <label className="label" htmlFor="goal">What will you get done by the deadline?</label>
           <textarea
             id="goal"
             className="input min-h-32 text-lg"
