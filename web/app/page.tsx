@@ -68,6 +68,7 @@ export default function JoinPage() {
             ["It looks for itself", "It reads the evidence directly and ignores uploads and claimed timestamps, so old or borrowed work does not count."],
             ["Every ruling is checkable", "Each verdict is posted on-chain with a hash of its full reasoning. Your browser recomputes it and compares."],
             ["Nobody can take the money", "The contract has no owner withdrawal. If no verdict is posted, everyone is refunded."],
+            ["Agents can hire it too", "Other apps and AI agents can buy a ruling for 0.10 AUSD over x402: an HTTP 402, a gasless signature, a signed result. Groups never pay."],
           ].map(([t, d], i) => (
             <li key={t} className="grid grid-cols-[3rem_1fr] gap-x-4 border-t border-line py-5">
               <span className="num text-sm text-muted">0{i + 1}</span>

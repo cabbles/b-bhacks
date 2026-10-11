@@ -13,6 +13,22 @@ Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 1. **The referee observes evidence itself.** It never trusts uploads or claimed timestamps. It records when it first saw each commit, so a commit backdated with `git commit --date` does not count.
 2. **It is built to be hard to cheat.** Control proofs, first-seen timing, a two-model substance check, and prompt-injection hardening run on every task. We attack it ourselves with scripted cheats (`redteam/`) and publish the results on the Integrity page, including anything it missed. Cheating is something the system prevents, not a feature.
 3. **Every ruling is checkable, and the referee cannot profit.** Verdicts are hashed and posted on-chain, and the browser re-verifies them. The contract has no owner withdrawal; if no verdict is posted, the staker gets a full refund.
+4. **Agents pay the referee per ruling in AUSD over x402; groups never pay.** Other apps and AI agents can buy a one-off ruling for 0.10 AUSD with HTTP `402 Payment Required` and a gasless ERC-3009 signature, and get back a ruling signed by the referee key. Payment settles only after the ruling is delivered. Details: [`referee/README.md`](referee/README.md#x402-the-referee-as-a-paid-api).
+
+## Groups: do it with friends
+
+A feature on top of the core product, for school work (full proposal: [`docs/PIVOT.md`](docs/PIVOT.md)).
+
+- **Live now: the commitment stake.** Friends join the same market and each stakes on their own task. Split a group project three ways at `/split`: each friend gets an invite link with their task filled in. Whoever delivers gets their stake back plus an equal share of the stakes of whoever did not. No house, no fee.
+- **Next: a public YES/NO market on each task.** Anyone bets on whether the owner will finish; the owner cannot bet against themselves, and the market never touches the owner's stake. It needs a `MarketPool` contract that resolves from the verdict already on `StakePool`, so the two can never disagree. Not built yet.
+
+## Sponsor tracks
+
+| Track | What we built for it |
+| ----- | -------------------- |
+| **Best Use of AUSD** | Every stake and payout is AUSD on Base Sepolia, moved with ERC-3009 `ReceiveWithAuthorization` so users never hold gas. The referee is also a paid API: agents buy rulings over **x402** with ERC-3009 `TransferWithAuthorization` (live, tested on-chain). |
+| **YZi Labs** | A trusted AI agent that moves money: every decision is hashed and posted on-chain, re-verified in the browser, and red-teamed in public (12 attacks, 0 missed). The contract gives the operator no way to take funds. |
+| **General (Most Creative)** | An AI referee that gathers its own evidence instead of trusting uploads, plus Groups for school work. |
 
 ## How it works
 
