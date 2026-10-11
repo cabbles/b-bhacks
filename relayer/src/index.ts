@@ -1,4 +1,5 @@
 import { marketAddress, registerMarkets } from './markets.ts';
+import { bondAddress, registerBonds, resolveBonds } from './bonds.ts';
 import cors from '@fastify/cors';
 import Database from 'better-sqlite3';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
@@ -84,6 +85,7 @@ async function cohorts() {
 const app = Fastify({ logger: true, bodyLimit: 16 * 1024, trustProxy: true });
 await app.register(cors, { origin: true });
 await registerMarkets(app);
+await registerBonds(app);
 
 const bad = (reply: FastifyReply, code: number, error: string) => reply.code(code).send({ error });
 const isHex32 = (x: unknown): x is Hex => typeof x === 'string' && /^0x[0-9a-fA-F]{64}$/.test(x);
@@ -102,6 +104,7 @@ app.get('/health', async () => ({ ok: true, treasury: treasury.address, pool: de
 app.get('/config', async () => ({
     chainId: deployments.chainId,
     market_pool: marketAddress,
+    bond_pool: bondAddress,
     pool: deployments.pool,
     token: deployments.token,
     tokenDomain,
@@ -354,6 +357,7 @@ async function keeperTick() {
                 app.log.info(`keeper: settled cohort ${c.id} ${hash}`);
             }
             const claimed = await claimAll(BigInt(c.id));
+            for (const r of await resolveBonds(BigInt(c.id), stakersByCohort.get(c.id) ?? [])) app.log.info(`keeper: bond cohort ${c.id} ${r}`);
             for (const r of claimed) app.log.info(`keeper: cohort ${c.id} ${r.staker} ${r.tx_hash ?? r.error}`);
             if (claimed.every((r) => r.tx_hash)) paidOut.add(c.id);
         }
