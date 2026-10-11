@@ -80,15 +80,20 @@ Either way, set `NEXT_PUBLIC_REFEREE_URL` (and `NEXT_PUBLIC_RELAYER_URL`) if the
 
 ## Screenshots
 
-Captured in mock mode; replace them with live captures at code freeze.
+Captured from the live app in a real browser at code freeze (see `docs/demo-script.md`). Every on-chain claim in this README links to the transaction instead.
 
-| Join | Verdict (fail) | Board |
-| ---- | -------------- | ------------ |
-| ![Join](docs/screenshots/join.png) | ![Verdict fail](docs/screenshots/verdict-fail.png) | ![Board](docs/screenshots/board.png) |
+## End-to-end proof (CP2)
 
-![Market](docs/screenshots/board.png)
+One real task went through the whole system on Base Sepolia, through the web UI. Full log: [docs/cp2.md](docs/cp2.md).
 
-## Live cohort results
+| Step | Result |
+| ---- | ------ |
+| Stake (gasless ERC-3009, 10 AUSD) | [`0x46595f…55777f`](https://sepolia.basescan.org/tx/0x46595f232f709a609563d2beb6b30a13895839718dada3ffe36c79995c55777f) |
+| Verdict: PASS (3/3 checks, two models agree) | [`0xb7dc56…e19743`](https://sepolia.basescan.org/tx/0xb7dc56131698c75292b737bbaa23cdf403f0ad52f01709d271ed19c62ee19743) |
+| Browser re-verification (goal hash, pool stake, evidence hash, Verdict event) | 4 of 4 match |
+| Settle, then claim | [`0xec1415…d2a844`](https://sepolia.basescan.org/tx/0xec141589c747d7f6101f63c58307f0ef972909d1fd6b3f660a4a93f946d2a844), wallet 90 → 100 AUSD |
+
+## Live results
 
 _Filled in at code freeze (4:20 PT)._
 
@@ -100,16 +105,22 @@ _Filled in at code freeze (4:20 PT)._
 
 ## Red team
 
-_Copied from `redteam/results.md` at code freeze._
+Scripted cheats run against the live referee and contract with real stakes. Full report: [redteam/results.md](redteam/results.md). **12 caught, 0 missed.** An honest control goal still passed.
 
-| Category | Caught | Missed |
-| -------- | ------ | ------ |
-| Backdated commits | TBD | TBD |
-| Someone else's repo | TBD | TBD |
-| Filler commits | TBD | TBD |
-| Prompt injection | TBD | TBD |
-| Fake static page | TBD | TBD |
-| On-chain (bad verdict signer, replay, double claim) | TBD | TBD |
+| Attack | Caught | Missed | Stopped by |
+| ------ | ------ | ------ | ---------- |
+| Backdated commits (`git commit --date`) | 1 | 0 | first-seen timing |
+| Someone else's repo | 1 | 0 | nonce control proof |
+| Filler commits (whitespace, README churn) | 1 | 0 | two-model substance check |
+| Prompt injection in README and commit messages | 1 | 0 | injection tripwire, data-not-instructions |
+| Static page faking the feature | 1 | 0 | substance check |
+| Verdict posted by a non-referee address (x2) | 2 | 0 | `NotReferee` |
+| Verdict before the deadline / settle too early | 2 | 0 | `TooEarly` |
+| Relayer reuses a signature for another goal | 1 | 0 | `BadNonce` (nonce binds cohort + goal) |
+| Replay a used stake signature | 1 | 0 | `AlreadyStaked` |
+| Operator withdraws the pot | 1 | 0 | no such function exists |
+
+The double-claim test was skipped in that run because no cohort had settled yet.
 
 ## Safety
 

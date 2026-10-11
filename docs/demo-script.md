@@ -21,5 +21,5 @@ The video opens with the backdated commit being rejected. Keep each beat short. 
 - [ ] One passing `github_commits` goal and one passing `url_live` goal with verdict txs.
 - [ ] Market page open on the projector at `/cohorts`.
 - [ ] Phone with a fresh browser profile for the join shot.
-- [ ] Screenshots saved to `docs/screenshots/` (join, stake, verdict pass, verdict fail, board, integrity).
+- [ ] Screenshots captured in a real browser (headless Chrome cannot reach the tunnels, and animations need a visible tab) and saved to `docs/screenshots/`: home, stake, verdict pass with "Check it yourself", market, groups, integrity.
 - [ ] README numbers filled in from the live cohort and `redteam/results.md`.
