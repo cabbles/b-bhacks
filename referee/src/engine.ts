@@ -77,7 +77,19 @@ Pass only if the evidence plausibly delivers the goal: real, relevant work propo
 Fail if the work is filler (whitespace, renames, README or comment churn, generated boilerplate unrelated to the goal), unrelated to the goal, or a static placeholder that only claims a feature exists without implementing it.
 Reply with passed and one short sentence of reason.`;
 
+// Kept narrow: hackathon repos legitimately contain words like "system prompt" or "model".
+const INJECTION =
+    /ignore (all |any )?(the )?(previous|prior|above|earlier) (instructions|prompts?|rules)|disregard (the |all )?(previous|prior|above) (instructions|prompts?|rules)|(mark|rule|grade|judge) (this|it|the goal|these commits|this goal|me) as (passed|pass|complete|successful)|\b(referee|grader|judge)s?\b[^.\n]{0,40}\b(must|should|will) (pass|approve|accept)|<\/?untrusted_/i;
+
 async function substance(goalText: string, evidence: unknown): Promise<{ check: Check | null; votes: ModelVote[]; split: boolean }> {
+    // Instructions aimed at the referee are cheating on their face; no model gets a chance to obey them.
+    const injection = INJECTION.exec(JSON.stringify(evidence));
+    if (injection)
+        return {
+            check: { name: 'substance', passed: false, detail: `Evidence contains instructions addressed to the referee ("${injection[0].slice(0, 60)}").` },
+            votes: [],
+            split: false,
+        };
     // No model configured: deterministic checks only (PLAN section 7 fallback).
     if (!modelsReady()) return { check: null, votes: [], split: false };
     const user = `${quote('goal', goalText)}\n\n${quote('evidence', evidence)}\n\nDoes the evidence plausibly deliver the goal?`;
@@ -325,3 +337,4 @@ export function override(goalId: number, passed: boolean, note: string): Verdict
 }
 
 export { nowIso };
+export { INJECTION as _injection };
