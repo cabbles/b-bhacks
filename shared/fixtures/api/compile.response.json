@@ -1,0 +1,20 @@
+{
+  "criteria": {
+    "version": 1,
+    "type": "github_commits",
+    "staker": "0x1111111111111111111111111111111111111111",
+    "goal_text": "Ship the dark mode toggle to my portfolio repo",
+    "window": {
+      "start": "2026-10-11T22:20:00Z",
+      "deadline": "2026-10-11T23:05:00Z"
+    },
+    "nonce": "ref-1a2b3c4d",
+    "params": {
+      "repo": "octocat/portfolio",
+      "branch": "main",
+      "min_commits": 2
+    }
+  },
+  "goal_hash": "0x3e5c02e53300b935e6edb8c6962e480928f0a50736085a4044ce1b23ff2e145b",
+  "summary": "Push at least 2 new commits to octocat/portfolio (main) before 23:05 UTC."
+}

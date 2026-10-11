@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "type": "url_live",
+  "staker": "0x2222222222222222222222222222222222222222",
+  "goal_text": "Launch my project landing page with a signup form",
+  "window": {
+    "start": "2026-10-11T22:20:00Z",
+    "deadline": "2026-10-11T23:05:00Z"
+  },
+  "nonce": "ref-5e6f7a8b",
+  "params": {
+    "url": "https://example.dev/launch",
+    "must_contain": "Join the waitlist"
+  }
+}

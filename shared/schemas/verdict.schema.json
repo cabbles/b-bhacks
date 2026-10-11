@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verdict.schema.json",
+  "title": "Verdict (PLAN.md 4.3)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "cohort_id", "staker", "goal_hash", "passed", "checks", "reasons", "evidence", "model_votes", "human_override", "decided_at"],
+  "properties": {
+    "version": { "const": 1 },
+    "cohort_id": { "type": "integer", "minimum": 0 },
+    "staker": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "goal_hash": { "type": "string", "pattern": "^0x[0-9a-f]{64}$" },
+    "passed": { "type": "boolean" },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "passed", "detail"],
+        "properties": {
+          "name": {
+            "enum": ["repo_control", "commits_in_window", "substance", "url_control", "url_content", "not_live_at_stake", "canvas_submitted", "canvas_min_bytes"]
+          },
+          "passed": { "type": "boolean" },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "reasons": { "type": "string" },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref", "first_seen"],
+        "properties": {
+          "kind": { "type": "string" },
+          "ref": { "type": "string" },
+          "first_seen": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "model_votes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["model", "passed"],
+        "properties": { "model": { "type": "string" }, "passed": { "type": "boolean" } }
+      }
+    },
+    "human_override": { "type": "boolean" },
+    "decided_at": { "type": "string", "format": "date-time" }
+  }
+}

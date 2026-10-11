@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "type": "canvas_submission",
+  "staker": "0x1111111111111111111111111111111111111111",
+  "goal_text": "Submit CS 61B project 2",
+  "window": {
+    "start": "2026-10-11T22:20:00Z",
+    "deadline": "2026-10-11T23:05:00Z"
+  },
+  "nonce": "ref-9c0d1e2f",
+  "params": {
+    "course_id": 1234567,
+    "assignment_id": 7654321,
+    "min_bytes": 1
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "cohort_id": 1,
+  "staker": "0x2222222222222222222222222222222222222222",
+  "goal_hash": "0x561e69d6b3ccaaf6d16eb9b8dfc55f46e423d924dedddb9132d262c22be536f1",
+  "passed": false,
+  "checks": [
+    {
+      "name": "not_live_at_stake",
+      "passed": true,
+      "detail": "target text absent at stake time"
+    },
+    {
+      "name": "url_control",
+      "passed": true,
+      "detail": "nonce found in /.well-known/referee.txt"
+    },
+    {
+      "name": "url_content",
+      "passed": false,
+      "detail": "target text not found"
+    }
+  ],
+  "reasons": "The page was reachable but never showed \"Join the waitlist\" before the deadline.",
+  "evidence": [
+    {
+      "kind": "url_snapshot",
+      "ref": "https://example.dev/launch#sha256=9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "first_seen": "2026-10-11T23:05:20Z"
+    }
+  ],
+  "model_votes": [],
+  "human_override": false,
+  "decided_at": "2026-10-11T23:05:30Z"
+}

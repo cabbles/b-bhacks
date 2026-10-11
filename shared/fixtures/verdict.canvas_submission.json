@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "cohort_id": 1,
+  "staker": "0x1111111111111111111111111111111111111111",
+  "goal_hash": "0x1472dbd87e0c01c461016becc26ff32a87d2aea76b452d35f48b617ca41cd3d9",
+  "passed": true,
+  "checks": [
+    {
+      "name": "canvas_submitted",
+      "passed": true,
+      "detail": "submitted at 2026-10-11T22:58:01Z"
+    },
+    {
+      "name": "canvas_min_bytes",
+      "passed": true,
+      "detail": "48213 bytes attached"
+    }
+  ],
+  "reasons": "Canvas shows the assignment submitted inside the window with a file attached.",
+  "evidence": [
+    {
+      "kind": "canvas_attachment",
+      "ref": "99887766",
+      "first_seen": "2026-10-11T23:05:10Z"
+    }
+  ],
+  "model_votes": [],
+  "human_override": false,
+  "decided_at": "2026-10-11T23:05:30Z"
+}
