@@ -247,7 +247,10 @@ app.post('/admin/settle', async (req, reply) => {
 // Claims every claimable stake in a cohort. Funds go to stakers only (claimFor).
 app.post('/admin/claim-all', async (req, reply) => {
     if (!admin(req, reply)) return;
-    const cohortId = BigInt((req.body as any)?.cohort_id ?? 0);
+    return { claimed: await claimAll(BigInt((req.body as any)?.cohort_id ?? 0)) };
+});
+
+async function claimAll(cohortId: bigint) {
     const pool = requirePool();
     const logs = await publicClient.getContractEvents({
         address: pool,
@@ -273,8 +276,36 @@ app.post('/admin/claim-all', async (req, reply) => {
             results.push({ staker, error: reason(err) });
         }
     }
-    return { claimed: results };
-});
+    return results;
+}
+
+// ---- keeper: settle each cohort once it can be settled, then pay every staker. KEEPER=0 disables. ----
+const SETTLE_GRACE_S = 60; // give late verdicts a minute past the contract's 10-minute window
+const paidOut = new Set<number>();
+let keeperBusy = false;
+async function keeperTick() {
+    if (keeperBusy || !deployments.pool) return;
+    keeperBusy = true;
+    try {
+        cohortCache.at = 0;
+        const now = Math.floor(Date.now() / 1000);
+        for (const c of await cohorts()) {
+            if (paidOut.has(c.id) || now < c.goal_deadline + 600 + SETTLE_GRACE_S) continue;
+            if (!c.settled) {
+                const { hash } = await send({ address: deployments.pool, abi: poolAbi, functionName: 'settle', args: [BigInt(c.id)] });
+                app.log.info(`keeper: settled cohort ${c.id} ${hash}`);
+            }
+            const claimed = await claimAll(BigInt(c.id));
+            for (const r of claimed) app.log.info(`keeper: cohort ${c.id} ${r.staker} ${r.tx_hash ?? r.error}`);
+            if (claimed.every((r) => r.tx_hash)) paidOut.add(c.id);
+        }
+    } catch (err) {
+        app.log.error(`keeper: ${reason(err)}`);
+    } finally {
+        keeperBusy = false;
+    }
+}
+if (env.KEEPER !== '0') setInterval(() => void keeperTick(), 30_000);
 
 await app.listen({ port: PORT, host: '0.0.0.0' });
 app.log.info(`relayer: treasury ${treasury.address}, pool ${deployments.pool}, domain ${tokenDomain.name}/${tokenDomain.version}`);
