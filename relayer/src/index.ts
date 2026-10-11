@@ -111,7 +111,7 @@ const ipHits = new Map<string, number[]>();
 function ipAllowed(ip: string) {
     const now = Date.now();
     const hits = (ipHits.get(ip) ?? []).filter((t) => now - t < 60 * 60_000);
-    if (hits.length >= 20) return false;
+    if (hits.length >= 500) return false; // venue Wi-Fi puts many phones behind one IP
     hits.push(now);
     ipHits.set(ip, hits);
     return true;
@@ -143,7 +143,7 @@ app.post('/drip', async (req, reply) => {
     } catch (err) {
         db.prepare('DELETE FROM drips WHERE address = ?').run(key); // let them retry
         logTx('drip', { address }, null, reason(err));
-        return bad(reply, 502, `drip failed: ${reason(err)}`);
+        return bad(reply, 500, `drip failed: ${reason(err)}`);
     }
 });
 
