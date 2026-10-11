@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { config } from './config.ts';
-import { getCohort } from './chain.ts';
+import { getCohort, getOpenCohort } from './chain.ts';
 import { quote, structuredCall } from './model.ts';
 import { type Criteria, type GoalType, hashJson } from './types.ts';
 
@@ -120,10 +120,12 @@ export async function compileGoal(input: CompileInput) {
 }
 
 async function resolveDeadline(input: CompileInput): Promise<string> {
-    if (input.cohort_id !== undefined) {
-        const cohort = await getCohort(input.cohort_id).catch(() => null);
-        if (cohort) return new Date(cohort.goal_deadline * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
-    }
+    // The goal deadline is the cohort's; without cohort_id, use the cohort open for staking.
+    const cohort =
+        input.cohort_id !== undefined
+            ? await getCohort(input.cohort_id).catch(() => null)
+            : await getOpenCohort().catch(() => null);
+    if (cohort) return new Date(cohort.goal_deadline * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
     if (input.deadline) {
         const d = new Date(input.deadline);
         if (!Number.isNaN(d.getTime())) return d.toISOString().replace(/\.\d{3}Z$/, 'Z');

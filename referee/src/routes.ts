@@ -10,20 +10,20 @@ import { hashJson, type Criteria } from './types.ts';
 
 export const ATTACK_CATEGORIES = [
     'backdated_commits',
-    'foreign_repo',
+    'someone_elses_repo',
     'filler_commits',
     'prompt_injection',
-    'fake_page',
+    'fake_static_page',
     'other',
 ] as const;
 
 function guessCategory(note: string): string {
     const n = note.toLowerCase();
     if (/backdat|--date|old commit|timestamp/.test(n)) return 'backdated_commits';
-    if (/someone else|other.*repo|fork|not my repo/.test(n)) return 'foreign_repo';
+    if (/someone else|other.*repo|fork|not my repo/.test(n)) return 'someone_elses_repo';
     if (/whitespace|filler|readme|churn|empty commit/.test(n)) return 'filler_commits';
     if (/ignore|instruction|prompt|inject|mark .*pass/.test(n)) return 'prompt_injection';
-    if (/static|fake|placeholder|mock/.test(n)) return 'fake_page';
+    if (/static|fake|placeholder|mock/.test(n)) return 'fake_static_page';
     return 'other';
 }
 
@@ -111,9 +111,13 @@ export async function routes(app: FastifyInstance) {
             return bad(reply, 400, 'Canvas goals are limited to the team demo account');
 
         const isAttack = Boolean(b.is_attack);
-        const note = isAttack ? String(b.attack_note ?? '').slice(0, 500) : null;
+        // Web sends the category as a "[category] note" prefix; an explicit attack_category also works.
+        const raw = isAttack ? String(b.attack_note ?? '') : '';
+        const prefix = /^\[([a-z_]+)\]\s*/.exec(raw);
+        const note = isAttack ? (prefix ? raw.slice(prefix[0].length) : raw).slice(0, 500) : null;
+        const declared = b.attack_category ?? prefix?.[1];
         const category = isAttack
-            ? ATTACK_CATEGORIES.includes(b.attack_category) ? b.attack_category : guessCategory(note ?? '')
+            ? ATTACK_CATEGORIES.includes(declared) ? declared : guessCategory(note ?? '')
             : null;
         const info = db.prepare(
             `INSERT INTO goals (cohort_id, staker, goal_hash, type, criteria_json, stake_tx_hash, cohort_goal_deadline,

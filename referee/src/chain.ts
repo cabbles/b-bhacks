@@ -106,3 +106,21 @@ export async function findPostedVerdict(cohortId: number, staker: string): Promi
     const log = logs[0];
     return log ? { tx: log.transactionHash, evidenceHash: (log.args as any).evidenceHash } : null;
 }
+
+/** The cohort currently open for staking (latest created whose stake deadline has not passed). */
+export async function getOpenCohort(): Promise<Cohort | null> {
+    if (!chainReady()) return null;
+    const logs = await publicClient.getLogs({
+        address: config.pool as Hex,
+        event: poolAbi[1],
+        fromBlock: config.deployBlock,
+        toBlock: 'latest',
+    });
+    const now = Date.now() / 1000;
+    for (const log of [...logs].reverse()) {
+        const id = Number((log.args as any).cohortId);
+        const c = await getCohort(id);
+        if (c && c.stake_deadline > now) return c;
+    }
+    return null;
+}
