@@ -1,6 +1,6 @@
 {
   "chainId": 84532,
-  "address": null,
+  "address": "0x64425c4480b7516725bb30a2cfaa9334b557ede8",
   "stakePool": "0x1470af4526f820DC7Ca5bE70cA77bBf2400e76f9",
-  "deployBlock": null
+  "deployBlock": 47995981
 }
