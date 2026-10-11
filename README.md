@@ -49,11 +49,11 @@ flowchart LR
 ```bash
 cd web
 pnpm install
-cp .env.example .env.local   # leave the URLs empty to run against fixtures
+cp .env.example .env.local   # optional: override URLs or set NEXT_PUBLIC_MOCK=1
 pnpm dev
 ```
 
-When `NEXT_PUBLIC_RELAYER_URL` and `NEXT_PUBLIC_REFEREE_URL` are unset, the app runs in **mock mode**: every screen is served from built-in fixtures and the stake flow signs a real EIP-712 authorization but never sends it.
+Service URLs come from `shared/deployments.json` (`relayer_url`, `referee_url`); `NEXT_PUBLIC_RELAYER_URL` / `NEXT_PUBLIC_REFEREE_URL` override them. A service with no URL is served from fixtures (**mock mode**), each one independently; `NEXT_PUBLIC_MOCK=1` forces fixtures for both, for rehearsals and screenshots. Staking stays disabled until the pool is deployed and both services are live.
 
 | Screen        | Route            |
 | ------------- | ---------------- |

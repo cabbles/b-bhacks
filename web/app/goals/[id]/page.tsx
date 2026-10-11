@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getConfig, getGoal, relayClaim } from "@/lib/api";
 import { MOCK } from "@/lib/env";
+const LIVE = !MOCK;
 import { claimableOf, verifyGoal, type Proof } from "@/lib/verify";
 import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
@@ -34,14 +35,15 @@ export default function GoalPage({ params }: { params: { id: string } }) {
   // Independent checks against the chain; re-run when the verdict or its tx appears.
   const verdictKey = `${g?.status}:${g?.verdict_tx_hash ?? ""}:${claim.tx ?? ""}`;
   useEffect(() => {
-    if (!g || MOCK) return;
+    if (!g || !LIVE) return;
     let alive = true;
     getConfig()
       .then(async (cfg) => {
+        if (!cfg.poolDeployed) return;
         const [p, amount, dec] = await Promise.all([
           verifyGoal(g, cfg.pool),
           g.cohort_id !== undefined ? claimableOf(cfg.pool, g.cohort_id, g.criteria.staker) : null,
-          tokenDecimals(cfg.token),
+          tokenDecimals(cfg.token, cfg.decimals),
         ]);
         if (!alive) return;
         setProofs(p);
@@ -176,7 +178,7 @@ export default function GoalPage({ params }: { params: { id: string } }) {
 
       <div className="space-y-2">
         <h2 className="text-lg font-bold">Check it yourself</h2>
-        {MOCK ? (
+        {!LIVE ? (
           <p className="text-sm text-zinc-500">Hash and on-chain checks run against live data only.</p>
         ) : !proofs ? (
           <Spinner />

@@ -19,7 +19,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
   const [joinUrl, setJoinUrl] = useState("");
 
   useEffect(() => {
-    getConfig().then((c) => tokenDecimals(c.token).then(setDec)).catch(() => {});
+    getConfig().then((c) => tokenDecimals(c.token, c.decimals).then(setDec)).catch(() => {});
     setJoinUrl(`${WEB_URL || window.location.origin}/stake?cohort=${id}`);
   }, [id]);
 

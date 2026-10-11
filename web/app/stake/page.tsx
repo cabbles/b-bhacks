@@ -5,7 +5,7 @@ import { compileGoal, getConfig, relayStake, submitGoal } from "@/lib/api";
 import { countdown, fmtTime, useNow } from "@/lib/time";
 import { ATTACK_CATEGORIES, ATTACK_LABEL, type AttackCategory, type CompileResponse, type GoalType, type RelayerConfig } from "@/lib/types";
 import { goalHashOf } from "@/lib/hashes";
-import { MOCK } from "@/lib/env";
+import { MOCK_REFEREE, MOCK_RELAYER } from "@/lib/env";
 import { fmtAmount, rememberGoal, signStakeAuthorization, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Spinner } from "@/components/ui";
@@ -50,7 +50,7 @@ function StakeInner() {
         const q = Number(params.get("cohort"));
         const open = c.cohorts.filter((x) => x.stake_deadline * 1000 > Date.now());
         setCohortId(c.cohorts.some((x) => x.id === q) ? q : (open[0]?.id ?? c.cohorts[0]?.id ?? null));
-        tokenDecimals(c.token).then(setDec);
+        tokenDecimals(c.token, c.decimals).then(setDec);
       })
       .catch((e: Error) => setErr(e.message));
   }, [params]);
@@ -63,6 +63,14 @@ function StakeInner() {
   const stakeAmount = cohort ? BigInt(cohort.stake_amount) : 0n;
   const closed = cohort ? cohort.stake_deadline * 1000 <= now : true;
   const short = bal !== null && bal < stakeAmount;
+  // A real stake needs a deployed pool, and both services live (or both mocked, for rehearsal).
+  const blocked = !cfg
+    ? null
+    : MOCK_RELAYER !== MOCK_REFEREE
+      ? `Staking opens when the ${MOCK_REFEREE ? "referee" : "relayer"} is online.`
+      : !cfg.poolDeployed
+        ? "Staking opens once the pool contract is deployed."
+        : null;
 
   async function onCompile() {
     if (!account || !text.trim()) return;
@@ -78,7 +86,7 @@ function StakeInner() {
         cohort_id: cohort?.id,
       });
       // We sign over goal_hash, so recompute it from the criteria instead of trusting the referee's value.
-      if (!MOCK && goalHashOf(c.criteria) !== c.goal_hash) throw new Error("Referee returned a goal_hash that does not match the criteria.");
+      if (!MOCK_REFEREE && goalHashOf(c.criteria) !== c.goal_hash) throw new Error("Referee returned a goal_hash that does not match the criteria.");
       setCompiled(c);
     } catch (e) {
       setErr((e as Error).message);
@@ -209,6 +217,7 @@ function StakeInner() {
         )}
       </div>
 
+      {blocked && <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">{blocked}</div>}
       <ErrorBox msg={err} />
 
       {compiled && (
@@ -241,7 +250,7 @@ function StakeInner() {
 
           <div className="flex gap-3">
             <button className="btn-ghost" disabled={!!busy} onClick={() => setCompiled(null)}>Edit</button>
-            <button className="btn-primary flex-1" disabled={!confirmed || !!busy || closed || short} onClick={onStake}>
+            <button className="btn-primary flex-1" disabled={!confirmed || !!busy || closed || short || !!blocked} onClick={onStake}>
               {busy ? <><Spinner />&nbsp;{busy}</> : short ? "Not enough AUSD yet" : "Stake"}
             </button>
           </div>

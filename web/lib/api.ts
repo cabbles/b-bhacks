@@ -1,4 +1,4 @@
-import { MOCK, REFEREE_URL, RELAYER_URL } from "./env";
+import { MOCK_REFEREE, MOCK_RELAYER, REFEREE_URL, RELAYER_URL } from "./env";
 import * as fx from "./fixtures";
 import type {
   Attack,
@@ -26,6 +26,7 @@ async function http<T>(base: string, path: string, init?: RequestInit): Promise<
   } catch {
     body = { error: text };
   }
+  if (res.status === 409 && (body as { tx_hash?: string })?.tx_hash) return body as T; // e.g. "already dripped"
   if (!res.ok) {
     const msg = (body as { error?: string; message?: string })?.error || (body as { message?: string })?.message || res.statusText;
     throw new Error(`${path}: ${msg}`);
@@ -52,13 +53,22 @@ export function normalizeCohort(c: Record<string, unknown>): Cohort {
 // ---------- Relayer ----------
 
 export async function getConfig(): Promise<RelayerConfig> {
-  if (MOCK) return fx.fxConfig;
-  const c = await http<RelayerConfig & { cohorts: Record<string, unknown>[] }>(RELAYER_URL, "/config");
-  return { ...c, cohorts: (c.cohorts || []).map(normalizeCohort) };
+  if (MOCK_RELAYER) return fx.fxConfig;
+  const c = await http<Omit<RelayerConfig, "pool" | "poolDeployed"> & { pool: `0x${string}` | null; cohorts: Record<string, unknown>[] }>(
+    RELAYER_URL,
+    "/config",
+  );
+  const poolDeployed = !!c.pool && !/^0x0{40}$/i.test(c.pool);
+  return {
+    ...c,
+    pool: c.pool ?? "0x0000000000000000000000000000000000000000",
+    poolDeployed,
+    cohorts: (c.cohorts || []).map(normalizeCohort),
+  };
 }
 
 export async function drip(address: string): Promise<{ tx_hash: string }> {
-  if (MOCK) return delay(300).then(() => ({ tx_hash: fx.FX_TX }));
+  if (MOCK_RELAYER) return delay(300).then(() => ({ tx_hash: fx.FX_TX }));
   return http(RELAYER_URL, "/drip", post({ address }));
 }
 
@@ -68,12 +78,12 @@ export async function relayStake(args: {
   goal_hash: string;
   authorization: Authorization;
 }): Promise<{ tx_hash: string }> {
-  if (MOCK) return delay(600).then(() => ({ tx_hash: fx.FX_TX }));
+  if (MOCK_RELAYER) return delay(600).then(() => ({ tx_hash: fx.FX_TX }));
   return http(RELAYER_URL, "/stake", post(args));
 }
 
 export async function relayClaim(cohort_id: number, staker: string): Promise<{ tx_hash: string }> {
-  if (MOCK) return delay(300).then(() => ({ tx_hash: fx.FX_TX }));
+  if (MOCK_RELAYER) return delay(300).then(() => ({ tx_hash: fx.FX_TX }));
   return http(RELAYER_URL, "/claim", post({ cohort_id, staker }));
 }
 
@@ -86,7 +96,7 @@ export async function compileGoal(args: {
   /** Makes the referee use the cohort's goal deadline; without it POST /goals can reject the criteria. */
   cohort_id?: number;
 }): Promise<CompileResponse> {
-  if (MOCK) return delay(700).then(() => fx.fxCompile(args.text, args.staker, args.type_hint));
+  if (MOCK_REFEREE) return delay(700).then(() => fx.fxCompile(args.text, args.staker, args.type_hint));
   return http(REFEREE_URL, "/goals/compile", post(args));
 }
 
@@ -126,7 +136,7 @@ export async function submitGoal(args: {
   attack_category?: AttackCategory;
   attack_note?: string;
 }): Promise<{ goal_id: number | string }> {
-  if (MOCK) {
+  if (MOCK_REFEREE) {
     const goal_id = "m" + Date.now().toString(36);
     const all = mockGoals();
     all[goal_id] = {
@@ -148,7 +158,7 @@ export async function submitGoal(args: {
 }
 
 export async function getGoal(id: string): Promise<GoalResponse> {
-  if (MOCK) {
+  if (MOCK_REFEREE) {
     const m = mockGoals()[id];
     const g = fx.fxGoal(id) || (m && judged(m));
     if (!g) throw new Error(`goal ${id} not found`);
@@ -158,7 +168,7 @@ export async function getGoal(id: string): Promise<GoalResponse> {
 }
 
 export async function getCohort(id: number): Promise<CohortResponse> {
-  if (MOCK) {
+  if (MOCK_REFEREE) {
     const base = fx.fxCohort();
     const mine = Object.entries(mockGoals())
       .filter(([, g]) => (g.cohort_id ?? 1) === id)
@@ -194,7 +204,7 @@ export async function getCohort(id: number): Promise<CohortResponse> {
 }
 
 export async function getAttacks(): Promise<Attack[]> {
-  if (MOCK) {
+  if (MOCK_REFEREE) {
     const mine: Attack[] = Object.entries(mockGoals())
       .filter(([, g]) => g.is_attack)
       .map(([goal_id, g]) => {

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
-import { MOCK } from "@/lib/env";
+import { MOCK, MOCK_REFEREE, MOCK_RELAYER } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "AI Referee",
@@ -27,7 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         {MOCK && (
           <div className="bg-amber-500/15 px-4 py-1 text-center text-xs text-amber-300">
-            Mock mode: backend URLs not set, showing fixtures.
+            Mock mode: {MOCK_RELAYER && MOCK_REFEREE ? "relayer and referee" : MOCK_RELAYER ? "relayer" : "referee"} not
+            configured, showing fixtures.
           </div>
         )}
         <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>

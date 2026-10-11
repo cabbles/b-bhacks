@@ -36,6 +36,7 @@ const WINDOW = { start: iso(COHORT.stake_deadline - 30 * 60), deadline: iso(COHO
 export const fxConfig: RelayerConfig = {
   ...(cfgJson as unknown as RelayerConfig),
   pool: "0x000000000000000000000000000000000000dEaD",
+  poolDeployed: true,
   token: "0x000000000000000000000000000000000000bEEF",
   cohorts: [COHORT],
 };

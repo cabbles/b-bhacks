@@ -24,7 +24,7 @@ export default function JoinPage() {
 
   useEffect(() => {
     if (!cfg || !account) return;
-    tokenDecimals(cfg.token).then(setDec);
+    tokenDecimals(cfg.token, cfg.decimals).then(setDec);
     const load = () => tokenBalance(cfg.token, account.address).then(setBal);
     load();
     const t = setInterval(load, 8000);

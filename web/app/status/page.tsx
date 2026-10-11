@@ -4,7 +4,7 @@ import { baseSepolia } from "viem/chains";
 import { client, poolAbi } from "@/lib/chain";
 import { authNonce } from "@/lib/erc3009";
 import { getConfig } from "@/lib/api";
-import { addrUrl, MOCK, REFEREE_URL, RELAYER_URL } from "@/lib/env";
+import { addrUrl, MOCK_REFEREE, MOCK_RELAYER, REFEREE_URL, RELAYER_URL } from "@/lib/env";
 import type { RelayerConfig } from "@/lib/types";
 import { fmtAmount, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 
@@ -31,9 +31,10 @@ export default function StatusPage() {
     };
     setRows([]);
     (async () => {
-      push({ name: "Mode", ok: !MOCK, detail: MOCK ? "Mock (fixtures). Set NEXT_PUBLIC_RELAYER_URL and NEXT_PUBLIC_REFEREE_URL." : "Live" });
+      push({ name: "Relayer mode", ok: !MOCK_RELAYER, detail: MOCK_RELAYER ? "fixtures (no relayer_url in shared/deployments.json or NEXT_PUBLIC_RELAYER_URL)" : RELAYER_URL });
+      push({ name: "Referee mode", ok: !MOCK_REFEREE, detail: MOCK_REFEREE ? "fixtures (no referee_url in shared/deployments.json or NEXT_PUBLIC_REFEREE_URL)" : REFEREE_URL });
 
-      if (!MOCK) {
+      if (!MOCK_REFEREE) {
         try {
           const [r, ms] = await timed(() => fetch(REFEREE_URL + "/health", { cache: "no-store" }).then((x) => x.json()));
           push({ name: "Referee /health", ok: r?.ok === true, detail: `${REFEREE_URL} · ${ms} ms` });
@@ -47,7 +48,7 @@ export default function StatusPage() {
         const [r, ms] = await timed(getConfig);
         c = r;
         setCfg(r);
-        push({ name: "Relayer /config", ok: true, detail: `${MOCK ? "fixture" : RELAYER_URL} · ${ms} ms · ${r.cohorts.length} cohort(s)` });
+        push({ name: "Relayer /config", ok: true, detail: `${MOCK_RELAYER ? "fixture" : RELAYER_URL} · ${ms} ms · ${r.cohorts.length} cohort(s)` });
       } catch (e) {
         push({ name: "Relayer /config", ok: false, detail: (e as Error).message });
       }
@@ -55,8 +56,10 @@ export default function StatusPage() {
 
       push({ name: "Chain", ok: c.chainId === baseSepolia.id, detail: `chainId ${c.chainId} (expected ${baseSepolia.id})` });
 
-      if (!MOCK) {
-        for (const [label, addr] of [["Pool contract", c.pool], ["Token contract", c.token]] as const) {
+      if (!MOCK_RELAYER && !c.poolDeployed) push({ name: "Pool contract", ok: false, detail: "not deployed yet (pool is null in /config)" });
+      if (!MOCK_RELAYER) {
+        const contracts = c.poolDeployed ? ([["Pool contract", c.pool], ["Token contract", c.token]] as const) : ([["Token contract", c.token]] as const);
+        for (const [label, addr] of contracts) {
           try {
             const code = await client.getCode({ address: addr });
             push({ name: label, ok: !!code && code !== "0x", detail: <a className="link font-mono" href={addrUrl(addr)} target="_blank" rel="noreferrer">{addr}</a> });
@@ -66,17 +69,19 @@ export default function StatusPage() {
         }
 
         // The stake signature's nonce must equal the pool's authNonce, or every stake reverts with BadNonce.
-        const probe = "0x3e5c02e53300b935e6edb8c6962e480928f0a50736085a4044ce1b23ff2e145b" as const;
-        try {
-          const onChain = await client.readContract({ address: c.pool, abi: poolAbi, functionName: "authNonce", args: [1n, probe] });
-          const ok = onChain === authNonce(1, probe);
-          push({ name: "Stake nonce rule", ok, detail: ok ? "web authNonce matches pool.authNonce" : `pool ${onChain} vs web ${authNonce(1, probe)}` });
-        } catch (e) {
-          push({ name: "Stake nonce rule", ok: false, detail: `pool.authNonce failed: ${(e as Error).message.split("\n")[0]}` });
+        if (c.poolDeployed) {
+          const probe = "0x3e5c02e53300b935e6edb8c6962e480928f0a50736085a4044ce1b23ff2e145b" as const;
+          try {
+            const onChain = await client.readContract({ address: c.pool, abi: poolAbi, functionName: "authNonce", args: [1n, probe] });
+            const ok = onChain === authNonce(1, probe);
+            push({ name: "Stake nonce rule", ok, detail: ok ? "web authNonce matches pool.authNonce" : `pool ${onChain} vs web ${authNonce(1, probe)}` });
+          } catch (e) {
+            push({ name: "Stake nonce rule", ok: false, detail: `pool.authNonce failed: ${(e as Error).message.split("\n")[0]}` });
+          }
         }
       }
 
-      const dec = await tokenDecimals(c.token);
+      const dec = await tokenDecimals(c.token, c.decimals);
       push({ name: "Token", ok: true, detail: `EIP-712 domain "${c.tokenDomain.name}" v${c.tokenDomain.version} · ${dec} decimals` });
 
       const now = Date.now() / 1000;
@@ -93,7 +98,7 @@ export default function StatusPage() {
   const [dec, setDec] = useState(6);
   useEffect(() => {
     if (!cfg || !account) return;
-    tokenDecimals(cfg.token).then(setDec);
+    tokenDecimals(cfg.token, cfg.decimals).then(setDec);
     tokenBalance(cfg.token, account.address).then(setBal);
   }, [cfg, account, dripState, run]);
 

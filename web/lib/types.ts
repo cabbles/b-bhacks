@@ -104,7 +104,10 @@ export type Attack = {
 
 export type RelayerConfig = {
   chainId: number;
+  /** Placeholder zero address until the pool is deployed (relayer sends null; getConfig normalizes). */
   pool: `0x${string}`;
+  poolDeployed: boolean;
+  decimals?: number;
   token: `0x${string}`;
   tokenDomain: { name: string; version: string };
   cohorts: Cohort[];
