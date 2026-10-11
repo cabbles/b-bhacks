@@ -1,4 +1,4 @@
-# AI Referee
+# Cash Cow
 
 > **Testnet only.** Everything runs on Base Sepolia with free test AUSD. Nothing here has real value.
 
@@ -6,7 +6,7 @@ Put testnet AUSD behind any task with a deadline. An AI referee gathers the evid
 
 Today the referee checks two kinds of evidence: commits pushed to a public GitHub repo, and a public page going live with the promised content. (A Canvas check exists for the team's own account only.)
 
-Live app: [AI Referee](https://considering-particles-fraction-bool.trycloudflare.com). This laptop tunnel must stay running during the demo.
+Live app: [Cash Cow](https://considering-particles-fraction-bool.trycloudflare.com). This laptop tunnel must stay running during the demo.
 
 Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 
@@ -15,14 +15,12 @@ Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 1. **The referee observes evidence itself.** It never trusts uploads or claimed timestamps. It records when it first saw each commit, so a commit backdated with `git commit --date` does not count.
 2. **It is built to be hard to cheat.** Control proofs, first-seen timing, a two-model substance check, and prompt-injection hardening run on every task. We attack it ourselves with scripted cheats (`redteam/`) and publish the results on the Integrity page, including anything it missed. Cheating is something the system prevents, not a feature.
 3. **Every ruling is checkable, and the referee cannot profit.** Verdicts are hashed and posted on-chain, and the browser re-verifies them. The contract has no owner withdrawal; if no verdict is posted, the staker gets a full refund.
-4. **Agents pay the referee per ruling in AUSD over x402; groups never pay.** Other apps and AI agents can buy a one-off ruling for 0.10 AUSD with HTTP `402 Payment Required` and a gasless ERC-3009 signature, and get back a ruling signed by the referee key. Payment settles only after the ruling is delivered. Details: [`referee/README.md`](referee/README.md#x402-the-referee-as-a-paid-api).
+4. **Agents pay the referee per ruling in AUSD over x402; stakers never pay.** Other apps and AI agents can buy a one-off ruling for 0.10 AUSD with HTTP `402 Payment Required` and a gasless ERC-3009 signature, and get back a ruling signed by the referee key. Payment settles only after the ruling is delivered. Details: [`referee/README.md`](referee/README.md#x402-the-referee-as-a-paid-api).
 
-## Groups: do it with friends
+## Two core features
 
-A feature on top of the core product, for school work (full proposal: [`docs/PIVOT.md`](docs/PIVOT.md)).
-
-- **Live now: the commitment stake.** Friends join the same market and each stakes on their own task. Start a group with its own stake and deadlines, then split a group project three ways at `/split`: each friend gets an invite link with their task filled in. Whoever delivers gets their stake back plus an equal share of the stakes of whoever did not. No house, no fee.
-- **Implemented, awaiting testnet activation: public YES/NO betting on each task.** A separate `MarketPool` takes signed AUSD bets and resolves from the final verdict on `StakePool`. The owner’s wallet cannot bet NO. Winners share the betting pot; missing verdicts or an empty winning side mean refunds. Contract tests, relayer routes, and goal-page betting/claim controls are included. See [deployment and rules](docs/market-pool.md).
+- **Individual: bet on yourself (live).** Stake AUSD on your own task. Deliver and you get your stake back plus an equal share of the stakes of everyone in the same round who missed theirs; miss it and you lose it. No house, no fee.
+- **Market: bet on whether someone finishes (contract deployed on Base Sepolia at `0x64425c4480B7516725BB30a2CFAa9334b557eDE8`).** Anyone can bet YES or NO on any task. A separate `MarketPool` takes signed AUSD bets and resolves from the final verdict on `StakePool`. The owner’s wallet cannot bet NO. Winners share the betting pot; missing verdicts or an empty winning side mean refunds. Contract tests, relayer routes, and goal-page betting/claim controls are included. See [deployment and rules](docs/market-pool.md).
 
 ## Sponsor tracks
 
@@ -30,7 +28,7 @@ A feature on top of the core product, for school work (full proposal: [`docs/PIV
 | ----- | -------------------- |
 | **Best Use of AUSD** | Every stake and payout is AUSD on Base Sepolia, moved with ERC-3009 `ReceiveWithAuthorization` so users never hold gas. The referee is also a paid API: agents buy rulings over **x402** with ERC-3009 `TransferWithAuthorization` (live, tested on-chain). |
 | **YZi Labs** | A trusted AI agent that moves money: every decision is hashed and posted on-chain, re-verified in the browser, and red-teamed in public (13 attacks, 0 missed). The contract gives the operator no way to take funds. |
-| **General (Most Creative)** | An AI referee that gathers its own evidence instead of trusting uploads, plus Groups for school work. |
+| **General (Most Creative)** | An AI referee that gathers its own evidence instead of trusting uploads, plus a YES/NO market on whether people actually finish. |
 
 ## How it works
 
@@ -59,7 +57,7 @@ flowchart LR
 | `contracts/` | `StakePool.sol`, Foundry tests, deploy script                |
 | `relayer/`   | Gas relayer, AUSD drip, claim trigger                        |
 | `referee/`   | Referee API, evidence collectors, verdict engine             |
-| `web/`       | Next.js app (join, stake, verdict, market, groups, integrity)  |
+| `web/`       | Next.js app (join, stake, verdict, market, integrity)  |
 | `redteam/`   | Scripted cheats and results table                            |
 | `shared/`    | Schemas, ABI, deployments, fixtures, canonical JSON helper   |
 | `docs/`      | Demo script and screenshots                                  |
@@ -81,7 +79,6 @@ Service URLs come from `shared/deployments.json` (`relayer_url`, `referee_url`);
 | Stake         | `/stake?cohort=1`|
 | Goal/verdict  | `/goals/:id`     |
 | Market (current: `/cohorts`) | `/cohorts/:id` |
-| Groups: split a project three ways | `/split` |
 | Integrity (safeguards, test results) | `/integrity` |
 | System status (pre-flight) | `/status` |
 
@@ -91,7 +88,7 @@ In mock mode, a goal you stake is judged 20 seconds later, so you can rehearse t
 
 ### Deploying the web app
 
-Either way, set `NEXT_PUBLIC_REFEREE_URL` (and `NEXT_PUBLIC_RELAYER_URL`) if they are not yet in `shared/deployments.json`, and set `NEXT_PUBLIC_WEB_URL` to the public URL so group invite links point at it.
+Either way, set `NEXT_PUBLIC_REFEREE_URL` (and `NEXT_PUBLIC_RELAYER_URL`) if they are not yet in `shared/deployments.json`, and set `NEXT_PUBLIC_WEB_URL` to the public URL.
 
 - **Vercel (recommended, stable URL, no laptop):** import the repo, set Root Directory to `web`, keep the Next.js preset, add the env vars above. The app imports `../shared` and Vercel includes files outside the root directory by default.
 - **Team laptop:** `nohup web/scripts/run-live.sh > /dev/null 2>&1 &` builds and serves on port 3000 with auto-restart. Add `WEB_TUNNEL=cloudflared` (or `WEB_TUNNEL=ngrok NGROK_URL=...`) for a public URL. Logs are in `web/logs/`.

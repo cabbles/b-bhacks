@@ -60,6 +60,7 @@ export default function JoinPage() {
         <ol className="mt-16 max-w-xl">
           {[
             ["Any task with evidence", "Today: code pushed to a public repo, or a page that goes live with the content you promised. You describe the task; the referee turns it into exact criteria."],
+            ["Or bet on someone else", "Anyone can bet YES or NO on whether a person finishes. The same on-chain verdict settles the bets; the person's own stake is never touched."],
             ["It looks for itself", "It reads the evidence directly and ignores uploads and claimed timestamps, so old or borrowed work does not count."],
             ["Every ruling is checkable", "Each verdict is posted on-chain with a hash of its full reasoning. Your browser recomputes it and compares."],
             ["Nobody can take the money", "The contract has no owner withdrawal. If no verdict is posted, everyone is refunded."],

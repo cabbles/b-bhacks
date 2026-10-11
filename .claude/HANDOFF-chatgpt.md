@@ -1,10 +1,10 @@
-# Handoff: AI Referee (B@BHacks 2.0), Agent C / web
+# Handoff: Cash Cow (B@BHacks 2.0), Agent C / web
 
 Paste this into a new chat to continue the work. Date: Sun Oct 11 2026, around 3:35 PT. **Code freeze is at 4:20 PT.**
 
 ## 1. The project
 
-**AI Referee.** You put testnet AUSD behind any task with a deadline. An AI referee gathers the evidence itself, rules pass or fail with reasons, and posts the verdict on-chain where anyone can check it. Stakes from missed tasks go to the people who finished. The operator has no way to withdraw.
+**Cash Cow.** You put testnet AUSD behind any task with a deadline. An AI referee gathers the evidence itself, rules pass or fail with reasons, and posts the verdict on-chain where anyone can check it. Stakes from missed tasks go to the people who finished. The operator has no way to withdraw.
 
 - **Evidence types today:**
   - commits pushed to a public GitHub repo;

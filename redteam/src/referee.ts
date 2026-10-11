@@ -55,7 +55,7 @@ async function gh(method: string, path: string, body?: unknown) {
 }
 
 async function createRepo(name: string) {
-    await gh('POST', '/user/repos', { name, auto_init: true, private: false, description: 'AI Referee red-team throwaway (B@BHacks). Safe to delete.' });
+    await gh('POST', '/user/repos', { name, auto_init: true, private: false, description: 'Cash Cow red-team throwaway (B@BHacks). Safe to delete.' });
     await sleep(2000);
     return `${OWNER}/${name}`;
 }
