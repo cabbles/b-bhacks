@@ -158,8 +158,9 @@ write('api/health.response.json', { ok: true });
 write('api/relayer.config.response.json', {
     chainId: 84532,
     pool: '0x0000000000000000000000000000000000000000',
-    token: '0x0000000000000000000000000000000000000000',
-    tokenDomain: { name: 'AUSD', version: '1' },
+    token: '0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC',
+    tokenDomain: { name: 'Agora Dollar', version: '1' },
+    decimals: 6,
     cohorts: [{ id: 1, rule_hash: TX(0x33), stake_deadline: 1791763200, goal_deadline: 1791767100, stake_amount: '10000000' }],
 });
 write('api/relayer.drip.response.json', { tx_hash: TX(0x44) });
