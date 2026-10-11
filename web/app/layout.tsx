@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="ml-auto flex gap-3 whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.12em] text-muted sm:gap-5 sm:text-[11px] sm:tracking-[0.16em]">
               <Link href="/stake" className="hover:text-fg">Stake</Link>
               <Link href="/cohorts/1" className="hover:text-fg">Board</Link>
-              <Link href="/fool" className="hover:text-fg">Fool&nbsp;the&nbsp;Ref</Link>
+              <Link href="/integrity" className="hover:text-fg">Integrity</Link>
             </div>
           </nav>
         </header>

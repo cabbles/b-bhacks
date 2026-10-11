@@ -74,7 +74,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
         <div className="flex items-baseline justify-between">
           <div className="label">Stakers</div>
           <div className="label">
-            {stats.attacks ?? 0} cheat attempts · <Link className="hover:text-fg" href="/fool">Fool the Ref →</Link> · {stats.human_overrides ?? 0} overrides
+            {stats.human_overrides ?? 0} human overrides · <Link className="hover:text-fg" href="/integrity">How it stays fair →</Link>
           </div>
         </div>
         <ul className="border-t border-line">
@@ -84,7 +84,6 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
               <Link href={`/goals/${g.goal_id}`} className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-x-4 border-b border-line py-3 hover:bg-panel">
                 <span className="num text-xs text-muted">{short(g.staker)}</span>
                 <span className="truncate">
-                  {g.is_attack && <span className="num mr-2 text-[10px] uppercase tracking-[0.14em] text-fail">cheat</span>}
                   {g.goal_text ?? g.type ?? g.goal_id}
                   {g.human_override && <span className="num ml-2 text-[10px] uppercase tracking-[0.14em] text-human">override</span>}
                 </span>

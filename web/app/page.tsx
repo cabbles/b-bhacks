@@ -39,9 +39,9 @@ export default function JoinPage() {
     <div className="grid gap-y-14 lg:grid-cols-12 lg:gap-x-12">
       {/* Left: the pitch, set large. */}
       <section className="lg:col-span-7">
-        <div className="label">A referee for shipping · Testnet · Base Sepolia · AUSD</div>
+        <div className="label">Testnet · Base Sepolia · AUSD</div>
         <SplitText
-          text="Ship it, or pay."
+          text="Do it, or pay."
           tag="h1"
           textAlign="left"
           className="display mt-4 text-[17vw] sm:text-8xl lg:text-[8.5rem]"
@@ -50,23 +50,23 @@ export default function JoinPage() {
           splitType="chars"
         />
         <p className="display mt-2 text-[11vw] text-muted sm:text-6xl lg:text-7xl">
-          An AI referee you can <span className="text-accent">verify.</span> And try to break.
+          A referee that <span className="text-accent">checks.</span>
         </p>
         <p className="mt-10 max-w-md text-lg leading-relaxed text-fg/80">
-          Stake AUSD that you will ship by the deadline. The referee watches your repo or URL itself, rules with reasons, and
-          posts the verdict on-chain with a hash anyone can check. Forfeits go to the people who shipped.
+          Put AUSD behind any task with a deadline. An AI referee gathers the evidence itself, rules pass or fail with reasons,
+          and posts the verdict on-chain where anyone can check it. Stakes from missed tasks go to the people who finished.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/stake" className="btn-primary">Stake on shipping</Link>
-          <Link href="/stake?mode=challenge" className="btn-ghost">Try to fool it</Link>
+          <Link href="/stake" className="btn-primary">Commit to a task</Link>
+          <Link href="/integrity" className="btn-ghost">How it stays fair</Link>
         </div>
 
         <ol className="mt-16 max-w-xl">
           {[
-            ["It looks for itself", "It watches your repo or URL directly. Uploads and claimed timestamps are ignored, so a backdated commit does not count."],
-            ["You can check every ruling", "Each verdict is posted on-chain with a hash of its full reasoning. Your browser recomputes it and compares, without trusting us."],
-            ["It is tested in public", "Anyone can take the Fool the Ref challenge and get paid if they win. Every attempt is on the board, including the ones that worked."],
-            ["It cannot profit", "The contract has no owner withdrawal. If no verdict is posted, you get a full refund."],
+            ["Any task with evidence", "Today: code pushed to a public repo, or a page that goes live with the content you promised. You describe the task; the referee turns it into exact criteria."],
+            ["It looks for itself", "It reads the evidence directly and ignores uploads and claimed timestamps, so old or borrowed work does not count."],
+            ["Every ruling is checkable", "Each verdict is posted on-chain with a hash of its full reasoning. Your browser recomputes it and compares."],
+            ["Nobody can take the money", "The contract has no owner withdrawal. If no verdict is posted, everyone is refunded."],
           ].map(([t, d], i) => (
             <li key={t} className="grid grid-cols-[3rem_1fr] gap-x-4 border-t border-line py-5">
               <span className="num text-sm text-muted">0{i + 1}</span>
