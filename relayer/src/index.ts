@@ -247,7 +247,7 @@ app.post('/admin/claim-all', async (req, reply) => {
         abi: poolAbi,
         eventName: 'Staked',
         args: { cohortId },
-        fromBlock: BigInt(deployments.startBlock ?? 0),
+        fromBlock: BigInt(deployments.deployBlock ?? 0),
     });
     const results: { staker: string; tx_hash?: string; amount?: string; error?: string }[] = [];
     for (const l of logs as any[]) {

@@ -27,7 +27,7 @@ export const deployments = readJson('deployments.json') as {
     pool: Address | null;
     token: Address;
     referee: Address;
-    startBlock?: number;
+    deployBlock?: number;
 };
 if (process.env.POOL_ADDRESS) deployments.pool = process.env.POOL_ADDRESS as Address; // local fork testing
 export const poolAbi = readJson('abi/StakePool.json') as Abi;

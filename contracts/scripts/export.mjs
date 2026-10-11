@@ -28,7 +28,7 @@ Object.assign(dep, {
     pool: tx.contractAddress,
     token,
     referee,
-    startBlock: Number(BigInt(receipt.blockNumber)),
+    deployBlock: Number(BigInt(receipt.blockNumber)),
 });
 writeFileSync(depPath, JSON.stringify(dep, null, 2) + '\n');
 console.log('wrote shared/deployments.json', dep);
