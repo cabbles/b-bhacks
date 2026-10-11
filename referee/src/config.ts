@@ -26,8 +26,8 @@ export const config = {
     fixtures: env.REFEREE_FIXTURES === '1',
 
     rpcUrl: env.RPC_URL ?? '',
-    chainId: Number(dep.chainId ?? env.CHAIN_ID ?? 84532),
-    pool: (env.POOL_ADDRESS ?? dep.pool ?? '') as `0x${string}` | '',
+    chainId: Number(dep.chainId || env.CHAIN_ID || 84532),
+    pool: (env.POOL_ADDRESS || dep.pool || '') as `0x${string}` | '',
     refereeKey: (env.REFEREE_PRIVATE_KEY ?? '') as `0x${string}` | '',
 
     // claude-cli: shell out to `claude -p` on the logged-in Claude subscription (default, no API bill).
