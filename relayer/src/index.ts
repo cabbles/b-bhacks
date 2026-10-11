@@ -13,6 +13,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(env.PORT ?? 8788);
 // keccak256('cashcow:group'): rounds created as one-person prediction markets (see web/lib/kinds.ts).
 const MARKET_TAG = '0x5a05ea52b7adfc2c950dd65ee2aa5bd7c39481f5fb3c11666d103147fd1c6487';
+// keccak256('cashcow:solo'): shared solo-stake rounds, the only rounds that hold many tasks.
+const SOLO_TAG = '0x416252916541b8054ea5d4d1c6da5970a0b054e52232954e3f6c1cab76874c85';
 const DRIP = env.DRIP_AMOUNT ?? '100';
 
 const db = new Database(env.RELAYER_DB ?? resolve(here, '../relayer.db'));
@@ -168,7 +170,7 @@ app.post('/stake', async (req, reply) => {
     // A prediction market is one person's task: refuse a second staker in a round tagged as a market.
     {
         const c = (await listCohorts().catch(() => [] as CohortView[])).find((x) => x.id === Number(b.cohort_id));
-        if (c && c.rule_hash.toLowerCase() === MARKET_TAG && c.staker_count >= 1)
+        if (c && c.rule_hash.toLowerCase() !== SOLO_TAG && c.staker_count >= 1)
             return bad(reply, 409, 'This market already has its task. Bet on it instead.');
     }
     try {
@@ -235,7 +237,8 @@ app.post('/groups', async (req, reply) => {
 
     const stakeDeadline = now + stakeMinutes * 60;
     const goalDeadline = stakeDeadline + goalMinutes * 60;
-    const ruleHash = isHex32(b.rule_hash) ? b.rule_hash : (`0x${'0'.repeat(64)}` as Hex);
+    // Anything started here is a one-person prediction market unless the caller says otherwise.
+    const ruleHash = isHex32(b.rule_hash) ? b.rule_hash : (MARKET_TAG as Hex);
     try {
         const { hash, receipt } = await send({
             address: requirePool(),

@@ -6,7 +6,7 @@ import { countdown, useNow, usePoll } from "@/lib/time";
 import type { Cohort } from "@/lib/types";
 import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
-import { isMarket } from "@/lib/kinds";
+import { kindOf } from "@/lib/kinds";
 
 function phase(c: Cohort, now: number) {
   if (c.stake_deadline * 1000 > now) return "open";
@@ -23,7 +23,7 @@ export default function Markets() {
     if (cfg) tokenDecimals(cfg.token, cfg.decimals).then(setDec);
   }, [cfg]);
 
-  const all = [...(cfg?.cohorts ?? [])].filter((c) => isMarket(c)).sort((a, b) => b.id - a.id);
+  const all = [...(cfg?.cohorts ?? [])].filter((c) => kindOf(c) === "group").sort((a, b) => b.id - a.id);
   const open = all.filter((c) => c.stake_deadline * 1000 > now);
   const rest = all.filter((c) => c.stake_deadline * 1000 <= now);
 

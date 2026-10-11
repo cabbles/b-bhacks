@@ -8,7 +8,7 @@ import type { RelayerConfig } from "@/lib/types";
 import { fmtAmount, myGoals, tokenBalance, tokenDecimals, useWallet, type MyGoal } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
 import { Cow } from "@/components/Cow";
-import { isMarket } from "@/lib/kinds";
+import { kindOf } from "@/lib/kinds";
 
 export default function JoinPage() {
   const { account, dripState, dripTx, retryDrip } = useWallet();
@@ -33,7 +33,7 @@ export default function JoinPage() {
     return () => clearInterval(t);
   }, [cfg, account, dripState]);
 
-  const open = (cfg?.cohorts || []).filter((c) => c.stake_deadline * 1000 > now && isMarket(c));
+  const open = (cfg?.cohorts || []).filter((c) => c.stake_deadline * 1000 > now && kindOf(c) === "group");
 
   return (
     <div className="grid grid-cols-1 gap-y-14 lg:grid-cols-12 lg:gap-x-12">
