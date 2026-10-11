@@ -59,7 +59,7 @@ export default function Markets() {
                   <span className="display w-20 text-4xl">#{c.id}</span>
                   <div className="min-w-0 flex-1 text-sm">
                     <div className="font-display text-lg font-semibold">
-                      {fmtAmount(c.stake_amount, dec)} AUSD entry
+                      One task · open it to see the bets
                     </div>
                     <div className="num text-muted">
                       betting closes in {countdown(c.stake_deadline, now)} · deadline in {countdown(c.goal_deadline, now)}
@@ -84,7 +84,7 @@ export default function Markets() {
                 <Link href={`/cohorts/${c.id}`} className="flex items-center gap-6 py-4 hover:text-nose-deep">
                   <span className="display w-20 text-3xl">#{c.id}</span>
                   <span className="flex-1 text-sm">
-                    {fmtAmount(c.stake_amount, dec)} AUSD entry
+                    One task · open it to see the bets
                   </span>
                   <span className="label !mb-0">{phase(c, now)}</span>
                 </Link>

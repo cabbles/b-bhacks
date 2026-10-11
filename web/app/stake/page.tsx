@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { compileGoal, getConfig, relayBond, relayStake, submitGoal } from "@/lib/api";
+import { compileGoal, getCohort, getConfig, relayBond, relayStake, submitGoal } from "@/lib/api";
 import { kindOf } from "@/lib/kinds";
 import { countdown, fmtTime, useNow } from "@/lib/time";
 import { type CompileResponse, type GoalType, type RelayerConfig } from "@/lib/types";
@@ -69,6 +69,14 @@ function StakeInner() {
   // A market holds exactly one task: once its owner has staked, nobody else can add one.
   const taken = !!cohort && kindOf(cohort) === "group" && (cohort.staker_count ?? 0) >= 1;
   const closed = taken || (cohort ? cohort.stake_deadline * 1000 <= now : true);
+
+  // A market that already has its task: go straight to that task's betting page.
+  useEffect(() => {
+    if (!taken || !cohort) return;
+    getCohort(cohort.id)
+      .then((r) => { if (r.goals[0]) router.replace(`/goals/${r.goals[0].goal_id}`); })
+      .catch(() => {});
+  }, [taken, cohort?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const short = bal !== null && bal < stakeAmount;
   // A real stake needs a deployed pool, and both services live (or both mocked, for rehearsal).
   const blocked = !cfg
@@ -164,8 +172,7 @@ function StakeInner() {
         )}
         {taken && (
           <p className="mt-6 max-w-2xl rounded-xl bg-panel p-4 font-medium">
-            This market already has its task, so you can't add another. <a className="link" href={`/cohorts/${cohort?.id}`}>Bet on it instead</a>, or{" "}
-            <a className="link" href="/cohorts/new">create a market on yourself</a>.
+            This market already has its task. Taking you to its betting page… <a className="link" href={`/cohorts/${cohort?.id}`}>Go now</a>
           </p>
         )}
       </header>

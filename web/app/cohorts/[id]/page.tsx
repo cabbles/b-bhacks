@@ -7,6 +7,7 @@ import type { CohortResponse, GoalStatus } from "@/lib/types";
 import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { ErrorBox, Spinner, Stat, StatusPill } from "@/components/ui";
 import { InviteLink } from "@/components/InviteLink";
+import { MarketTotals } from "@/components/MarketTotals";
 import { kindOf } from "@/lib/kinds";
 
 const ORDER: Record<GoalStatus, number> = { needs_human: 0, watching: 1, passed: 2, failed: 3 };
@@ -62,12 +63,16 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
           ) : (
             <div className="display text-[20vw] sm:text-[9rem] lg:text-[11rem]">{phase}.</div>
           )}
+{solo || !goals[0] ? (
           <div className="mt-8 flex items-baseline gap-3">
             <span className="num text-6xl font-semibold text-fg sm:text-7xl">
               {fmtAmount(stats.pot, dec)}
             </span>
             <span className="label !mb-0">AUSD in the pot · no house, no fee</span>
           </div>
+          ) : (
+            <MarketTotals cohortId={cohort.id} owner={goals[0].staker} dec={dec} />
+          )}
         </div>
         <aside className="lg:col-span-4">
           <div className="label">Terms</div>

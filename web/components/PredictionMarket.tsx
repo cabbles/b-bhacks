@@ -27,6 +27,7 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
   const [side, setSide] = useState(true);
   const [amount, setAmount] = useState("10");
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const locked = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [tx, setTx] = useState<string | null>(null);
@@ -83,7 +84,7 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
           <div><dt className="label text-fail">NO</dt><dd className="num text-2xl">{fmtAmount(m.no_total, dec)} <span className="text-xs text-muted">AUSD</span></dd></div>
         </dl>
         <p className="text-sm">{open ? `Betting closes in ${countdown(m.betting_deadline, now)}` : m.result === 1 ? "Resolved: YES wins" : m.result === 2 ? "Resolved: NO wins" : m.result === 3 ? "Resolved: bets refunded" : "Betting closed. Waiting for settlement."}</p>
-        {open && <form onSubmit={(e) => { e.preventDefault(); void transact("bet"); }} className="space-y-4">
+        {open && <form onSubmit={(e) => { e.preventDefault(); if (canBet) setConfirming(true); }} className="space-y-4">
           <fieldset disabled={busy}>
             <legend className="label">Choose a side</legend>
             <div className="flex gap-3">
@@ -110,6 +111,27 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
         </div>
         <p className="text-xs leading-relaxed text-muted">Winners share this pot in proportion to their winning bets. No verdict or no bets on the winning side means refunds. Payouts become available after the commitment market settles, no earlier than {fmtTime(m.goal_deadline + 600)}. There is no operator fee; rounding can leave fractions of a token unit in the contract.</p>
       </>}
+      {confirming && m && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-fg/60 p-4" role="dialog" aria-modal="true" aria-labelledby="bet-confirm-title">
+          <div className="w-full max-w-md rounded-2xl bg-ink p-6">
+            <div className="label">Confirm your bet</div>
+            <h3 id="bet-confirm-title" className="font-display text-3xl font-bold">
+              {amount} AUSD on <span className={selectedYes ? "text-pass" : "text-fail"}>{selectedYes ? "YES" : "NO"}</span>
+            </h3>
+            <p className="mt-3 text-fg/80">
+              {selectedYes ? "You win if they finish the task by the deadline." : "You win if they miss the task."} Winners split the losing side&apos;s bets in proportion to what they bet
+              {selectedYes ? "." : ", and NO bettors also split the owner's stake if they miss."} If you are wrong, you lose this bet.
+            </p>
+            <p className="mt-2 text-sm text-muted">This can&apos;t be undone. If no verdict is posted, everyone is refunded.</p>
+            <div className="mt-6 flex gap-3">
+              <button type="button" className="btn-ghost flex-1" onClick={() => setConfirming(false)}>Cancel</button>
+              <button type="button" className="btn-primary flex-1" onClick={() => { setConfirming(false); void transact("bet"); }}>
+                Place bet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {tx && <TxLink hash={tx} label="Betting transaction" />}
       <a className="link text-xs" href={addrUrl(cfg.market_pool!)} target="_blank" rel="noreferrer">View betting contract ↗</a>
     </section>
