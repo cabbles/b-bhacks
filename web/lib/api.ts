@@ -181,7 +181,16 @@ export async function getCohort(id: number): Promise<CohortResponse> {
     return { ...base, goals, stats };
   }
   const r = await http<CohortResponse & { cohort: Record<string, unknown> }>(REFEREE_URL, `/cohorts/${id}`);
-  return { ...r, cohort: normalizeCohort(r.cohort) };
+  let cohort = normalizeCohort(r.cohort);
+  // The referee returns just { id } when it cannot read the chain; fall back to the relayer's copy.
+  if (!Number.isFinite(cohort.stake_deadline) || !Number.isFinite(cohort.goal_deadline)) {
+    const fromRelayer = await getConfig()
+      .then((c) => c.cohorts.find((x) => x.id === id))
+      .catch(() => undefined);
+    if (fromRelayer) cohort = fromRelayer;
+  }
+  const pot = r.stats?.pot && r.stats.pot !== "0" ? r.stats.pot : (BigInt(cohort.stake_amount) * BigInt(r.goals.length)).toString();
+  return { ...r, cohort, stats: { ...r.stats, pot } };
 }
 
 export async function getAttacks(): Promise<Attack[]> {

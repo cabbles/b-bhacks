@@ -11,6 +11,7 @@ export function useNow(intervalMs = 1000) {
 }
 
 export function countdown(targetSec: number, nowMs: number): string {
+  if (!Number.isFinite(targetSec)) return "--:--";
   let s = Math.max(0, Math.floor(targetSec - nowMs / 1000));
   const h = Math.floor(s / 3600);
   s -= h * 3600;

@@ -122,20 +122,20 @@ export type Authorization = {
 // Must match referee/src/routes.ts ATTACK_CATEGORIES; anything else is guessed from the note.
 export const ATTACK_CATEGORIES = [
   "backdated_commits",
-  "foreign_repo",
+  "someone_elses_repo",
   "filler_commits",
   "prompt_injection",
-  "fake_page",
+  "fake_static_page",
   "other",
 ] as const;
 export type AttackCategory = (typeof ATTACK_CATEGORIES)[number];
 
 export const ATTACK_LABEL: Record<string, string> = {
   backdated_commits: "Backdated commits",
-  foreign_repo: "Someone else's repo",
+  someone_elses_repo: "Someone else's repo",
   filler_commits: "Filler commits",
   prompt_injection: "Prompt injection",
-  fake_page: "Fake static page",
+  fake_static_page: "Fake static page",
   static_fake: "Fake static page",
   other: "Other",
 };
