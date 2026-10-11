@@ -126,24 +126,24 @@ export default function JoinPage() {
         <ErrorBox msg={err} />
 
         <section>
-          <div className="label">Open cohorts</div>
+          <div className="label">Open markets</div>
           <div className="border-t border-line">
             {!cfg && !err && (
               <div className="py-4">
                 <Spinner />
               </div>
             )}
-            {cfg && open.length === 0 && <p className="py-4 text-muted">No cohort is taking stakes right now.</p>}
+            {cfg && open.length === 0 && <p className="py-4 text-muted">No market is open right now.</p>}
             {open.map((c) => (
               <div key={c.id} className="border-b border-line py-5">
                 <div className="flex items-baseline justify-between">
                   <span className="display text-4xl">#{c.id}</span>
-                  <span className="num text-sm text-muted">{fmtAmount(c.stake_amount, dec)} AUSD stake</span>
+                  <span className="num text-sm text-muted">{fmtAmount(c.stake_amount, dec)} AUSD per task</span>
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm">
                   <dt className="text-muted">Staking closes</dt>
                   <dd className="num text-right">{countdown(c.stake_deadline, now)}</dd>
-                  <dt className="text-muted">Goal due</dt>
+                  <dt className="text-muted">Deadline</dt>
                   <dd className="num text-right">{countdown(c.goal_deadline, now)}</dd>
                 </dl>
                 <div className="mt-4 flex gap-3">
@@ -155,7 +155,7 @@ export default function JoinPage() {
                     </ClickSpark>
                   </div>
                   <Link href={`/cohorts/${c.id}`} className="btn-ghost">
-                    Board
+                    View
                   </Link>
                 </div>
               </div>

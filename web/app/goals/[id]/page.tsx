@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { getConfig, getGoal, relayClaim } from "@/lib/api";
 import { MOCK } from "@/lib/env";
 const LIVE = !MOCK;
-import { claimableOf, verifyGoal, type Proof } from "@/lib/verify";
+import { payoutOf, verifyGoal, type Proof } from "@/lib/verify";
 import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { GoalResponse } from "@/lib/types";
@@ -31,7 +31,7 @@ export default function GoalPage({ params }: { params: { id: string } }) {
   const { data: g, error } = usePoll<GoalResponse>(() => getGoal(params.id), 10_000, [params.id]);
   const [claim, setClaim] = useState<{ busy?: boolean; tx?: string; err?: string }>({});
   const [proofs, setProofs] = useState<Proof[] | null>(null);
-  const [claimable, setClaimable] = useState<{ amount: bigint; dec: number } | null>(null);
+  const [claimable, setClaimable] = useState<{ amount: bigint; claimed: boolean; dec: number } | null>(null);
 
   // Independent checks against the chain; re-run when the verdict or its tx appears.
   const verdictKey = `${g?.status}:${g?.verdict_tx_hash ?? ""}:${claim.tx ?? ""}`;
@@ -43,12 +43,12 @@ export default function GoalPage({ params }: { params: { id: string } }) {
         if (!cfg.poolDeployed) return;
         const [p, amount, dec] = await Promise.all([
           verifyGoal(g, cfg.pool),
-          g.cohort_id !== undefined ? claimableOf(cfg.pool, g.cohort_id, g.criteria.staker) : null,
+          g.cohort_id !== undefined ? payoutOf(cfg.pool, g.cohort_id, g.criteria.staker) : null,
           tokenDecimals(cfg.token, cfg.decimals),
         ]);
         if (!alive) return;
         setProofs(p);
-        setClaimable(amount !== null ? { amount, dec } : null);
+        setClaimable(amount !== null ? { ...amount, dec } : null);
       })
       .catch(() => {});
     return () => {
@@ -87,7 +87,7 @@ export default function GoalPage({ params }: { params: { id: string } }) {
           <StatusPill status={status} big />
           {cohortId !== undefined && (
             <Link href={`/cohorts/${cohortId}`} className="label !mb-0 hover:text-fg">
-              Cohort #{cohortId} →
+              Market #{cohortId} →
             </Link>
           )}
         </div>
@@ -208,16 +208,30 @@ export default function GoalPage({ params }: { params: { id: string } }) {
         </div>
 
         {verdict && cohortId !== undefined && (
-          <div className="space-y-2">
-            {claimable && claimable.amount > 0n && !claim.tx && (
-              <p className="num text-sm">Claimable now: <span className="text-accent">{fmtAmount(claimable.amount, claimable.dec)} AUSD</span></p>
-            )}
-            <button className="btn-ghost w-full" disabled={claim.busy || !!claim.tx} onClick={onClaim}>
-              {claim.busy ? <Spinner /> : claim.tx ? "Claim sent" : verdict.passed ? "Claim payout" : "Trigger settlement claim"}
-            </button>
-            {claim.tx && <TxLink hash={claim.tx} label="Claim tx" />}
-            <ErrorBox msg={claim.err ?? null} />
-            <p className="text-xs text-muted">Claims open once the cohort settles, 10 minutes after the deadline. Funds always go to the staker.</p>
+          <div>
+            <div className="label">Payout</div>
+            <div className="space-y-2 border-t border-line pt-3 text-sm">
+              {claimable?.claimed ? (
+                <p>
+                  Paid out to the staker. <span className="text-muted">Nothing left to claim.</span>
+                </p>
+              ) : claimable && claimable.amount > 0n ? (
+                <>
+                  <p className="num">
+                    Ready to claim: <span className="text-accent">{fmtAmount(claimable.amount, claimable.dec)} AUSD</span>
+                  </p>
+                  <button className="btn-primary w-full" disabled={claim.busy || !!claim.tx} onClick={onClaim}>
+                    {claim.busy ? <Spinner /> : claim.tx ? "Claim sent" : "Claim payout"}
+                  </button>
+                </>
+              ) : verdict.passed ? (
+                <p className="text-muted">Claims open once the market settles, 10 minutes after the deadline.</p>
+              ) : (
+                <p className="text-muted">This stake goes to the stakers who delivered, once the market settles.</p>
+              )}
+              {claim.tx && <TxLink hash={claim.tx} label="Claim tx" />}
+              <ErrorBox msg={claim.err ?? null} />
+            </div>
           </div>
         )}
 

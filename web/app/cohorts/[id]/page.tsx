@@ -1,10 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import { getCohort, getConfig } from "@/lib/api";
-import { WEB_URL } from "@/lib/env";
-import { countdown, short, useNow, usePoll } from "@/lib/time";
+import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { CohortResponse, GoalStatus } from "@/lib/types";
 import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { ErrorBox, Spinner, Stat, StatusPill } from "@/components/ui";
@@ -17,11 +15,9 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
   const now = useNow();
   const { data, error } = usePoll<CohortResponse>(() => getCohort(id), 5_000, [id]);
   const [dec, setDec] = useState(6);
-  const [joinUrl, setJoinUrl] = useState("");
 
   useEffect(() => {
     getConfig().then((c) => tokenDecimals(c.token, c.decimals).then(setDec)).catch(() => {});
-    setJoinUrl(`${WEB_URL || window.location.origin}/stake?cohort=${id}`);
   }, [id]);
 
   if (error && !data) return <ErrorBox msg={error} />;
@@ -29,22 +25,30 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
 
   const { cohort, goals, stats } = data;
   const stakingOpen = cohort.stake_deadline * 1000 > now;
-  const phase = stakingOpen ? "Staking open" : cohort.goal_deadline * 1000 > now ? "Goals in progress" : cohort.settled ? "Settled" : "Judging";
+  const working = !stakingOpen && cohort.goal_deadline * 1000 > now;
+  const phase = stakingOpen ? "Open" : working ? "In progress" : cohort.settled ? "Settled" : "Judging";
   const target = stakingOpen ? cohort.stake_deadline : cohort.goal_deadline;
+  const ticking = stakingOpen || working;
   const sorted = [...goals].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
 
   return (
     <div className="space-y-12">
-      {/* Scoreboard head: clock and pot huge on the left, QR in a ruled corner on the right. */}
+      {/* Market head: clock (or state) and pot on the left, terms and entry on the right. */}
       <section className="grid gap-10 border-b border-line pb-10 lg:grid-cols-12">
         <div className="lg:col-span-8">
           <div className="label">
-            Cohort #{cohort.id} · {phase}
+            Market #{cohort.id} · {phase}
           </div>
-          <div className="num text-[24vw] font-semibold leading-[0.85] tracking-tight sm:text-[10rem] lg:text-[13rem]">
-            {countdown(target, now)}
-          </div>
-          <div className="label mt-2">{stakingOpen ? "until staking closes" : "until the goal deadline"}</div>
+          {ticking ? (
+            <>
+              <div className="num text-[24vw] font-semibold leading-[0.85] tracking-tight sm:text-[10rem] lg:text-[13rem]">
+                {countdown(target, now)}
+              </div>
+              <div className="label mt-2">{stakingOpen ? "until staking closes" : "until the deadline"}</div>
+            </>
+          ) : (
+            <div className="display text-[20vw] sm:text-[9rem] lg:text-[11rem]">{phase}.</div>
+          )}
           <div className="mt-8 flex items-baseline gap-3">
             <span className="num text-6xl font-semibold text-accent sm:text-7xl">
               <CountUp to={Number(fmtAmount(stats.pot, dec).replace(/,/g, ""))} duration={1.2} separator="," />
@@ -52,15 +56,23 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
             <span className="label !mb-0">AUSD in the pot · no house, no fee</span>
           </div>
         </div>
-        {joinUrl && (
-          <div className="flex flex-col items-start gap-3 lg:col-span-4 lg:items-end">
-            <div className="bg-fg p-3">
-              <QRCodeSVG value={joinUrl} size={180} bgColor="#ECEDEE" fgColor="#0D0F12" className="h-40 w-40 lg:h-64 lg:w-64" />
+        <aside className="lg:col-span-4">
+          <div className="label">Terms</div>
+          <dl className="grid grid-cols-2 border-t border-line text-sm [&>*]:border-b [&>*]:border-line [&>*]:py-3">
+            <dt className="text-muted">Stake per task</dt>
+            <dd className="num text-right">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
+            <dt className="text-muted">Staking closes</dt>
+            <dd className="num text-right">{fmtTime(cohort.stake_deadline)}</dd>
+            <dt className="text-muted">Deadline</dt>
+            <dd className="num text-right">{fmtTime(cohort.goal_deadline)}</dd>
+          </dl>
+          {stakingOpen && (
+            <div className="mt-5 flex flex-col gap-3">
+              <Link href={`/stake?cohort=${cohort.id}`} className="btn-primary">Stake on a task</Link>
+              <Link href="/split" className="btn-ghost">Split a project with friends</Link>
             </div>
-            <div className="label !mb-0">Scan to join · no install</div>
-            <Link href="/split" className="label !mb-0 hover:text-fg">Split a project three ways →</Link>
-          </div>
-        )}
+          )}
+        </aside>
       </section>
 
       <section className="grid grid-cols-3 gap-y-8 sm:grid-cols-5">

@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import { getConfig } from "@/lib/api";
 import { WEB_URL } from "@/lib/env";
 import { countdown, useNow } from "@/lib/time";
@@ -50,7 +49,7 @@ export default function SplitPage() {
   return (
     <div className="grid gap-y-12 lg:grid-cols-12 lg:gap-x-12">
       <header className="lg:col-span-12">
-        <div className="label">Group project</div>
+        <div className="label">Groups · do it with friends</div>
         <h1 className="display text-6xl sm:text-8xl">Split it three ways.</h1>
         <p className="mt-4 max-w-2xl text-lg text-fg/80">
           One task per friend. Each of you bets on your own part. If someone drops theirs, their stake goes to the two who
@@ -61,16 +60,16 @@ export default function SplitPage() {
       <section className="space-y-8 lg:col-span-6">
         <ErrorBox msg={err} />
         <div>
-          <label className="label" htmlFor="group">Group</label>
+          <label className="label" htmlFor="group">Market</label>
           {!groups ? (
             <Spinner />
           ) : groups.length === 0 ? (
-            <p className="text-muted">No group is open right now.</p>
+            <p className="text-muted">No market is open right now.</p>
           ) : (
             <select id="group" className="input" value={groupId ?? ""} onChange={(e) => setGroupId(Number(e.target.value))}>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
-                  Group #{g.id} · closes in {countdown(g.stake_deadline, now)}
+                  Market #{g.id} · staking closes in {countdown(g.stake_deadline, now)}
                 </option>
               ))}
             </select>
@@ -105,9 +104,6 @@ export default function SplitPage() {
               <span className="num text-sm text-muted">0{i + 1}</span>
               {link ? (
                 <div className="flex items-start gap-4">
-                  <div className="shrink-0 bg-fg p-1.5">
-                    <QRCodeSVG value={link} size={96} bgColor="#ECEDEE" fgColor="#0D0F12" />
-                  </div>
                   <div className="min-w-0 space-y-2">
                     <p className="text-sm">{tasks[i].trim()}</p>
                     <div className="flex gap-2">
@@ -137,8 +133,8 @@ export default function SplitPage() {
         </ol>
         {group && (
           <p className="mt-4 text-xs text-muted">
-            Each friend opens their link on their own phone, gets a wallet and test AUSD, and confirms their task. Watch them on the{" "}
-            <Link href={`/cohorts/${group.id}`} className="link">group board</Link>.
+            Each friend opens their link on their own phone, gets a wallet and test AUSD, and confirms their task. Follow everyone on the{" "}
+            <Link href={`/cohorts/${group.id}`} className="link">market page</Link>.
           </p>
         )}
       </aside>

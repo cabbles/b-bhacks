@@ -132,7 +132,7 @@ function StakeInner() {
       <header className="lg:col-span-12">
         {fromGroup ? (
           <>
-            <div className="label">Group {cohort ? `#${cohort.id}` : "…"} · your part of the project</div>
+            <div className="label">Market {cohort ? `#${cohort.id}` : "…"} · your part of the project</div>
             <h1 className="display text-6xl sm:text-8xl">Bet on yourself.</h1>
             <p className="mt-4 max-w-2xl text-lg text-fg/80">
               A friend split the project and this is your part. Do it and you take your share of the pot; miss it and your stake
@@ -141,7 +141,7 @@ function StakeInner() {
           </>
         ) : (
           <>
-            <div className="label">Cohort {cohort ? `#${cohort.id}` : "…"}</div>
+            <div className="label">Market {cohort ? `#${cohort.id}` : "…"}</div>
             <h1 className="display text-6xl sm:text-8xl">Commit to a task.</h1>
             <p className="mt-4 max-w-2xl text-lg text-fg/80">
               Say what you will get done and by when. The referee turns it into exact, checkable criteria before you stake.
@@ -248,7 +248,7 @@ function StakeInner() {
             <dd className={`num text-right ${short ? "text-fail" : ""}`}>{bal === null ? "…" : fmtAmount(bal, dec)} AUSD</dd>
           </dl>
         ) : (
-          <p className="border-t border-line py-3 text-muted">{cfg ? "No cohort available." : <Spinner />}</p>
+          <p className="border-t border-line py-3 text-muted">{cfg ? "No market is open right now." : <Spinner />}</p>
         )}
         <p className="mt-4 text-xs leading-relaxed text-muted">
           Everyone who delivers gets their stake back plus an equal share of the missed stakes. No house, no fee. If no verdict is

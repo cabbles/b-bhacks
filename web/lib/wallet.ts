@@ -4,13 +4,14 @@ import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from 
 import { formatUnits } from "viem";
 import { client, erc20Abi } from "./chain";
 import { drip } from "./api";
-import { MOCK_RELAYER, RELAYER_URL } from "./env";
+import { MOCK_RELAYER, REFEREE_URL, RELAYER_URL } from "./env";
 
 const KEY = "ref.pk";
 // Per relayer, so a mock-mode drip never stops the real faucet from running for this address.
 const DRIP_KEY = `ref.dripped:${RELAYER_URL || "mock"}`;
 const DRIP_FAIL_KEY = "ref.dripFailedAt";
-const MY_GOALS_KEY = "ref.myGoals";
+// Per referee, so goals staked against fixtures never show up (and 404) on the live site.
+const MY_GOALS_KEY = `ref.myGoals:${REFEREE_URL || "mock"}`;
 
 function safeGet(k: string): string | null {
   try {

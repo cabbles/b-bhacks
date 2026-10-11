@@ -28,7 +28,7 @@ flowchart LR
   P -->|AUSD| U
 ```
 
-1. **Join.** Scan the QR code. The web app creates a key in your browser and the relayer sends you 100 test AUSD. You don't need to install anything or save a seed phrase.
+1. **Join.** Open the site. The web app creates a key in your browser and the relayer sends you 100 test AUSD. You don't need to install anything or save a seed phrase.
 2. **Stake.** Type a goal in plain words. The referee compiles it into frozen criteria JSON and shows a one-sentence summary plus a control proof: a nonce file to add to your repo, or a nonce to put on your page. You sign an ERC-3009 `ReceiveWithAuthorization` and the relayer submits it, so you never need ETH.
 3. **Watch.** The referee polls your repo or URL and records when it first saw each piece of evidence.
 4. **Verdict.** Deterministic checks run first. A `substance` check asks two independent model calls whether the work actually delivers the goal; if they disagree, the goal goes to a human and the override is counted publicly. The verdict JSON is hashed (`keccak256(canonical(verdict))`) and posted on-chain.
@@ -41,7 +41,7 @@ flowchart LR
 | `contracts/` | `StakePool.sol`, Foundry tests, deploy script                |
 | `relayer/`   | Gas relayer, AUSD drip, claim trigger                        |
 | `referee/`   | Referee API, evidence collectors, verdict engine             |
-| `web/`       | Next.js app (join, stake, verdict, cohort board, integrity)    |
+| `web/`       | Next.js app (join, stake, verdict, market, groups, integrity)  |
 | `redteam/`   | Scripted cheats and results table                            |
 | `shared/`    | Schemas, ABI, deployments, fixtures, canonical JSON helper   |
 | `docs/`      | Demo script and screenshots                                  |
@@ -62,7 +62,8 @@ Service URLs come from `shared/deployments.json` (`relayer_url`, `referee_url`);
 | Join          | `/`              |
 | Stake         | `/stake?cohort=1`|
 | Goal/verdict  | `/goals/:id`     |
-| Cohort board (projector) | `/cohorts/:id` |
+| Market (current: `/cohorts`) | `/cohorts/:id` |
+| Groups: split a project three ways | `/split` |
 | Integrity (safeguards, test results) | `/integrity` |
 | System status (pre-flight) | `/status` |
 
@@ -72,7 +73,7 @@ In mock mode, a goal you stake is judged 20 seconds later, so you can rehearse t
 
 ### Deploying the web app
 
-Either way, set `NEXT_PUBLIC_REFEREE_URL` (and `NEXT_PUBLIC_RELAYER_URL`) if they are not yet in `shared/deployments.json`, and set `NEXT_PUBLIC_WEB_URL` to the public URL so the join QR code points at it.
+Either way, set `NEXT_PUBLIC_REFEREE_URL` (and `NEXT_PUBLIC_RELAYER_URL`) if they are not yet in `shared/deployments.json`, and set `NEXT_PUBLIC_WEB_URL` to the public URL so group invite links point at it.
 
 - **Vercel (recommended, stable URL, no laptop):** import the repo, set Root Directory to `web`, keep the Next.js preset, add the env vars above. The app imports `../shared` and Vercel includes files outside the root directory by default.
 - **Team laptop:** `nohup web/scripts/run-live.sh > /dev/null 2>&1 &` builds and serves on port 3000 with auto-restart. Add `WEB_TUNNEL=cloudflared` (or `WEB_TUNNEL=ngrok NGROK_URL=...`) for a public URL. Logs are in `web/logs/`.
@@ -85,7 +86,7 @@ Captured in mock mode; replace them with live captures at code freeze.
 | ---- | -------------- | ------------ |
 | ![Join](docs/screenshots/join.png) | ![Verdict fail](docs/screenshots/verdict-fail.png) | ![Board](docs/screenshots/board.png) |
 
-![Cohort board](docs/screenshots/board.png)
+![Market](docs/screenshots/board.png)
 
 ## Live cohort results
 

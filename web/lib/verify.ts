@@ -72,9 +72,18 @@ export async function verifyGoal(g: GoalResponse, pool: `0x${string}`): Promise<
   return out;
 }
 
-export async function claimableOf(pool: `0x${string}`, cohortId: number, staker: `0x${string}`): Promise<bigint | null> {
+/** What the staker can collect now, and whether they already have (from the pool, not the referee). */
+export async function payoutOf(
+  pool: `0x${string}`,
+  cohortId: number,
+  staker: `0x${string}`,
+): Promise<{ amount: bigint; claimed: boolean } | null> {
   try {
-    return await client.readContract({ address: pool, abi: poolAbi, functionName: "claimable", args: [BigInt(cohortId), staker] });
+    const [amount, stake] = await Promise.all([
+      client.readContract({ address: pool, abi: poolAbi, functionName: "claimable", args: [BigInt(cohortId), staker] }),
+      client.readContract({ address: pool, abi: poolAbi, functionName: "stakes", args: [BigInt(cohortId), staker] }),
+    ]);
+    return { amount, claimed: stake[2] };
   } catch {
     return null;
   }
