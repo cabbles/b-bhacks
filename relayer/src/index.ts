@@ -44,10 +44,10 @@ type CohortView = {
     settled: boolean;
 };
 
-async function listCohorts(): Promise<CohortView[]> {
+async function listCohorts(blockNumber?: bigint): Promise<CohortView[]> {
     if (!deployments.pool) return [];
     const count = Number(
-        await publicClient.readContract({ address: deployments.pool, abi: poolAbi, functionName: 'cohortCount' }),
+        await publicClient.readContract({ address: deployments.pool, abi: poolAbi, functionName: 'cohortCount', blockNumber }),
     );
     const out: CohortView[] = [];
     for (let id = 1; id <= count; id++) {
@@ -56,6 +56,7 @@ async function listCohorts(): Promise<CohortView[]> {
             abi: poolAbi,
             functionName: 'cohorts',
             args: [BigInt(id)],
+            blockNumber,
         })) as readonly [Hex, bigint, bigint, bigint, number, number, number, boolean, bigint];
         out.push({
             id,
@@ -217,8 +218,14 @@ app.post('/admin/cohorts', async (req, reply) => {
             functionName: 'createCohort',
             args: [ruleHash, BigInt(stakeDeadline), BigInt(goalDeadline), parseUnits(String(b.stake ?? '10'), decimals)],
         });
-        cohortCache.at = 0;
-        const all = await cohorts();
+        // Public RPCs lag behind the receipt; read at the receipt's block, retrying until the node has it.
+        let all: CohortView[] = [];
+        for (let i = 0; i < 10; i++) {
+            all = await listCohorts(receipt.blockNumber).catch(() => []);
+            if (all.length) break;
+            await new Promise((r) => setTimeout(r, 1000));
+        }
+        cohortCache = { at: Date.now(), data: all };
         return { tx_hash: hash, block: Number(receipt.blockNumber), cohort: all[all.length - 1] };
     } catch (err) {
         return bad(reply, 400, `createCohort failed: ${reason(err)}`);
