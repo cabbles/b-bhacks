@@ -59,7 +59,18 @@ export function requirePool(): Address {
 
 /** Simulate first so reverts come back as readable errors, then send and wait for the receipt. */
 export async function send(args: { address: Address; abi: Abi; functionName: string; args: readonly unknown[] }) {
-    const { request } = await publicClient.simulateContract({ ...args, account: treasury } as any);
+    // Load-balanced public RPCs can lag a few seconds behind the last receipt (e.g. a drip just before a stake),
+    // so retry the simulation briefly before treating a revert as real.
+    let request: any;
+    for (let attempt = 0; ; attempt++) {
+        try {
+            ({ request } = await publicClient.simulateContract({ ...args, account: treasury } as any));
+            break;
+        } catch (err) {
+            if (attempt >= 3) throw err;
+            await new Promise((r) => setTimeout(r, 2000));
+        }
+    }
     const hash = await wallet.writeContract(request as any);
     const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 60_000 });
     if (receipt.status !== 'success') throw new Error(`transaction reverted: ${hash}`);
@@ -71,5 +82,7 @@ export function reason(err: unknown): string {
     const e = err as any;
     const name = e?.cause?.data?.errorName ?? e?.walk?.((x: any) => x?.data?.errorName)?.data?.errorName;
     if (name) return name;
+    const sig = e?.walk?.((x: any) => x?.signature)?.signature;
+    if (sig) return `reverted with unknown error ${sig}`;
     return String(e?.shortMessage ?? e?.message ?? err).split('\n')[0].slice(0, 300);
 }
