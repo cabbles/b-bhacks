@@ -1,6 +1,6 @@
 import { keccak256, toBytes } from 'viem';
 // The one canonical JSON implementation (PLAN 4.4). Never re-implement it here.
-import { canonical } from '../../shared/canonical.ts';
+import { canonical } from 'shared/canonical';
 
 export { canonical };
 
