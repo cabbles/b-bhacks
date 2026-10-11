@@ -7,7 +7,9 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "fund": "tsx src/fund.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:markets": "tsx scripts/check-markets.ts",
+    "deploy:market": "tsx scripts/deploy-market.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",

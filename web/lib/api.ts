@@ -11,6 +11,7 @@ import type {
   GoalResponse,
   GoalType,
   RelayerConfig,
+  PredictionMarket,
 } from "./types";
 
 // ngrok free domains serve an HTML interstitial instead of JSON unless this header is sent.
@@ -241,4 +242,22 @@ export async function getAttacks(): Promise<Attack[]> {
     return [...fx.fxAttacks, ...mine];
   }
   return http(REFEREE_URL, "/attacks");
+}
+
+// Separate YES/NO funds; these routes never call the commitment stake/claim routes.
+export async function getPredictionMarket(cohort: number, owner: string, bettor: string): Promise<PredictionMarket> {
+  if (MOCK_RELAYER) throw new Error("Betting requires the live relayer.");
+  return http(RELAYER_URL, `/markets/${cohort}/${owner}?bettor=${encodeURIComponent(bettor)}`);
+}
+export async function relayBet(args: { cohort_id: number; owner: string; bettor: string; yes: boolean; amount: string; authorization: Authorization }): Promise<{ tx_hash: string }> {
+  if (MOCK_RELAYER) throw new Error("Betting requires the live relayer.");
+  return http(RELAYER_URL, "/markets/bet", post(args));
+}
+export async function resolvePredictionMarket(cohort_id: number, owner: string): Promise<{ tx_hash: string }> {
+  if (MOCK_RELAYER) throw new Error("Betting requires the live relayer.");
+  return http(RELAYER_URL, "/markets/resolve", post({ cohort_id, owner }));
+}
+export async function claimPredictionMarket(cohort_id: number, owner: string, bettor: string): Promise<{ tx_hash: string }> {
+  if (MOCK_RELAYER) throw new Error("Betting requires the live relayer.");
+  return http(RELAYER_URL, "/markets/claim", post({ cohort_id, owner, bettor }));
 }

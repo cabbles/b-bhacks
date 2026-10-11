@@ -22,7 +22,7 @@ Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 A feature on top of the core product, for school work (full proposal: [`docs/PIVOT.md`](docs/PIVOT.md)).
 
 - **Live now: the commitment stake.** Friends join the same market and each stakes on their own task. Start a group with its own stake and deadlines, then split a group project three ways at `/split`: each friend gets an invite link with their task filled in. Whoever delivers gets their stake back plus an equal share of the stakes of whoever did not. No house, no fee.
-- **Next: a public YES/NO market on each task.** Anyone bets on whether the owner will finish; the owner cannot bet against themselves, and the market never touches the owner's stake. It needs a `MarketPool` contract that resolves from the verdict already on `StakePool`, so the two can never disagree. Not built yet.
+- **Implemented, awaiting testnet activation: public YES/NO betting on each task.** A separate `MarketPool` takes signed AUSD bets and resolves from the final verdict on `StakePool`. The owner’s wallet cannot bet NO. Winners share the betting pot; missing verdicts or an empty winning side mean refunds. Contract tests, relayer routes, and goal-page betting/claim controls are included. See [deployment and rules](docs/market-pool.md).
 
 ## Sponsor tracks
 

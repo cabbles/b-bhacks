@@ -1,5 +1,7 @@
 # PIVOT.md: Groups, a prediction-market feature for school work
 
+Implementation update: MarketPool, gasless betting routes, and goal-page betting/claim controls are now implemented. Live activation is pending the team’s testnet deployment. See [market-pool.md](market-pool.md) for the final rules, validation and rollout. The proposal below records the original planning context.
+
 Written Sun Oct 11, ~3:00 PT. **Groups is a feature on top of the existing product, not a replacement.** The core stays as it is: anyone puts AUSD behind any task with checkable evidence, and the AI referee settles it on-chain. Groups adds a social layer for school work. PLAN.md is human-owned; this file is the proposal for that addition.
 
 ## 1. The feature in one paragraph
