@@ -109,7 +109,7 @@ if (open) {
     const stakeArgs = (g: Hex, c: bigint) => [c, user.address, g, 0n, validBefore, nonce, v, sig.r, sig.s];
 
     await expectRevert('onchain_redirect_auth', 'relayer swaps in a different goal for a valid signature', treasury, 'stakeWithAuthorization', stakeArgs(keccak256(toHex('other goal')), cohortId), 'BadNonce');
-    const other = cfg.cohorts.find((c: any) => c.id !== open.id);
+    const other = cfg.cohorts.find((c: any) => c.id !== open.id && c.stake_deadline > now + 60);
     if (other) {
         await expectRevert('onchain_redirect_auth', 'signature reused for another cohort', treasury, 'stakeWithAuthorization', stakeArgs(goal, BigInt(other.id)), 'BadNonce');
     }
@@ -130,8 +130,14 @@ if (open) {
 
 // 4. Double claim (needs a settled cohort).
 if (settled) {
-    const logs = await client.getContractEvents({ address: pool, abi, eventName: 'Claimed', args: { cohortId: BigInt(settled.id) }, fromBlock: BigInt(dep.deployBlock) });
-    const claimed = (logs[0] as any)?.args?.staker as Address | undefined;
+    // Public RPC caps eth_getLogs at 200 blocks: scan in chunks.
+    const head = await client.getBlockNumber();
+    let claimed: Address | undefined;
+    for (let from = BigInt(dep.deployBlock); from <= head && !claimed; from += 200n) {
+        const to = from + 199n < head ? from + 199n : head;
+        const logs = await client.getContractEvents({ address: pool, abi, eventName: 'Claimed', args: { cohortId: BigInt(settled.id) }, fromBlock: from, toBlock: to });
+        claimed = (logs[0] as any)?.args?.staker as Address | undefined;
+    }
     if (claimed) await expectRevert('onchain_double_claim', 'claim the same stake twice', stranger, 'claimFor', [BigInt(settled.id), claimed], 'AlreadyClaimed');
     else results.push({ category: 'onchain_double_claim', attack: 'claim the same stake twice', outcome: 'skipped', detail: 'no claims yet in settled cohort' });
 } else {

@@ -3,7 +3,7 @@
 Scripted cheats run against the live system on Base Sepolia: real stakes, the real referee, and the real StakePool
 (`0x1470af4526f820DC7Ca5bE70cA77bBf2400e76f9`). "Caught" means the cheat failed. "Fooled" means it got paid. Every result is reported, including the ones that worked.
 
-**12 caught, 0 fooled** out of 12 attempts.
+**13 caught, 0 fooled** out of 13 attempts.
 
 ## Summary by category
 
@@ -19,6 +19,7 @@ Scripted cheats run against the live system on Base Sepolia: real stakes, the re
 | onchain_early_settle | 1 | 0 | 0 |
 | onchain_redirect_auth | 1 | 0 | 0 |
 | onchain_replay_auth | 1 | 0 | 0 |
+| onchain_double_claim | 1 | 0 | 0 |
 | onchain_operator_withdraw | 1 | 0 | 0 |
 
 ## Referee attacks (cohort 2, 2026-10-11T21:41:32.663Z)
@@ -34,7 +35,7 @@ Scripted cheats run against the live system on Base Sepolia: real stakes, the re
 
 `control` is an honest goal, not an attack. It checks that real work still passes.
 
-## On-chain attacks (2026-10-11T21:24:06.078Z)
+## On-chain attacks (2026-10-11T22:13:36.505Z)
 
 | Category | Attempt | Outcome | Why |
 |---|---|---|---|
@@ -44,7 +45,7 @@ Scripted cheats run against the live system on Base Sepolia: real stakes, the re
 | onchain_early_settle | anyone settles before deadline + 10 min | **caught** | reverted: TooEarly |
 | onchain_redirect_auth | relayer swaps in a different goal for a valid signature | **caught** | reverted: BadNonce |
 | onchain_replay_auth | replay a used stake authorization | **caught** | reverted: AlreadyStaked |
-| onchain_double_claim | claim the same stake twice | **skipped** | no settled cohort yet |
+| onchain_double_claim | claim the same stake twice | **caught** | reverted: AlreadyClaimed |
 | onchain_operator_withdraw | operator looks for a withdraw / sweep / owner function | **caught** | only state-changing functions: claimFor, createCohort, postVerdict, settle, stakeWithAuthorization |
 
 Reproduce: `pnpm --filter redteam onchain`, `pnpm --filter redteam referee`, then `pnpm --filter redteam report`.

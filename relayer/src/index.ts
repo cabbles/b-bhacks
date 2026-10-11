@@ -250,18 +250,31 @@ app.post('/admin/claim-all', async (req, reply) => {
     return { claimed: await claimAll(BigInt((req.body as any)?.cohort_id ?? 0)) };
 });
 
+// Index of Staked events. The public Base Sepolia RPC caps eth_getLogs at 200 blocks,
+// so scan forward in chunks and remember where we stopped.
+const stakersByCohort = new Map<number, Set<Address>>();
+let scannedTo = BigInt(deployments.deployBlock ?? 0) - 1n;
+async function syncStakers() {
+    const pool = requirePool();
+    const head = await publicClient.getBlockNumber();
+    while (scannedTo < head) {
+        const from = scannedTo + 1n;
+        const to = from + 199n < head ? from + 199n : head;
+        const logs = await publicClient.getContractEvents({ address: pool, abi: poolAbi, eventName: 'Staked', fromBlock: from, toBlock: to });
+        for (const l of logs as any[]) {
+            const id = Number(l.args.cohortId);
+            if (!stakersByCohort.has(id)) stakersByCohort.set(id, new Set());
+            stakersByCohort.get(id)!.add(l.args.staker as Address);
+        }
+        scannedTo = to;
+    }
+}
+
 async function claimAll(cohortId: bigint) {
     const pool = requirePool();
-    const logs = await publicClient.getContractEvents({
-        address: pool,
-        abi: poolAbi,
-        eventName: 'Staked',
-        args: { cohortId },
-        fromBlock: BigInt(deployments.deployBlock ?? 0),
-    });
+    await syncStakers();
     const results: { staker: string; tx_hash?: string; amount?: string; error?: string }[] = [];
-    for (const l of logs as any[]) {
-        const staker = l.args.staker as Address;
+    for (const staker of stakersByCohort.get(Number(cohortId)) ?? []) {
         const amount = (await publicClient.readContract({
             address: pool,
             abi: poolAbi,

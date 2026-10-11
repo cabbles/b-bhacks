@@ -1,5 +1,5 @@
 {
-  "ran_at": "2026-10-11T21:24:06.078Z",
+  "ran_at": "2026-10-11T22:13:36.505Z",
   "pool": "0x1470af4526f820DC7Ca5bE70cA77bBf2400e76f9",
   "results": [
     {
@@ -41,8 +41,8 @@
     {
       "category": "onchain_double_claim",
       "attack": "claim the same stake twice",
-      "outcome": "skipped",
-      "detail": "no settled cohort yet"
+      "outcome": "caught",
+      "detail": "reverted: AlreadyClaimed"
     },
     {
       "category": "onchain_operator_withdraw",
