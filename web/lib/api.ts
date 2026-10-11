@@ -51,8 +51,11 @@ export function normalizeCohort(c: Record<string, unknown>): Cohort {
     goal_deadline: Number(pick("goal_deadline", "goalDeadline")),
     stake_amount: String(pick("stake_amount", "stakeAmount") ?? "0"),
     settled: Boolean(pick("settled")),
+    staker_count: pick("staker_count", "stakerCount") !== undefined ? Number(pick("staker_count", "stakerCount")) : undefined,
   };
 }
+
+import { GROUP_TAG } from "./kinds";
 
 // ---------- Relayer ----------
 
@@ -69,6 +72,19 @@ export async function getConfig(): Promise<RelayerConfig> {
     poolDeployed,
     cohorts: (c.cohorts || []).map(normalizeCohort),
   };
+}
+
+/** Start a new market (an on-chain cohort). The relayer pays the gas. */
+export async function createMarket(args: {
+  stake_minutes: number;
+  goal_minutes: number;
+  stake: number;
+}): Promise<{ id: number; cohort: Cohort | null; tx_hash: string }> {
+  if (MOCK_RELAYER) throw new Error("Starting a market requires the live relayer.");
+  const r = await http<{ group_id: number; cohort: Record<string, unknown> | null; tx_hash: string }>(
+    RELAYER_URL, "/groups", post({ ...args, rule_hash: GROUP_TAG }),
+  );
+  return { id: r.group_id, cohort: r.cohort ? normalizeCohort({ ...r.cohort, id: r.group_id }) : null, tx_hash: r.tx_hash };
 }
 
 export async function drip(address: string): Promise<{ tx_hash: string }> {

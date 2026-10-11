@@ -69,6 +69,7 @@ export type Cohort = {
   goal_deadline: number; // unix seconds
   stake_amount: string; // raw token units
   settled?: boolean;
+  staker_count?: number;
 };
 
 export type CohortGoal = {

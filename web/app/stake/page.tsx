@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { compileGoal, getConfig, relayStake, submitGoal } from "@/lib/api";
+import { kindOf } from "@/lib/kinds";
 import { countdown, fmtTime, useNow } from "@/lib/time";
 import { type CompileResponse, type GoalType, type RelayerConfig } from "@/lib/types";
 import { goalHashOf } from "@/lib/hashes";
@@ -48,8 +49,9 @@ function StakeInner() {
       .then((c) => {
         setCfg(c);
         const q = Number(params.get("cohort"));
-        const open = c.cohorts.filter((x) => x.stake_deadline * 1000 > Date.now());
-        setCohortId(c.cohorts.some((x) => x.id === q) ? q : (open[0]?.id ?? c.cohorts[0]?.id ?? null));
+        // No market in the link means a solo stake: use the newest open solo round.
+        const solo = c.cohorts.filter((x) => kindOf(x) === "solo" && x.stake_deadline * 1000 > Date.now()).sort((a, b) => b.id - a.id);
+        setCohortId(c.cohorts.some((x) => x.id === q) ? q : (solo[0]?.id ?? null));
         tokenDecimals(c.token, c.decimals).then(setDec);
       })
       .catch((e: Error) => setErr(e.message));
@@ -129,11 +131,25 @@ function StakeInner() {
   return (
     <div className="grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:gap-x-12">
       <header className="lg:col-span-12">
-        <div className="label">Market {cohort ? `#${cohort.id}` : "…"}</div>
-        <h1 className="display text-6xl sm:text-8xl">Commit to a task.</h1>
-        <p className="mt-4 max-w-2xl text-lg text-fg/80">
-          Say what you will get done and by when. The referee turns it into exact, checkable criteria before you stake.
-        </p>
+        {kindOf(cohort) === "solo" ? (
+          <>
+            <div className="label">Solo stake{cohort ? ` · round #${cohort.id}` : ""}</div>
+            <h1 className="display text-6xl sm:text-8xl">Bet on yourself.</h1>
+            <p className="mt-4 max-w-2xl text-lg text-fg/80">
+              Put AUSD behind your own task. Finish by the deadline and you get it back. Miss it and you lose it to the other solo
+              stakers who finished. The referee turns your words into exact, checkable criteria before you stake.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="label">Group market #{cohort?.id ?? "…"}</div>
+            <h1 className="display text-6xl sm:text-8xl">Join with a task.</h1>
+            <p className="mt-4 max-w-2xl text-lg text-fg/80">
+              Commit to your own task in this market. Finish and you get your stake back plus a share of what others missed; anyone
+              in the market can bet YES or NO on you. <a className="link" href={`/cohorts/${cohort?.id ?? ""}`}>See the market</a>
+            </p>
+          </>
+        )}
       </header>
 
       {/* Left: the form. */}

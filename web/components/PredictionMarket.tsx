@@ -8,12 +8,15 @@ import { fmtAmount, tokenBalance, useWallet } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { RelayerConfig } from "@/lib/types";
 import { ErrorBox, Spinner, TxLink } from "./ui";
+import { kindOf } from "@/lib/kinds";
 
 type Props = { cohortId: number; owner: `0x${string}` };
 export function PredictionMarket(props: Props) {
   const { data: cfg } = usePoll(getConfig, 30_000);
   // Old relayers and fixture mode remain usable until MarketPool is actually deployed.
   if (MOCK || !cfg?.market_pool) return null;
+  // Betting belongs to group markets; solo stakes are just you against your own deadline.
+  if (kindOf(cfg.cohorts.find((c) => c.id === props.cohortId)) === "solo") return null;
   return <LiveMarket key={`${props.cohortId}:${props.owner}:${cfg.market_pool}`} {...props} cfg={cfg} />;
 }
 

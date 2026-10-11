@@ -8,6 +8,7 @@ import type { RelayerConfig } from "@/lib/types";
 import { fmtAmount, myGoals, tokenBalance, tokenDecimals, useWallet, type MyGoal } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
 import { Cow } from "@/components/Cow";
+import { kindOf } from "@/lib/kinds";
 
 export default function JoinPage() {
   const { account, dripState, dripTx, retryDrip } = useWallet();
@@ -32,7 +33,7 @@ export default function JoinPage() {
     return () => clearInterval(t);
   }, [cfg, account, dripState]);
 
-  const open = (cfg?.cohorts || []).filter((c) => c.stake_deadline * 1000 > now);
+  const open = (cfg?.cohorts || []).filter((c) => c.stake_deadline * 1000 > now && kindOf(c) === "group");
 
   return (
     <div className="grid grid-cols-1 gap-y-14 lg:grid-cols-12 lg:gap-x-12">
@@ -52,15 +53,27 @@ export default function JoinPage() {
           Put AUSD behind any task with a deadline. An AI referee gathers the evidence itself, rules pass or fail with reasons,
           and posts the verdict on-chain where anyone can check it. Stakes from missed tasks go to the people who finished.
         </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/stake" className="btn-primary">Commit to a task</Link>
-          <Link href="/cohorts" className="btn-ghost">See the market</Link>
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="card flex flex-col">
+            <div className="label">Solo stake</div>
+            <div className="font-display text-3xl font-semibold">Bet on yourself.</div>
+            <p className="mt-2 flex-1 text-fg/75">Put AUSD behind your own task. Finish by the deadline and you get it back. Miss it and you lose it.</p>
+            <Link href="/stake" className="btn-primary mt-5">Make a solo stake</Link>
+          </div>
+          <div className="card flex flex-col">
+            <div className="label">Group market</div>
+            <div className="font-display text-3xl font-semibold">Bet with friends.</div>
+            <p className="mt-2 flex-1 text-fg/75">Start a market and send the link. Everyone commits to a task, and anyone can bet YES or NO on each person.</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link href="/cohorts/new" className="btn-primary">Start a market</Link>
+              <Link href="/cohorts" className="btn-ghost">Browse</Link>
+            </div>
+          </div>
         </div>
 
         <ol className="mt-16 max-w-xl">
           {[
             ["Any task with evidence", "Today: code pushed to a public repo, or a page that goes live with the content you promised. You describe the task; the referee turns it into exact criteria."],
-            ["Or bet on someone else", "Anyone can bet YES or NO on whether a person finishes. The same on-chain verdict settles the bets; the person's own stake is never touched."],
             ["It looks for itself", "It reads the evidence directly and ignores uploads and claimed timestamps, so old or borrowed work does not count."],
             ["Every ruling is checkable", "Each verdict is posted on-chain with a hash of its full reasoning. Your browser recomputes it and compares."],
             ["Nobody can take the money", "The contract has no owner withdrawal. If no verdict is posted, everyone is refunded."],
@@ -123,14 +136,14 @@ export default function JoinPage() {
         <ErrorBox msg={err} />
 
         <section>
-          <div className="label">Open markets</div>
+          <div className="label">Open group markets</div>
           <div className="border-t border-line">
             {!cfg && !err && (
               <div className="py-4">
                 <Spinner />
               </div>
             )}
-            {cfg && open.length === 0 && <p className="py-4 text-muted">No market is open right now.</p>}
+            {cfg && open.length === 0 && <p className="py-4 text-muted">No group market is open right now. <Link href="/cohorts/new" className="link">Start one</Link>.</p>}
             {open.map((c) => (
               <div key={c.id} className="border-b border-line py-5">
                 <div className="flex items-baseline justify-between">
@@ -146,11 +159,11 @@ export default function JoinPage() {
                 <div className="mt-4 flex gap-3">
                   <div className="flex-1">
                     <Link href={`/stake?cohort=${c.id}`} className="btn-primary w-full">
-                        Stake
+                        Join
                       </Link>
                   </div>
                   <Link href={`/cohorts/${c.id}`} className="btn-ghost">
-                    View
+                    View &amp; bet
                   </Link>
                 </div>
               </div>

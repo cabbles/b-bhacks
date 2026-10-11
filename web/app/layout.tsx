@@ -26,7 +26,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Cash Cow
             </Link>
             <div className="ml-auto flex gap-2.5 whitespace-nowrap font-display text-[13px] font-medium text-muted sm:gap-6 sm:text-base">
-              <Link href="/stake" className="hover:text-fg">Stake</Link>              <Link href="/cohorts" className="hover:text-fg">Market</Link>
+              <Link href="/stake" className="hover:text-fg">Solo stake</Link>
+              <Link href="/cohorts" className="hover:text-fg">Group markets</Link>
               <Link href="/integrity" className="hover:text-fg">Integrity</Link>
             </div>
           </nav>
