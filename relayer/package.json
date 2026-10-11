@@ -5,9 +5,22 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "fund": "tsx src/fund.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "shared": "workspace:*"
+    "@fastify/cors": "^10.0.1",
+    "better-sqlite3": "^12.4.1",
+    "dotenv": "^16.4.5",
+    "fastify": "^5.2.0",
+    "shared": "workspace:*",
+    "tsx": "^4.19.2",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^20.17.0",
+    "typescript": "^5.7.2"
   }
 }
