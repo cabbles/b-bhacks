@@ -16,4 +16,11 @@ Checkpoint 2 from PLAN.md section 7: one real `github_commits` goal goes stake �
 3. **Stake.** Signed ERC-3009 `ReceiveWithAuthorization` with nonce `authNonce(1, goalHash)`; the relayer submitted `stakeWithAuthorization`. Stake tx `0x46595f…55777f`. Registered with the referee as goal 1. The goal page's "Check it yourself" panel confirmed the pool's recorded goalHash `0xdcea45fc…3f64456` matches the criteria.
 4. **Watch.** Pushed the nonce file and these two commits to `cp2-proof` after staking, so the referee first sees them inside the window.
 
-Verdict, settle, and claim results are added to this file after the deadline.
+5. **Verdict (21:48:56Z): PASS.** `repo_control` ✓ (nonce file found on `cp2-proof`), `commits_in_window` ✓ (2 of 2 required commits first seen inside the window; 31 commits already present at stake time ignored; git dates not used), `substance` ✓ (opus and sonnet agree). Verdict tx [`0xb7dc5613…e19743`](https://sepolia.basescan.org/tx/0xb7dc56131698c75292b737bbaa23cdf403f0ad52f01709d271ed19c62ee19743), evidenceHash `0x40b28a9e…d2b2`.
+6. **Independent check.** The goal page's "Check it yourself" panel matched all four: goal hash recomputed from the criteria, `pool.stakes(1, staker).goalHash`, evidence hash recomputed from the verdict JSON with `shared/canonical.ts`, and the `Verdict` event in the verdict tx receipt.
+7. **Settle (21:59Z).** Cohort 1 settled with 3 stakers, 1 pass, 0 fails. The two other stakes had no verdict, so they were refunded; there were no forfeits to share.
+8. **Claim.** "Claim payout" on the goal page called relayer `/claim`; claim tx [`0xec141589…d2a844`](https://sepolia.basescan.org/tx/0xec141589c747d7f6101f63c58307f0ef972909d1fd6b3f660a4a93f946d2a844). The browser wallet's AUSD balance went 90 → 100 on-chain.
+
+## Result
+
+CP2 passed: stake → watch → verdict on-chain → settle → claim, on Base Sepolia, through the real UI, with the evidence hash re-verified in the browser.
