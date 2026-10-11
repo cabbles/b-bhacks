@@ -62,6 +62,21 @@ When `NEXT_PUBLIC_RELAYER_URL` and `NEXT_PUBLIC_REFEREE_URL` are unset, the app 
 | Goal/verdict  | `/goals/:id`     |
 | Cohort board (projector) | `/cohorts/:id` |
 | Fool the Ref  | `/fool`          |
+| System status (pre-flight) | `/status` |
+
+In mock mode, a goal you stake is judged 20 seconds later: honest goals pass and declared cheat attempts are caught, so you can rehearse the whole flow without a backend.
+
+`pnpm test:sig` checks that the ERC-3009 `ReceiveWithAuthorization` signatures the app produces recover to the staker.
+
+## Screenshots
+
+Captured in mock mode; replace them with live captures at code freeze.
+
+| Join | Verdict (fail) | Fool the Ref |
+| ---- | -------------- | ------------ |
+| ![Join](docs/screenshots/join.png) | ![Verdict fail](docs/screenshots/verdict-fail.png) | ![Fool the Ref](docs/screenshots/fool.png) |
+
+![Cohort board](docs/screenshots/board.png)
 
 ## Live cohort results
 

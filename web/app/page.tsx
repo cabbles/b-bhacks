@@ -9,7 +9,7 @@ import { fmtAmount, myGoals, tokenBalance, tokenDecimals, useWallet, type MyGoal
 import { ErrorBox, Spinner } from "@/components/ui";
 
 export default function JoinPage() {
-  const { account, dripState, dripTx } = useWallet();
+  const { account, dripState, dripTx, retryDrip } = useWallet();
   const [cfg, setCfg] = useState<RelayerConfig | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [bal, setBal] = useState<bigint | null>(null);
@@ -76,7 +76,14 @@ export default function JoinPage() {
                 100 AUSD sent ↗
               </a>
             )}
-            {dripState === "error" && <span className="text-red-300">Faucet failed. Refresh to retry.</span>}
+            {dripState === "error" && (
+              <span className="text-red-300">
+                Faucet failed.{" "}
+                <button type="button" className="link" onClick={retryDrip}>
+                  Try again
+                </button>
+              </span>
+            )}
           </span>
         </div>
         <p className="text-xs text-zinc-500">No install, no seed phrase. Clearing this browser&apos;s data loses this wallet.</p>

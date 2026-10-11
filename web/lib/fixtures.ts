@@ -153,3 +153,45 @@ export const fxCompile = (text: string, staker: `0x${string}`, typeHint?: GoalTy
 };
 
 export const FX_TX = FAKE_TX;
+
+/** Build a plausible verdict for a goal staked in mock mode. */
+export function mockVerdict(criteria: Criteria, cohortId: number, passed: boolean, decidedAt: string): Verdict {
+  const p = criteria.params as Record<string, string | number>;
+  const checks =
+    criteria.type === "url_live"
+      ? [
+          { name: "url_control", passed: true, detail: `nonce ${criteria.nonce} found at /.well-known/referee.txt` },
+          { name: "not_live_at_stake", passed: true, detail: "required text absent at stake time" },
+          { name: "url_content", passed, detail: passed ? `page contains "${p.must_contain}"` : `"${p.must_contain}" not found` },
+          { name: "substance", passed, detail: passed ? "both models: page delivers the goal" : "both models: static placeholder, no working feature" },
+        ]
+      : [
+          { name: "repo_control", passed: true, detail: `nonce file .referee/${criteria.nonce} found on ${p.branch ?? "main"}` },
+          {
+            name: "commits_in_window",
+            passed,
+            detail: passed
+              ? `${p.min_commits ?? 2} of ${p.min_commits ?? 2} commits first seen inside the window`
+              : "commits claim earlier author dates; only 0 were first seen inside the window",
+          },
+          { name: "substance", passed, detail: passed ? "both models: diffs implement the stated goal" : "skipped: earlier check failed" },
+        ];
+  return {
+    version: 1,
+    cohort_id: cohortId,
+    staker: criteria.staker,
+    goal_hash: fxVerdictFail.goal_hash,
+    passed,
+    checks,
+    reasons: passed
+      ? "The referee saw the work appear during the goal window and it matches what you said you would do."
+      : "The evidence the referee observed itself does not show the goal being completed inside the window.",
+    evidence: [{ kind: criteria.type === "url_live" ? "url_snapshot" : "github_commit", ref: criteria.type === "url_live" ? String(p.url) : "c0ffee1", first_seen: decidedAt }],
+    model_votes: [
+      { model: "model-a", passed },
+      { model: "model-b", passed },
+    ],
+    human_override: false,
+    decided_at: decidedAt,
+  };
+}

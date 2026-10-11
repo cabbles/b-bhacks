@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
-import { bytesToHex, createPublicClient, formatUnits, http, parseAbi } from "viem";
+import { createPublicClient, formatUnits, http, parseAbi } from "viem";
 import { baseSepolia } from "viem/chains";
 import { drip } from "./api";
 import { MOCK, RPC_URL } from "./env";
-import type { Authorization, RelayerConfig } from "./types";
 
 const KEY = "ref.pk";
 const DRIP_KEY = "ref.dripped";
@@ -42,15 +41,7 @@ export function useWallet() {
   const [dripState, setDripState] = useState<DripState>("idle");
   const [dripTx, setDripTx] = useState<string | null>(null);
 
-  useEffect(() => {
-    const acct = loadAccount();
-    setAccount(acct);
-    const prior = safeGet(DRIP_KEY + ":" + acct.address);
-    if (prior) {
-      setDripState("done");
-      setDripTx(prior === "1" ? null : prior);
-      return;
-    }
+  const requestDrip = (acct: PrivateKeyAccount) => {
     setDripState("pending");
     drip(acct.address)
       .then((r) => {
@@ -65,9 +56,22 @@ export function useWallet() {
           setDripState("done");
         } else setDripState("error");
       });
+  };
+
+  useEffect(() => {
+    const acct = loadAccount();
+    setAccount(acct);
+    const prior = safeGet(DRIP_KEY + ":" + acct.address);
+    if (prior) {
+      setDripState("done");
+      setDripTx(prior === "1" ? null : prior);
+      return;
+    }
+    requestDrip(acct);
   }, []);
 
-  return { account, dripState, dripTx };
+  const retryDrip = () => account && requestDrip(account);
+  return { account, dripState, dripTx, retryDrip };
 }
 
 // ---------- my goals (local index so the join screen can link back) ----------
@@ -85,48 +89,7 @@ export function rememberGoal(g: MyGoal) {
   safeSet(MY_GOALS_KEY, JSON.stringify([g, ...myGoals().filter((x) => x.goal_id !== g.goal_id)]));
 }
 
-// ---------- ERC-3009 ----------
-
-/**
- * Sign ReceiveWithAuthorization. `to` is the pool: the pool calls
- * token.receiveWithAuthorization, so only the pool can redeem this signature.
- */
-export async function signStakeAuthorization(
-  account: PrivateKeyAccount,
-  cfg: RelayerConfig,
-  value: bigint,
-  ttlSeconds = 3600,
-): Promise<Authorization> {
-  const nonce = bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
-  const now = Math.floor(Date.now() / 1000);
-  const validAfter = 0n;
-  const validBefore = BigInt(now + ttlSeconds);
-  const sig = await account.signTypedData({
-    domain: {
-      name: cfg.tokenDomain.name,
-      version: cfg.tokenDomain.version,
-      chainId: cfg.chainId,
-      verifyingContract: cfg.token,
-    },
-    types: {
-      ReceiveWithAuthorization: [
-        { name: "from", type: "address" },
-        { name: "to", type: "address" },
-        { name: "value", type: "uint256" },
-        { name: "validAfter", type: "uint256" },
-        { name: "validBefore", type: "uint256" },
-        { name: "nonce", type: "bytes32" },
-      ],
-    },
-    primaryType: "ReceiveWithAuthorization",
-    message: { from: account.address, to: cfg.pool, value, validAfter, validBefore, nonce },
-  });
-  const r = ("0x" + sig.slice(2, 66)) as `0x${string}`;
-  const s = ("0x" + sig.slice(66, 130)) as `0x${string}`;
-  let v = parseInt(sig.slice(130, 132), 16);
-  if (v < 27) v += 27;
-  return { validAfter: validAfter.toString(), validBefore: validBefore.toString(), nonce, v, r, s };
-}
+export { signStakeAuthorization } from "./erc3009";
 
 // ---------- token reads ----------
 

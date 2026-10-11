@@ -33,20 +33,21 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
   const sorted = [...goals].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
 
   return (
-    <div className="space-y-6">
+    // Breaks out of the layout's max-w-3xl so the board fills a projector.
+    <div className="relative left-1/2 w-[min(80rem,calc(100vw-2rem))] -translate-x-1/2 space-y-6">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
         <div className="flex-1">
           <div className="label">Cohort #{cohort.id} · {phase}</div>
-          <div className="font-mono text-6xl font-black tabular-nums sm:text-7xl">{countdown(target, now)}</div>
+          <div className="font-mono text-6xl font-black tabular-nums sm:text-7xl lg:text-9xl">{countdown(target, now)}</div>
           <div className="text-sm text-zinc-400">{stakingOpen ? "until staking closes" : "until the goal deadline"}</div>
-          <div className="mt-3 text-3xl font-black text-lime-300">
+          <div className="mt-3 text-3xl font-black text-lime-300 lg:text-5xl">
             {fmtAmount(stats.pot, dec)} <span className="text-lg text-zinc-400">AUSD in the pot</span>
           </div>
         </div>
         {joinUrl && (
           <div className="flex flex-col items-center gap-2">
             <div className="rounded-2xl bg-white p-3">
-              <QRCodeSVG value={joinUrl} size={180} />
+              <QRCodeSVG value={joinUrl} size={180} className="h-44 w-44 lg:h-72 lg:w-72" />
             </div>
             <div className="text-xs text-zinc-400">Scan to join · no install</div>
           </div>
@@ -67,7 +68,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
         </p>
       )}
 
-      <ul className="space-y-2">
+      <ul className="grid gap-2 lg:grid-cols-2">
         {sorted.length === 0 && <li className="text-zinc-400">No stakers yet. Be the first.</li>}
         {sorted.map((g) => (
           <li key={g.goal_id}>
