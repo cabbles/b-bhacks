@@ -13,10 +13,13 @@ import type {
   RelayerConfig,
 } from "./types";
 
+// ngrok free domains serve an HTML interstitial instead of JSON unless this header is sent.
+export const TUNNEL_HEADERS = { "ngrok-skip-browser-warning": "1" };
+
 async function http<T>(base: string, path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(base + path, {
     ...init,
-    headers: { "content-type": "application/json", ...(init?.headers || {}) },
+    headers: { "content-type": "application/json", ...TUNNEL_HEADERS, ...(init?.headers || {}) },
     cache: "no-store",
   });
   const text = await res.text();

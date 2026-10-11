@@ -9,6 +9,7 @@ import { MOCK_RELAYER, RELAYER_URL } from "./env";
 const KEY = "ref.pk";
 // Per relayer, so a mock-mode drip never stops the real faucet from running for this address.
 const DRIP_KEY = `ref.dripped:${RELAYER_URL || "mock"}`;
+const DRIP_FAIL_KEY = "ref.dripFailedAt";
 const MY_GOALS_KEY = "ref.myGoals";
 
 function safeGet(k: string): string | null {
@@ -54,6 +55,9 @@ export function useWallet() {
   const [dripTx, setDripTx] = useState<string | null>(null);
 
   const requestDrip = (acct: PrivateKeyAccount) => {
+    try {
+      sessionStorage.removeItem(DRIP_FAIL_KEY);
+    } catch {}
     setDripState("pending");
     dripOnce(acct.address)
       .then((r) => {
@@ -64,7 +68,12 @@ export function useWallet() {
       })
       .catch((e: Error) => {
         if (/already|once/i.test(e.message)) setDripState("done");
-        else setDripState("error");
+        else {
+          try {
+            sessionStorage.setItem(DRIP_FAIL_KEY, String(Date.now()));
+          } catch {}
+          setDripState("error");
+        }
       });
   };
 
@@ -75,6 +84,15 @@ export function useWallet() {
     if (prior?.startsWith("0x")) {
       setDripState("done");
       setDripTx(prior);
+      return;
+    }
+    // After a failure, wait a minute before auto-retrying on page loads; "Try again" skips the wait.
+    let failedAt = 0;
+    try {
+      failedAt = Number(sessionStorage.getItem(DRIP_FAIL_KEY) || 0);
+    } catch {}
+    if (Date.now() - failedAt < 60_000) {
+      setDripState("error");
       return;
     }
     requestDrip(acct);
