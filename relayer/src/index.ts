@@ -1,3 +1,4 @@
+import { marketAddress, registerMarkets } from './markets.ts';
 import cors from '@fastify/cors';
 import Database from 'better-sqlite3';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
@@ -82,6 +83,7 @@ async function cohorts() {
 // ---- server ----
 const app = Fastify({ logger: true, bodyLimit: 16 * 1024, trustProxy: true });
 await app.register(cors, { origin: true });
+await registerMarkets(app);
 
 const bad = (reply: FastifyReply, code: number, error: string) => reply.code(code).send({ error });
 const isHex32 = (x: unknown): x is Hex => typeof x === 'string' && /^0x[0-9a-fA-F]{64}$/.test(x);
@@ -99,6 +101,7 @@ app.get('/health', async () => ({ ok: true, treasury: treasury.address, pool: de
 
 app.get('/config', async () => ({
     chainId: deployments.chainId,
+    market_pool: marketAddress,
     pool: deployments.pool,
     token: deployments.token,
     tokenDomain,

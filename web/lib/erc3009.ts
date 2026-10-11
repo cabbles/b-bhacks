@@ -1,5 +1,4 @@
 import { encodeAbiParameters, keccak256, parseSignature } from "viem";
-import type { PrivateKeyAccount } from "viem/accounts";
 import type { Authorization, RelayerConfig } from "./types";
 
 export const RECEIVE_WITH_AUTHORIZATION_TYPES = {
@@ -12,6 +11,17 @@ export const RECEIVE_WITH_AUTHORIZATION_TYPES = {
     { name: "nonce", type: "bytes32" },
   ],
 } as const;
+
+// Only the ERC-3009 signing capability is required, compatible across workspace viem versions.
+type AuthorizationSigner = {
+  address: `0x${string}`;
+  signTypedData: (parameters: {
+    domain: { name: string; version: string; chainId: number; verifyingContract: `0x${string}` };
+    types: typeof RECEIVE_WITH_AUTHORIZATION_TYPES;
+    primaryType: "ReceiveWithAuthorization";
+    message: { from: `0x${string}`; to: `0x${string}`; value: bigint; validAfter: bigint; validBefore: bigint; nonce: `0x${string}` };
+  }) => Promise<`0x${string}`>;
+};
 
 /**
  * The ERC-3009 nonce the pool requires: StakePool.authNonce = keccak256(abi.encode(cohortId, goalHash)).
@@ -26,7 +36,7 @@ export function authNonce(cohortId: number | bigint, goalHash: `0x${string}`): `
  * token.receiveWithAuthorization, so only the pool can redeem this signature.
  */
 export async function signStakeAuthorization(
-  account: PrivateKeyAccount,
+  account: AuthorizationSigner,
   cfg: Pick<RelayerConfig, "chainId" | "pool" | "token" | "tokenDomain">,
   stake: { cohortId: number; goalHash: `0x${string}`; value: bigint },
   ttlSeconds = 3600,
@@ -54,4 +64,30 @@ export async function signStakeAuthorization(
     r,
     s,
   };
+}
+
+/** MarketPool nonce includes side/amount and a per-wallet sequence to allow repeat bets safely. */
+export function betAuthNonce(cohortId: number | bigint, owner: `0x${string}`, bettor: `0x${string}`, yes: boolean, amount: bigint, sequence: bigint) {
+  return keccak256(encodeAbiParameters(
+    [{ type: "uint256" }, { type: "address" }, { type: "address" }, { type: "bool" }, { type: "uint256" }, { type: "uint256" }],
+    [BigInt(cohortId), owner, bettor, yes, amount, sequence],
+  ));
+}
+
+export async function signBetAuthorization(
+  account: AuthorizationSigner,
+  cfg: Pick<RelayerConfig, "chainId" | "token" | "tokenDomain">,
+  bet: { pool: `0x${string}`; cohortId: number; owner: `0x${string}`; yes: boolean; value: bigint; sequence: bigint; deadline: number },
+): Promise<Authorization> {
+  const validAfter = 0n;
+  const validBefore = BigInt(Math.min(Math.floor(Date.now() / 1000) + 600, bet.deadline));
+  const nonce = betAuthNonce(bet.cohortId, bet.owner, account.address, bet.yes, bet.value, bet.sequence);
+  const sig = await account.signTypedData({
+    domain: { ...cfg.tokenDomain, chainId: cfg.chainId, verifyingContract: cfg.token },
+    types: RECEIVE_WITH_AUTHORIZATION_TYPES,
+    primaryType: "ReceiveWithAuthorization",
+    message: { from: account.address, to: bet.pool, value: bet.value, validAfter, validBefore, nonce },
+  });
+  const { r, s, v, yParity } = parseSignature(sig);
+  return { validAfter: "0", validBefore: String(validBefore), nonce, v: v !== undefined ? Number(v) : yParity + 27, r, s };
 }

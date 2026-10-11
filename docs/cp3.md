@@ -15,4 +15,4 @@ The web tunnel runs from Agent A’s laptop. Its issue #1 update says UI changes
 
 Validation: TypeScript check, ERC-3009 signature check (20/20), production Next.js build in an isolated temporary copy, browser inspection of the form and a project-prefilled task link, and `git diff --check` all passed. The valid creation transaction has not been exercised in this continuation.
 
-Remaining: publish/rebuild the updated web; exercise valid group creation; capture final real-browser screenshots; fill live cohort totals at freeze; record/upload the two-minute video. YES/NO betting remains roadmap until a deployed MarketPool ABI/address is available.
+Remaining: publish/rebuild the updated web; exercise valid group creation; capture final real-browser screenshots; fill live cohort totals at freeze; record/upload the two-minute video. YES/NO betting is implemented and tested locally; activate it by deploying MarketPool and restarting the services (see `market-pool.md`).

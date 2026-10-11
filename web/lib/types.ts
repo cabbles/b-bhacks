@@ -103,6 +103,7 @@ export type Attack = {
 };
 
 export type RelayerConfig = {
+  market_pool?: `0x${string}` | null;
   chainId: number;
   /** Placeholder zero address until the pool is deployed (relayer sends null; getConfig normalizes). */
   pool: `0x${string}`;
@@ -160,4 +161,23 @@ export const ATTACK_LABEL: Record<string, string> = {
   fake_static_page: "Fake static page",
   static_fake: "Fake static page",
   other: "Other",
+};
+
+export type PredictionMarket = {
+  address: `0x${string}`;
+  market_id: `0x${string}`;
+  cohort_id: number;
+  owner: `0x${string}`;
+  yes_total: string;
+  no_total: string;
+  result: number; // 0 pending, 1 YES, 2 NO, 3 refund
+  betting_deadline: number;
+  goal_deadline: number;
+  settled: boolean;
+  outcome: number;
+  yes_amount: string;
+  no_amount: string;
+  claimed: boolean;
+  claimable: string;
+  sequence: string;
 };

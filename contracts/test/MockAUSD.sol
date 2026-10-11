@@ -26,6 +26,14 @@ contract MockAUSD {
         );
     }
 
+    function eip712Domain()
+        external
+        view
+        returns (bytes1, string memory, string memory, uint256, address, bytes32, uint256[] memory)
+    {
+        return (hex"0f", "Agora Dollar", "1", block.chainid, address(this), bytes32(0), new uint256[](0));
+    }
+
     function mint(address to, uint256 value) external {
         balanceOf[to] += value;
     }
@@ -54,7 +62,9 @@ contract MockAUSD {
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
-                keccak256(abi.encode(RECEIVE_WITH_AUTHORIZATION_TYPEHASH, from, to, value, validAfter, validBefore, nonce))
+                keccak256(
+                    abi.encode(RECEIVE_WITH_AUTHORIZATION_TYPEHASH, from, to, value, validAfter, validBefore, nonce)
+                )
             )
         );
         require(ecrecover(digest, v, r, s) == from, "bad signature");
