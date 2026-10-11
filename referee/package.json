@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
     "admin": "tsx scripts/admin.ts",
-    "x402-demo": "tsx scripts/x402-demo.ts"
+    "x402-demo": "tsx scripts/x402-demo.ts",
+    "stats": "tsx scripts/stats.ts"
   },
   "engines": {
     "node": ">=20"

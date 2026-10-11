@@ -3,7 +3,7 @@ import Database from 'better-sqlite3';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isAddress, parseUnits, type Address, type Hex } from 'viem';
+import { isAddress, parseEventLogs, parseUnits, type Address, type Hex } from 'viem';
 import { deployments, poolAbi, publicClient, reason, requirePool, send, tokenAbi, treasury } from './chain.ts';
 
 const env = process.env;
@@ -199,6 +199,48 @@ app.post('/claim', async (req, reply) => {
     } catch (err) {
         logTx('claim', b, null, reason(err));
         return bad(reply, 400, `claim failed: ${reason(err)}`);
+    }
+});
+
+// ---- public: start a group (PIVOT.md row 2). A group is a cohort; createCohort is permissionless
+// on-chain, the relayer only pays the gas, so this is bounded and rate-limited rather than admin-only. ----
+const groupHits = new Map<string, number[]>();
+app.post('/groups', async (req, reply) => {
+    const b = (req.body ?? {}) as any;
+    const now = Math.floor(Date.now() / 1000);
+    const stakeMinutes = Number(b.stake_minutes ?? 60);
+    const goalMinutes = Number(b.goal_minutes ?? 0);
+    const stake = Number(b.stake ?? 10);
+    if (!(stakeMinutes >= 5 && stakeMinutes <= 7 * 24 * 60)) return bad(reply, 400, 'stake_minutes must be 5..10080');
+    if (!(goalMinutes >= 0 && goalMinutes <= 30 * 24 * 60)) return bad(reply, 400, 'goal_minutes must be 0..43200');
+    if (!(stake >= 1 && stake <= 100)) return bad(reply, 400, 'stake must be 1..100 AUSD');
+    const hits = (groupHits.get(req.ip) ?? []).filter((t) => Date.now() - t < 60 * 60_000);
+    if (hits.length >= 30) return bad(reply, 429, 'too many groups from this network');
+    hits.push(Date.now());
+    groupHits.set(req.ip, hits);
+
+    const stakeDeadline = now + stakeMinutes * 60;
+    const goalDeadline = stakeDeadline + goalMinutes * 60;
+    const ruleHash = isHex32(b.rule_hash) ? b.rule_hash : (`0x${'0'.repeat(64)}` as Hex);
+    try {
+        const { hash, receipt } = await send({
+            address: requirePool(),
+            abi: poolAbi,
+            functionName: 'createCohort',
+            args: [ruleHash, BigInt(stakeDeadline), BigInt(goalDeadline), parseUnits(String(stake), decimals)],
+        });
+        let all: CohortView[] = [];
+        for (let i = 0; i < 10; i++) {
+            all = await listCohorts(receipt.blockNumber).catch(() => []);
+            if (all.length) break;
+            await new Promise((r) => setTimeout(r, 1000));
+        }
+        cohortCache = { at: Date.now(), data: all };
+        const ev = parseEventLogs({ abi: poolAbi, logs: receipt.logs, eventName: 'CohortCreated' })[0] as any;
+        const id = Number(ev.args.cohortId);
+        return { group_id: id, cohort: all.find((c) => c.id === id) ?? null, tx_hash: hash };
+    } catch (err) {
+        return bad(reply, 500, `group creation failed: ${reason(err)}`);
     }
 });
 
