@@ -1,7 +1,7 @@
 import type { Hex } from 'viem';
 import { config, signerReady } from './config.ts';
 import { db, type GoalRow } from './db.ts';
-import { findPostedVerdict, postVerdictOnChain } from './chain.ts';
+import { postVerdictOnChain, verdictPosted } from './chain.ts';
 import { decide, pollGithub } from './engine.ts';
 
 const inFlight = new Set<string>();
@@ -30,15 +30,23 @@ export async function postIfReady(g: GoalRow) {
     const chainDeadline = g.cohort_goal_deadline ?? Date.parse(criteria.window.deadline) / 1000;
     if (Date.now() / 1000 < chainDeadline + 5) return; // contract only accepts verdicts after goalDeadline
     const verdict = JSON.parse(g.verdict_json);
-    const existing = await findPostedVerdict(g.cohort_id, g.staker);
-    if (existing) {
-        db.prepare('UPDATE goals SET verdict_tx_hash = ? WHERE id = ?').run(existing.tx, g.id);
-        if (existing.evidenceHash.toLowerCase() !== g.evidence_hash!.toLowerCase())
-            console.error(`[worker] goal ${g.id}: on-chain evidence hash differs from stored verdict`);
+    if (await verdictPosted(g.cohort_id, g.staker)) {
+        // On chain but the tx hash was never recorded: should not happen since the hash is saved on send.
+        db.prepare('UPDATE goals SET last_error = ? WHERE id = ?').run('verdict already on chain; tx hash unknown', g.id);
         return;
     }
-    const tx = await postVerdictOnChain(g.cohort_id, g.staker, verdict.passed, g.evidence_hash as Hex);
-    db.prepare('UPDATE goals SET verdict_tx_hash = ?, last_error = NULL WHERE id = ?').run(tx, g.id);
+    let tx: Hex;
+    try {
+        tx = await postVerdictOnChain(g.cohort_id, g.staker, verdict.passed, g.evidence_hash as Hex, (hash) =>
+            db.prepare('UPDATE goals SET verdict_tx_hash = ? WHERE id = ?').run(hash, g.id),
+        );
+    } catch (err) {
+        // Sent but reverted or unconfirmed: forget the hash unless the verdict did land, so the next tick retries.
+        if (!(await verdictPosted(g.cohort_id, g.staker).catch(() => null)))
+            db.prepare('UPDATE goals SET verdict_tx_hash = NULL WHERE id = ?').run(g.id);
+        throw err;
+    }
+    db.prepare('UPDATE goals SET last_error = NULL WHERE id = ?').run(g.id);
     console.log(`[worker] goal ${g.id}: verdict ${verdict.passed ? 'PASS' : 'FAIL'} posted ${tx}`);
 }
 

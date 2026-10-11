@@ -55,7 +55,6 @@ export const config = {
     maxGoalsPerCohort: Number(env.MAX_GOALS_PER_COHORT ?? 60),
     // Skip on-chain stake verification (local dev only).
     skipStakeCheck: env.SKIP_STAKE_CHECK === '1',
-    deployBlock: BigInt(env.POOL_DEPLOY_BLOCK ?? dep.deployBlock ?? dep.deploy_block ?? 0),
 };
 
 export const chainReady = () => Boolean(config.rpcUrl && config.pool);

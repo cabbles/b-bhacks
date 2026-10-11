@@ -9,6 +9,10 @@ export const poolAbi = parseAbi([
     'event CohortCreated(uint256 indexed cohortId, bytes32 ruleHash, uint64 stakeDeadline, uint64 goalDeadline, uint256 stakeAmount)',
     'event Staked(uint256 indexed cohortId, address indexed staker, bytes32 goalHash)',
     'event Verdict(uint256 indexed cohortId, address indexed staker, bool passed, bytes32 evidenceHash)',
+    // Public getters. Preferred over getLogs: the public Base Sepolia RPC caps getLogs at 200 blocks.
+    'function cohortCount() view returns (uint256)',
+    'function cohorts(uint256) view returns (bytes32 ruleHash, uint64 stakeDeadline, uint64 goalDeadline, uint256 stakeAmount, uint32 stakerCount, uint32 passCount, uint32 failCount, bool settled, uint256 forfeitPool)',
+    'function stakes(uint256, address) view returns (bytes32 goalHash, uint8 outcome, bool claimed)',
 ]);
 
 const chain = config.chainId === 11155111 ? sepolia : baseSepolia;
@@ -31,24 +35,21 @@ const cohortCache = new Map<number, Cohort>();
 export async function getCohort(id: number): Promise<Cohort | null> {
     if (cohortCache.has(id)) return cohortCache.get(id)!;
     if (!chainReady()) return null;
-    const logs = await publicClient.getLogs({
+    const [ruleHash, stakeDeadline, goalDeadline, stakeAmount] = await publicClient.readContract({
         address: config.pool as Hex,
-        event: poolAbi[1],
-        args: { cohortId: BigInt(id) },
-        fromBlock: config.deployBlock,
-        toBlock: 'latest',
+        abi: poolAbi,
+        functionName: 'cohorts',
+        args: [BigInt(id)],
     });
-    const log = logs[0];
-    if (!log) return null;
-    const a = log.args as any;
+    if (stakeAmount === 0n) return null; // unknown cohort
     const cohort: Cohort = {
         id,
-        rule_hash: a.ruleHash,
-        stake_deadline: Number(a.stakeDeadline),
-        goal_deadline: Number(a.goalDeadline),
-        stake_amount: a.stakeAmount.toString(),
+        rule_hash: ruleHash,
+        stake_deadline: Number(stakeDeadline),
+        goal_deadline: Number(goalDeadline),
+        stake_amount: stakeAmount.toString(),
     };
-    cohortCache.set(id, cohort);
+    cohortCache.set(id, cohort); // cohort parameters are immutable once created
     return cohort;
 }
 
@@ -79,7 +80,28 @@ export async function verifyStake(txHash: Hex, cohortId: number, staker: string,
     return 'stake transaction has no matching Staked event';
 }
 
-export async function postVerdictOnChain(cohortId: number, staker: string, passed: boolean, evidenceHash: Hex): Promise<Hex> {
+// One referee wallet: send verdict txs one at a time so concurrent posts never race for the same nonce.
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+export function postVerdictOnChain(
+    cohortId: number,
+    staker: string,
+    passed: boolean,
+    evidenceHash: Hex,
+    onSent: (hash: Hex) => void,
+): Promise<Hex> {
+    const run = writeQueue.then(() => sendVerdict(cohortId, staker, passed, evidenceHash, onSent));
+    writeQueue = run.catch(() => {});
+    return run;
+}
+
+async function sendVerdict(
+    cohortId: number,
+    staker: string,
+    passed: boolean,
+    evidenceHash: Hex,
+    onSent: (hash: Hex) => void,
+): Promise<Hex> {
     if (!wallet) throw new Error('referee signer not configured');
     const { request } = await publicClient.simulateContract({
         account: wallet.account,
@@ -89,36 +111,30 @@ export async function postVerdictOnChain(cohortId: number, staker: string, passe
         args: [BigInt(cohortId), staker as Hex, passed, evidenceHash],
     });
     const hash = await wallet.writeContract(request);
-    await publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+    onSent(hash); // record before waiting, so a crash here never loses the tx hash
+    const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+    if (receipt.status !== 'success') throw new Error(`postVerdict reverted in ${hash}`);
     return hash;
 }
 
-/** If a verdict is already on chain (e.g. after a crash mid-post), return its tx hash. */
-export async function findPostedVerdict(cohortId: number, staker: string): Promise<{ tx: Hex; evidenceHash: string } | null> {
+/** Whether a verdict for this staker is already on chain (e.g. after a crash mid-post). */
+export async function verdictPosted(cohortId: number, staker: string): Promise<{ passed: boolean } | null> {
     if (!chainReady()) return null;
-    const logs = await publicClient.getLogs({
+    const [, outcome] = await publicClient.readContract({
         address: config.pool as Hex,
-        event: poolAbi[3],
-        args: { cohortId: BigInt(cohortId), staker: staker as Hex },
-        fromBlock: config.deployBlock,
-        toBlock: 'latest',
+        abi: poolAbi,
+        functionName: 'stakes',
+        args: [BigInt(cohortId), staker as Hex],
     });
-    const log = logs[0];
-    return log ? { tx: log.transactionHash, evidenceHash: (log.args as any).evidenceHash } : null;
+    return outcome === 0 ? null : { passed: outcome === 1 };
 }
 
 /** The cohort currently open for staking (latest created whose stake deadline has not passed). */
 export async function getOpenCohort(): Promise<Cohort | null> {
     if (!chainReady()) return null;
-    const logs = await publicClient.getLogs({
-        address: config.pool as Hex,
-        event: poolAbi[1],
-        fromBlock: config.deployBlock,
-        toBlock: 'latest',
-    });
+    const count = Number(await publicClient.readContract({ address: config.pool as Hex, abi: poolAbi, functionName: 'cohortCount' }));
     const now = Date.now() / 1000;
-    for (const log of [...logs].reverse()) {
-        const id = Number((log.args as any).cohortId);
+    for (let id = count; id >= 1; id--) {
         const c = await getCohort(id);
         if (c && c.stake_deadline > now) return c;
     }
