@@ -9,6 +9,7 @@ import { payoutOf, verifyGoal, type Proof } from "@/lib/verify";
 import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { GoalResponse } from "@/lib/types";
+import { PredictionMarket } from "@/components/PredictionMarket";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Spinner, StatusPill, TxLink } from "@/components/ui";
 import DecryptedText from "@/components/reactbits/DecryptedText";
@@ -234,6 +235,8 @@ export default function GoalPage({ params }: { params: { id: string } }) {
             </div>
           </div>
         )}
+
+        {cohortId !== undefined && <PredictionMarket cohortId={cohortId} owner={criteria.staker} />}
 
         <details className="text-xs text-muted">
           <summary className="cursor-pointer hover:text-fg">Raw criteria{verdict ? " and verdict" : ""} JSON</summary>

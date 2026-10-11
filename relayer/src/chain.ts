@@ -30,6 +30,7 @@ export const deployments = readJson('deployments.json') as {
     deployBlock?: number;
 };
 if (process.env.POOL_ADDRESS) deployments.pool = process.env.POOL_ADDRESS as Address; // local fork testing
+if (process.env.TOKEN_ADDRESS) deployments.token = process.env.TOKEN_ADDRESS as Address; // isolated local tests
 export const poolAbi = readJson('abi/StakePool.json') as Abi;
 
 export const tokenAbi = parseAbi([
