@@ -77,7 +77,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
         <aside className="lg:col-span-4">
           <div className="label">Terms</div>
           <dl className="grid grid-cols-2 border-t border-line text-sm [&>*]:border-b [&>*]:border-line [&>*]:py-3">
-            <dt className="text-muted">Stake per task</dt>
+            <dt className="text-muted">{solo ? "Stake per task" : "Entry (refunded)"}</dt>
             <dd className="num text-right">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
             <dt className="text-muted">{solo ? "Staking closes" : "Betting closes"}</dt>
             <dd className="num text-right">{fmtTime(cohort.stake_deadline)}</dd>
@@ -112,6 +112,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
       </section>
       )}
 
+      {solo && (
       <section className="grid grid-cols-3 gap-y-8 sm:grid-cols-5">
         <Stat label="Stakers" value={stats.stakers} />
         <Stat label="Watching" value={stats.watching} />
@@ -119,6 +120,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
         <Stat label="Failed" value={stats.failed} tone="text-fail" />
         <Stat label="Needs human" value={stats.needs_human} tone="text-human" />
       </section>
+      )}
 
       <section>
         <div className="flex items-baseline justify-between">
