@@ -33,11 +33,12 @@ export default function FoolBoard() {
           <span className="text-muted">the</span> <DecryptedText text="Ref." animateOn="view" sequential speed={45} />
         </h1>
         <p className="mt-6 max-w-md text-lg text-fg/80">
-          Try to get an unfinished goal approved. Declare it when you stake. The referee never sees the flag.
+          Stake on a goal you will not finish and try to get it passed anyway. Fool the referee and you are paid like everyone who
+          passed. Every attempt lands here, including the ones that worked.
         </p>
         <div className="mt-8 inline-block">
           <ClickSpark sparkColor="#FF5A4E" sparkCount={12}>
-            <Link href="/stake" className="btn-primary">Try to cheat →</Link>
+            <Link href="/stake?mode=challenge" className="btn-primary">Take the challenge →</Link>
           </ClickSpark>
         </div>
       </header>

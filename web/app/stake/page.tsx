@@ -3,7 +3,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { compileGoal, getConfig, relayStake, submitGoal } from "@/lib/api";
 import { countdown, fmtTime, useNow } from "@/lib/time";
-import { ATTACK_CATEGORIES, ATTACK_LABEL, type AttackCategory, type CompileResponse, type GoalType, type RelayerConfig } from "@/lib/types";
+import { ATTACK_CATEGORIES, ATTACK_HINT, ATTACK_LABEL, type AttackCategory, type CompileResponse, type GoalType, type RelayerConfig } from "@/lib/types";
 import { goalHashOf } from "@/lib/hashes";
 import { MOCK_REFEREE, MOCK_RELAYER } from "@/lib/env";
 import { fmtAmount, rememberGoal, signStakeAuthorization, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
@@ -35,7 +35,8 @@ function StakeInner() {
 
   const [text, setText] = useState("");
   const [typeHint, setTypeHint] = useState<GoalType | "">("");
-  const [isAttack, setIsAttack] = useState(false);
+  // Fool the Ref is its own entry point (/stake?mode=challenge), not a checkbox on the normal form.
+  const isAttack = params.get("mode") === "challenge";
   const [category, setCategory] = useState<AttackCategory>(ATTACK_CATEGORIES[0]);
   const [note, setNote] = useState("");
 
@@ -131,8 +132,20 @@ function StakeInner() {
   return (
     <div className="grid gap-y-10 lg:grid-cols-12 lg:gap-x-12">
       <header className="lg:col-span-12">
-        <div className="label">Cohort {cohort ? `#${cohort.id}` : "…"}</div>
-        <h1 className="display text-6xl sm:text-8xl">Stake on a goal.</h1>
+        <div className="label">
+          Cohort {cohort ? `#${cohort.id}` : "…"} · {isAttack ? "challenge" : "stake"}
+        </div>
+        {isAttack ? (
+          <>
+            <h1 className="display text-6xl text-fail sm:text-8xl">Fool the Ref.</h1>
+            <p className="mt-4 max-w-2xl text-lg text-fg/80">
+              Stake on a goal you do not intend to finish, then try to get it passed anyway. If the referee passes you, you are paid
+              like everyone who passed, and the board records the referee as fooled.
+            </p>
+          </>
+        ) : (
+          <h1 className="display text-6xl sm:text-8xl">Stake on a goal.</h1>
+        )}
       </header>
 
       {/* Left: the form. */}
@@ -158,47 +171,44 @@ function StakeInner() {
           </div>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="type">Evidence</label>
-            <select id="type" className="input" value={typeHint} onChange={(e) => setTypeHint(e.target.value as GoalType | "")}>
-              {TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <span className="label">Fool the Ref</span>
-            <label className={`flex cursor-pointer items-center gap-3 border px-3 py-3 ${isAttack ? "border-fail text-fail" : "border-line"}`}>
-              <input type="checkbox" className="h-4 w-4 accent-[#FF5A4E]" checked={isAttack} onChange={(e) => setIsAttack(e.target.checked)} />
-              <span className="font-medium">I am going to try to cheat</span>
-            </label>
-          </div>
-        </div>
-
         {isAttack && (
-          <div className="grid gap-6 border-l-2 border-fail pl-4 sm:grid-cols-2">
-            <div>
-              <label className="label" htmlFor="cat">Category</label>
-              <select id="cat" className="input" value={category} onChange={(e) => setCategory(e.target.value as AttackCategory)}>
-                {ATTACK_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{ATTACK_LABEL[c]}</option>
-                ))}
-              </select>
+          <fieldset>
+            <legend className="label">Your strategy</legend>
+            <div className="border-t border-line">
+              {ATTACK_CATEGORIES.map((c) => (
+                <label
+                  key={c}
+                  className={`grid cursor-pointer grid-cols-[1.25rem_1fr] gap-x-3 border-b border-line py-3 ${category === c ? "text-fg" : "text-fg/70 hover:text-fg"}`}
+                >
+                  <input type="radio" name="strategy" className="mt-1 accent-[#FF5A4E]" checked={category === c} onChange={() => setCategory(c)} />
+                  <span>
+                    <span className="font-medium">{ATTACK_LABEL[c]}</span>
+                    <span className="block text-sm text-muted">{ATTACK_HINT[c]}</span>
+                  </span>
+                </label>
+              ))}
             </div>
-            <div>
-              <label className="label" htmlFor="note">How</label>
-              <input id="note" className="input" maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} placeholder="backdate commits to last week" />
-            </div>
-            <p className="text-sm text-muted sm:col-span-2">
-              The referee never sees this flag. Your attempt goes on the public board either way.
+            <label className="label mt-6" htmlFor="note">How, in one line (shown on the public board)</label>
+            <input id="note" className="input" maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. README says the feature shipped, it did not" />
+            <p className="mt-3 text-sm text-muted">
+              Your declaration is sealed: it is stored with your stake but never shown to the referee. It is what lets the board count
+              caught and fooled honestly.
             </p>
-          </div>
+          </fieldset>
         )}
+
+        <div className="sm:max-w-xs">
+          <label className="label" htmlFor="type">Evidence</label>
+          <select id="type" className="input" value={typeHint} onChange={(e) => setTypeHint(e.target.value as GoalType | "")}>
+            {TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
 
         {!compiled && (
           <button className="btn-primary w-full sm:w-auto" disabled={!account || !text.trim() || !!busy || closed} onClick={onCompile}>
-            {busy ? <><Spinner /> {busy}</> : "Check my goal →"}
+            {busy ? <><Spinner /> {busy}</> : isAttack ? "Check the goal I will fake →" : "Check my goal →"}
           </button>
         )}
 
@@ -228,8 +238,8 @@ function StakeInner() {
             <label className="flex items-start gap-3 text-sm">
               <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#C6FF3D]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
               <span>
-                This is my goal. I stake {cohort ? fmtAmount(cohort.stake_amount, dec) : "?"} test AUSD and lose it if the referee rules
-                I failed.
+                {isAttack ? "I am trying to fool the referee. " : "This is my goal. "}I stake {cohort ? fmtAmount(cohort.stake_amount, dec) : "?"} test
+                AUSD and lose it if the referee rules I failed.
               </span>
             </label>
 
@@ -238,7 +248,7 @@ function StakeInner() {
               <div className="flex-1">
                 <ClickSpark sparkColor="#C6FF3D" sparkCount={12} sparkRadius={28}>
                   <button className="btn-primary w-full" disabled={!confirmed || !!busy || closed || short || !!blocked} onClick={onStake}>
-                    {busy ? <><Spinner /> {busy}</> : short ? "Not enough AUSD yet" : "Stake"}
+                    {busy ? <><Spinner /> {busy}</> : short ? "Not enough AUSD yet" : isAttack ? "Stake and start the attempt" : "Stake"}
                   </button>
                 </ClickSpark>
               </div>

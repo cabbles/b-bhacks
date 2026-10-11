@@ -133,6 +133,16 @@ export const ATTACK_CATEGORIES = [
 ] as const;
 export type AttackCategory = (typeof ATTACK_CATEGORIES)[number];
 
+/** One line per strategy, shown on the Fool the Ref challenge. */
+export const ATTACK_HINT: Record<AttackCategory, string> = {
+  backdated_commits: "Commit old work with a fake author date so it looks new.",
+  someone_elses_repo: "Point the referee at work you did not do.",
+  filler_commits: "Whitespace, renames and README churn that look like progress.",
+  prompt_injection: "Hide instructions for the AI in a README, commit message or page.",
+  fake_static_page: "A static mock that only looks like the finished feature.",
+  other: "Something we have not thought of. The best ones go in the video.",
+};
+
 export const ATTACK_LABEL: Record<string, string> = {
   backdated_commits: "Backdated commits",
   someone_elses_repo: "Someone else's repo",
