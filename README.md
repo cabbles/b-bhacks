@@ -2,15 +2,17 @@
 
 > **Testnet only.** Everything runs on Base Sepolia with free test AUSD. Nothing here has real value.
 
-You stake testnet AUSD on finishing something by a deadline. An AI referee gathers the evidence itself, rules pass or fail with reasons, and a contract pays out. Forfeited stakes go to the people who passed. The operator has no way to withdraw.
+Put testnet AUSD behind any task with a deadline. An AI referee gathers the evidence itself, rules pass or fail with reasons, and posts the verdict on-chain where anyone can check it. Stakes from missed tasks go to the people who finished. The operator has no way to withdraw.
+
+Today the referee checks two kinds of evidence: commits pushed to a public GitHub repo, and a public page going live with the promised content. (A Canvas check exists for the team's own account only.)
 
 Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 
 ## What makes it different
 
 1. **The referee observes evidence itself.** It never trusts uploads or claimed timestamps. It records when it first saw each commit, so a commit backdated with `git commit --date` does not count.
-2. **Fool the Ref.** Anyone can declare a cheat attempt before the deadline and try to get an unfinished goal approved. Every attempt is shown on a public board, including the ones that worked.
-3. **The referee cannot profit.** The contract has no owner withdrawal. If no verdict is posted, the staker gets a full refund.
+2. **It is built to be hard to cheat.** Control proofs, first-seen timing, a two-model substance check, and prompt-injection hardening run on every task. We attack it ourselves with scripted cheats (`redteam/`) and publish the results on the Integrity page, including anything it missed. Cheating is something the system prevents, not a feature.
+3. **Every ruling is checkable, and the referee cannot profit.** Verdicts are hashed and posted on-chain, and the browser re-verifies them. The contract has no owner withdrawal; if no verdict is posted, the staker gets a full refund.
 
 ## How it works
 
@@ -39,7 +41,7 @@ flowchart LR
 | `contracts/` | `StakePool.sol`, Foundry tests, deploy script                |
 | `relayer/`   | Gas relayer, AUSD drip, claim trigger                        |
 | `referee/`   | Referee API, evidence collectors, verdict engine             |
-| `web/`       | Next.js app (join, stake, verdict, cohort board, Fool the Ref) |
+| `web/`       | Next.js app (join, stake, verdict, cohort board, integrity)    |
 | `redteam/`   | Scripted cheats and results table                            |
 | `shared/`    | Schemas, ABI, deployments, fixtures, canonical JSON helper   |
 | `docs/`      | Demo script and screenshots                                  |
@@ -61,10 +63,10 @@ Service URLs come from `shared/deployments.json` (`relayer_url`, `referee_url`);
 | Stake         | `/stake?cohort=1`|
 | Goal/verdict  | `/goals/:id`     |
 | Cohort board (projector) | `/cohorts/:id` |
-| Fool the Ref  | `/fool`          |
+| Integrity (safeguards, test results) | `/integrity` |
 | System status (pre-flight) | `/status` |
 
-In mock mode, a goal you stake is judged 20 seconds later: honest goals pass and declared cheat attempts are caught, so you can rehearse the whole flow without a backend.
+In mock mode, a goal you stake is judged 20 seconds later, so you can rehearse the whole flow without a backend.
 
 `pnpm test:sig` checks that the ERC-3009 `ReceiveWithAuthorization` signatures the app produces recover to the staker.
 
@@ -79,9 +81,9 @@ Either way, set `NEXT_PUBLIC_REFEREE_URL` (and `NEXT_PUBLIC_RELAYER_URL`) if the
 
 Captured in mock mode; replace them with live captures at code freeze.
 
-| Join | Verdict (fail) | Fool the Ref |
+| Join | Verdict (fail) | Board |
 | ---- | -------------- | ------------ |
-| ![Join](docs/screenshots/join.png) | ![Verdict fail](docs/screenshots/verdict-fail.png) | ![Fool the Ref](docs/screenshots/fool.png) |
+| ![Join](docs/screenshots/join.png) | ![Verdict fail](docs/screenshots/verdict-fail.png) | ![Board](docs/screenshots/board.png) |
 
 ![Cohort board](docs/screenshots/board.png)
 
@@ -92,14 +94,14 @@ _Filled in at code freeze (4:20 PT)._
 | Metric | Count |
 | ------ | ----- |
 | Real stakers | TBD |
-| Fool the Ref attempts | TBD |
+| Verdicts posted on-chain | TBD |
 | Human overrides | TBD |
 
 ## Red team
 
 _Copied from `redteam/results.md` at code freeze._
 
-| Category | Caught | Fooled |
+| Category | Caught | Missed |
 | -------- | ------ | ------ |
 | Backdated commits | TBD | TBD |
 | Someone else's repo | TBD | TBD |
@@ -113,4 +115,4 @@ _Copied from `redteam/results.md` at code freeze._
 - Testnet only. No mainnet deployment exists.
 - No function in `StakePool` sends funds to the owner, the referee, or the relayer.
 - Content the referee gathers is passed to models as quoted data. Model output must validate against a schema, or the check fails closed.
-- The verdict engine never sees whether a goal was declared as a cheat attempt.
+- Red-team goals are flagged as tests so the results can be counted honestly; the verdict engine never sees that flag.
