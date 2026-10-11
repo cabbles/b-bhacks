@@ -91,3 +91,29 @@ export async function signBetAuthorization(
   const { r, s, v, yParity } = parseSignature(sig);
   return { validAfter: "0", validBefore: String(validBefore), nonce, v: v !== undefined ? Number(v) : yParity + 27, r, s };
 }
+
+/** CommitmentBond nonce: keccak256(abi.encode("cashcow:bond", cohortId, owner, amount)). One bond per task. */
+export function bondAuthNonce(cohortId: number | bigint, owner: `0x${string}`, amount: bigint) {
+  return keccak256(encodeAbiParameters(
+    [{ type: "string" }, { type: "uint256" }, { type: "address" }, { type: "uint256" }],
+    ["cashcow:bond", BigInt(cohortId), owner, amount],
+  ));
+}
+
+/** The task owner's separate stake (bond) for a prediction market: back on pass, to NO bettors (or burned) on fail. */
+export async function signBondAuthorization(
+  account: AuthorizationSigner,
+  cfg: Pick<RelayerConfig, "chainId" | "token" | "tokenDomain">,
+  bond: { pool: `0x${string}`; cohortId: number; value: bigint },
+): Promise<Authorization> {
+  const validBefore = BigInt(Math.floor(Date.now() / 1000) + 600);
+  const nonce = bondAuthNonce(bond.cohortId, account.address, bond.value);
+  const sig = await account.signTypedData({
+    domain: { ...cfg.tokenDomain, chainId: cfg.chainId, verifyingContract: cfg.token },
+    types: RECEIVE_WITH_AUTHORIZATION_TYPES,
+    primaryType: "ReceiveWithAuthorization",
+    message: { from: account.address, to: bond.pool, value: bond.value, validAfter: 0n, validBefore, nonce },
+  });
+  const { r, s, v, yParity } = parseSignature(sig);
+  return { validAfter: "0", validBefore: String(validBefore), nonce, v: v !== undefined ? Number(v) : yParity + 27, r, s };
+}

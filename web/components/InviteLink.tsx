@@ -21,10 +21,10 @@ export function InviteLink({ cohortId }: { cohortId: number }) {
 
   return (
     <div className="rounded-xl bg-panel p-4">
-      <div className="label">Invite people</div>
+      <div className="label">Share so people can bet</div>
       <div className="num break-all text-sm">{url || "…"}</div>
       <button type="button" className="btn-ghost mt-3 w-full" onClick={copy} disabled={!url}>
-        {copied ? "Copied" : "Copy invite link"}
+        {copied ? "Copied" : "Copy link"}
       </button>
     </div>
   );

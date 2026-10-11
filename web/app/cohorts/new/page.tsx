@@ -40,6 +40,7 @@ function Choice({ name, options, value, onChange }: { name: string; options: { l
 
 export default function StartMarket() {
   const router = useRouter();
+  const [task, setTask] = useState("");
   const [stake, setStake] = useState(10);
   const [join, setJoin] = useState(60);
   const [work, setWork] = useState(1440);
@@ -51,8 +52,9 @@ export default function StartMarket() {
     setBusy(true);
     setErr(null);
     try {
-      const m = await createMarket({ stake: stake, stake_minutes: join, goal_minutes: work });
-      router.push(`/cohorts/${m.id}?created=1`);
+      // The round only holds you; its 1 AUSD entry is refunded. Your real stake is the bond posted next.
+      const m = await createMarket({ stake: 1, stake_minutes: join, goal_minutes: work });
+      router.push(`/stake?cohort=${m.id}&bond=${stake}&task=${encodeURIComponent(task.trim())}`);
     } catch (e) {
       setErr((e as Error).message);
       setBusy(false);
@@ -60,21 +62,26 @@ export default function StartMarket() {
   }
 
   const stakeOk = Number.isFinite(stake) && stake >= 1 && stake <= 100;
+  const taskOk = task.trim().length >= 8;
 
   return (
     <div className="max-w-2xl space-y-10">
       <header>
-        <Link href="/cohorts" className="label hover:text-fg">← Group markets</Link>
-        <h1 className="display text-6xl sm:text-7xl">Start a group market.</h1>
+        <Link href="/cohorts" className="label hover:text-fg">← Markets</Link>
+        <h1 className="display text-6xl sm:text-7xl">Create a market on yourself.</h1>
         <p className="mt-4 text-lg text-fg/80">
-          Set the stake and the clock, then send the link to whoever you want in it. Everyone who joins commits to their own task
-          by the same deadline. Whoever finishes splits the stakes of whoever does not.
+          Say what you will get done, put your own stake behind it, and send the link. Friends bet YES or NO on whether you finish.
+          Finish and you get exactly your stake back. Miss it and your stake goes to the people who bet NO.
         </p>
       </header>
 
       <div className="space-y-8">
         <div>
-          <label className="label" htmlFor="stake">Stake per person (AUSD)</label>
+          <label className="label" htmlFor="task">Your task</label>
+          <textarea id="task" className="input min-h-28 text-lg" placeholder="Push 2 commits adding a dark mode toggle to alice/portfolio on main" value={task} onChange={(e) => setTask(e.target.value)} />
+        </div>
+        <div>
+          <label className="label" htmlFor="stake">Your stake (AUSD)</label>
           <input
             id="stake"
             type="number"
@@ -87,11 +94,11 @@ export default function StartMarket() {
           {!stakeOk && <p className="mt-2 text-sm text-fail">Choose 1 to 100 AUSD.</p>}
         </div>
         <div>
-          <div className="label">People can join for</div>
+          <div className="label">Betting stays open for</div>
           <Choice name="Joining window" options={JOIN} value={join} onChange={setJoin} />
         </div>
         <div>
-          <div className="label">Then everyone has this long to finish</div>
+          <div className="label">Then you have this long to finish</div>
           <Choice name="Time to finish" options={WORK} value={work} onChange={setWork} />
         </div>
       </div>
@@ -99,10 +106,10 @@ export default function StartMarket() {
       <ErrorBox msg={err} />
 
       <div className="flex flex-wrap items-center gap-4">
-        <button type="button" className="btn-primary" disabled={!stakeOk || busy} onClick={onCreate}>
-          {busy ? <><Spinner /> Creating on-chain…</> : "Create market"}
+        <button type="button" className="btn-primary" disabled={!stakeOk || !taskOk || busy} onClick={onCreate}>
+          {busy ? <><Spinner /> Creating on-chain…</> : "Next: check my task"}
         </button>
-        <span className="text-sm text-muted">Free: the relayer pays the gas. Takes a few seconds.</span>
+        <span className="text-sm text-muted">No gas needed. Next you confirm the exact criteria and sign your stake (plus a 1 AUSD entry, refunded).</span>
       </div>
     </div>
   );

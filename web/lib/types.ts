@@ -105,6 +105,7 @@ export type Attack = {
 
 export type RelayerConfig = {
   market_pool?: `0x${string}` | null;
+  bond_pool?: `0x${string}` | null;
   chainId: number;
   /** Placeholder zero address until the pool is deployed (relayer sends null; getConfig normalizes). */
   pool: `0x${string}`;

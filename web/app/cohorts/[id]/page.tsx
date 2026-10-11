@@ -41,8 +41,8 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
     <div className="space-y-12">
       {created && !solo && (
         <div className="card">
-          <div className="font-display text-xl font-semibold">Market #{cohort.id} is live.</div>
-          <p className="mt-1 text-fg/80">Send the invite link below to the people you want in it, then join with your own task.</p>
+          <div className="font-display text-xl font-semibold">Your market #{cohort.id} is live.</div>
+          <p className="mt-1 text-fg/80">Send the link below so friends can bet YES or NO on you.</p>
         </div>
       )}
 
@@ -50,14 +50,14 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
       <section className="grid grid-cols-1 gap-10 border-b border-line pb-10 lg:grid-cols-12">
         <div className="lg:col-span-8">
           <div className="label">
-            {solo ? "Solo round" : "Group market"} #{cohort.id} · {phase}
+            {solo ? "Solo round" : "Market"} #{cohort.id} · {phase}
           </div>
           {ticking ? (
             <>
               <div className="num text-[24vw] font-semibold leading-[0.85] tracking-tight sm:text-[10rem] lg:text-[13rem]">
                 {countdown(target, now)}
               </div>
-              <div className="label mt-2">{stakingOpen ? "until staking closes" : "until the deadline"}</div>
+              <div className="label mt-2">{stakingOpen ? "until betting closes" : "until the deadline"}</div>
             </>
           ) : (
             <div className="display text-[20vw] sm:text-[9rem] lg:text-[11rem]">{phase}.</div>
@@ -74,14 +74,14 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
           <dl className="grid grid-cols-2 border-t border-line text-sm [&>*]:border-b [&>*]:border-line [&>*]:py-3">
             <dt className="text-muted">Stake per task</dt>
             <dd className="num text-right">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
-            <dt className="text-muted">Staking closes</dt>
+            <dt className="text-muted">{solo ? "Staking closes" : "Betting closes"}</dt>
             <dd className="num text-right">{fmtTime(cohort.stake_deadline)}</dd>
             <dt className="text-muted">Deadline</dt>
             <dd className="num text-right">{fmtTime(cohort.goal_deadline)}</dd>
           </dl>
           {stakingOpen && (
             <div className="mt-5 flex flex-col gap-3">
-              <Link href={`/stake?cohort=${cohort.id}`} className="btn-primary">{solo ? "Make a solo stake" : "Join with your task"}</Link>
+              {solo ? <Link href={`/stake?cohort=${cohort.id}`} className="btn-primary">Make a solo stake</Link> : goals[0] ? <Link href={`/goals/${goals[0].goal_id}`} className="btn-primary">Bet on this task</Link> : null}
               {!solo && <InviteLink cohortId={cohort.id} />}
             </div>
           )}
@@ -100,9 +100,9 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
       <section>
         <div className="label">How this market works</div>
         <ol className="grid grid-cols-1 gap-6 border-t border-line pt-4 sm:grid-cols-3">
-          <li><span className="num text-sm text-muted">01</span><div className="font-display text-lg font-semibold">Join</div><p className="text-sm text-fg/75">Put {fmtAmount(cohort.stake_amount, dec)} AUSD behind your own task before joining closes.</p></li>
-          <li><span className="num text-sm text-muted">02</span><div className="font-display text-lg font-semibold">Bet</div><p className="text-sm text-fg/75">Anyone can bet YES or NO on a person below. Open their task to bet. Bets never touch their stake.</p></li>
-          <li><span className="num text-sm text-muted">03</span><div className="font-display text-lg font-semibold">Get paid</div><p className="text-sm text-fg/75">At the deadline the referee rules on everyone. Finishers split the missed stakes; right bets split the wrong ones.</p></li>
+          <li><span className="num text-sm text-muted">01</span><div className="font-display text-lg font-semibold">One task</div><p className="text-sm text-fg/75">One person puts up a task and their own stake. Finish: they get exactly it back. Miss: it goes to the NO bettors.</p></li>
+          <li><span className="num text-sm text-muted">02</span><div className="font-display text-lg font-semibold">Bet</div><p className="text-sm text-fg/75">Anyone can bet YES or NO on whether they finish, until betting closes. Open the task to bet.</p></li>
+          <li><span className="num text-sm text-muted">03</span><div className="font-display text-lg font-semibold">Get paid</div><p className="text-sm text-fg/75">At the deadline the referee rules. The side that called it right splits the other side's bets.</p></li>
         </ol>
       </section>
       )}
@@ -117,13 +117,13 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
 
       <section>
         <div className="flex items-baseline justify-between">
-          <div className="label">{solo ? "Solo stakers and their tasks" : "People in this market · tap one to bet"}</div>
+          <div className="label">{solo ? "Solo stakers and their tasks" : "The task · tap to bet"}</div>
           <div className="label">
             {stats.human_overrides ?? 0} human overrides · <Link className="hover:text-fg" href="/integrity">How it stays fair →</Link>
           </div>
         </div>
         <ul className="border-t border-line">
-          {sorted.length === 0 && <li className="py-4 text-muted">No one has joined yet. Join with your task, or send the invite link.</li>}
+          {sorted.length === 0 && <li className="py-4 text-muted">The owner has not confirmed their task yet.</li>}
           {sorted.map((g) => (
             <li key={g.goal_id}>
               <Link href={`/goals/${g.goal_id}`} className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-x-4 border-b border-line py-3 hover:bg-panel">

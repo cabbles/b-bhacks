@@ -259,3 +259,18 @@ export async function claimPredictionMarket(cohort_id: number, owner: string, be
   if (MOCK_RELAYER) throw new Error("Betting requires the live relayer.");
   return http(RELAYER_URL, "/markets/claim", post({ cohort_id, owner, bettor }));
 }
+
+// ---------- Commitment bond (the task owner's separate stake in a prediction market) ----------
+
+export async function relayBond(args: { cohort_id: number; owner: string; amount: string; authorization: Authorization }): Promise<{ tx_hash: string }> {
+  if (MOCK_RELAYER) throw new Error("Bonds require the live relayer.");
+  return http(RELAYER_URL, "/bond", post(args));
+}
+
+export async function getBond(cohortId: number, owner: string, bettor?: string): Promise<{ amount: string; result: "pending" | "returned" | "to_no" | "burned"; claimable: string }> {
+  return http(RELAYER_URL, `/bonds/${cohortId}/${owner}${bettor ? `?bettor=${bettor}` : ""}`);
+}
+
+export async function claimBond(args: { cohort_id: number; owner: string; bettor: string }): Promise<{ tx_hash: string }> {
+  return http(RELAYER_URL, "/bond/claim", post(args));
+}

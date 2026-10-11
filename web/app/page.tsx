@@ -61,11 +61,11 @@ export default function JoinPage() {
             <Link href="/stake" className="btn-primary mt-5">Make a solo stake</Link>
           </div>
           <div className="card flex flex-col">
-            <div className="label">Group market</div>
-            <div className="font-display text-3xl font-semibold">Bet with friends.</div>
-            <p className="mt-2 flex-1 text-fg/75">Start a market and send the link. Everyone commits to a task, and anyone can bet YES or NO on each person.</p>
+            <div className="label">Prediction market</div>
+            <div className="font-display text-3xl font-semibold">Bet on someone.</div>
+            <p className="mt-2 flex-1 text-fg/75">Put a task up with your own stake, or bet YES or NO on whether someone else finishes theirs.</p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/cohorts/new" className="btn-primary">Start a market</Link>
+              <Link href="/cohorts/new" className="btn-primary">Create a market</Link>
               <Link href="/cohorts" className="btn-ghost">Browse</Link>
             </div>
           </div>
@@ -136,14 +136,14 @@ export default function JoinPage() {
         <ErrorBox msg={err} />
 
         <section>
-          <div className="label">Open group markets</div>
+          <div className="label">Open markets · bet now</div>
           <div className="border-t border-line">
             {!cfg && !err && (
               <div className="py-4">
                 <Spinner />
               </div>
             )}
-            {cfg && open.length === 0 && <p className="py-4 text-muted">No group market is open right now. <Link href="/cohorts/new" className="link">Start one</Link>.</p>}
+            {cfg && open.length === 0 && <p className="py-4 text-muted">No market is open right now. <Link href="/cohorts/new" className="link">Start one</Link>.</p>}
             {open.map((c) => (
               <div key={c.id} className="border-b border-line py-5">
                 <div className="flex items-baseline justify-between">

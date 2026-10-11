@@ -10,6 +10,7 @@ import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { GoalResponse } from "@/lib/types";
 import { PredictionMarket } from "@/components/PredictionMarket";
+import { BondPanel } from "@/components/BondPanel";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Spinner, StatusPill, TxLink } from "@/components/ui";
 
@@ -235,6 +236,7 @@ export default function GoalPage({ params }: { params: { id: string } }) {
           </div>
         )}
 
+        {cohortId !== undefined && <BondPanel cohortId={cohortId} owner={criteria.staker} />}
         {cohortId !== undefined && <PredictionMarket cohortId={cohortId} owner={criteria.staker} />}
 
         <details className="text-xs text-muted">

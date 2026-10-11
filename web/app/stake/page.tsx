@@ -1,13 +1,14 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { compileGoal, getConfig, relayStake, submitGoal } from "@/lib/api";
+import { compileGoal, getConfig, relayBond, relayStake, submitGoal } from "@/lib/api";
 import { kindOf } from "@/lib/kinds";
 import { countdown, fmtTime, useNow } from "@/lib/time";
 import { type CompileResponse, type GoalType, type RelayerConfig } from "@/lib/types";
 import { goalHashOf } from "@/lib/hashes";
 import { MOCK_REFEREE, MOCK_RELAYER } from "@/lib/env";
 import { fmtAmount, rememberGoal, signStakeAuthorization, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
+import { signBondAuthorization } from "@/lib/erc3009";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Notice, Spinner } from "@/components/ui";
 
@@ -36,7 +37,9 @@ function StakeInner() {
   const [bal, setBal] = useState<bigint | null>(null);
   const [cohortId, setCohortId] = useState<number | null>(null);
 
-  const [text, setText] = useState("");
+  // A market created at /cohorts/new arrives with the task and the owner's bond (their separate stake).
+  const [text, setText] = useState(() => params.get("task") ?? "");
+  const bondAusd = Number(params.get("bond") ?? 0);
   const [typeHint, setTypeHint] = useState<GoalType | "">("");
 
   const [compiled, setCompiled] = useState<CompileResponse | null>(null);
@@ -120,6 +123,13 @@ function StakeInner() {
         criteria: compiled.criteria,
         stake_tx_hash: tx_hash,
       });
+      if (bondAusd > 0 && cfg.bond_pool) {
+        setBusy("Signing your stake on the task…");
+        const value = BigInt(Math.round(bondAusd * 10 ** dec));
+        const bondAuth = await signBondAuthorization(account, cfg, { pool: cfg.bond_pool, cohortId: cohort.id, value });
+        setBusy("Posting your stake on-chain…");
+        await relayBond({ cohort_id: cohort.id, owner: account.address, amount: value.toString(), authorization: bondAuth });
+      }
       rememberGoal({ goal_id: String(goal_id), cohort_id: cohort.id, goal_text: compiled.criteria.goal_text, created_at: new Date().toISOString() });
       router.push(`/goals/${goal_id}?new=1`);
     } catch (e) {
@@ -142,11 +152,11 @@ function StakeInner() {
           </>
         ) : (
           <>
-            <div className="label">Group market #{cohort?.id ?? "…"}</div>
-            <h1 className="display text-6xl sm:text-8xl">Join with a task.</h1>
+            <div className="label">Your market #{cohort?.id ?? "…"}{bondAusd > 0 ? ` · your stake ${bondAusd} AUSD` : ""}</div>
+            <h1 className="display text-6xl sm:text-8xl">Confirm your task.</h1>
             <p className="mt-4 max-w-2xl text-lg text-fg/80">
-              Commit to your own task in this market. Finish and you get your stake back plus a share of what others missed; anyone
-              in the market can bet YES or NO on you. <a className="link" href={`/cohorts/${cohort?.id ?? ""}`}>See the market</a>
+              The referee turns your task into exact criteria. Then you sign your stake: finish and you get exactly it back, miss it
+              and it goes to whoever bet NO. Once it is live, share the page so friends can bet YES or NO.
             </p>
           </>
         )}
