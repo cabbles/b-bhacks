@@ -191,6 +191,9 @@ export async function routes(app: FastifyInstance) {
                 needs_human: by('needs_human'),
                 attacks: rows.filter((r) => r.is_attack).length,
                 human_overrides: rows.filter((r) => r.human_override).length,
+                // Goals whose verdict is not on chain yet (still watching, deciding, or posting). Settle only at 0,
+                // or once the settle time has passed and needs_human goals are knowingly left to refund.
+                verdicts_pending: rows.filter((r) => !r.verdict_tx_hash).length,
                 pot: (stakeAmount * BigInt(rows.length)).toString(),
             },
         };

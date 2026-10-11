@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { config } from './config.ts';
 import { db, getGoal, nowIso, observations, observe, type GoalRow } from './db.ts';
-import { commitDetail, fileExists, isWhitespaceOnly, listBranches, listBranchShas, repoInfo, type CommitDetail } from './collectors/github.ts';
+import { aheadOfParent, commitDetail, fileExists, foundElsewhere, isWhitespaceOnly, listBranches, listBranchShas, repoInfo, type CommitDetail } from './collectors/github.ts';
 import { fetchText, visibleText, wellKnownUrl } from './collectors/url.ts';
 import { ownSubmission } from './collectors/canvas.ts';
 import { modelsReady, quote, structuredCall } from './model.ts';
@@ -161,9 +161,24 @@ async function judgeGithub(g: GoalRow, c: Criteria): Promise<Outcome> {
 
     const details: CommitDetail[] = [];
     for (const o of inWindow.slice(0, 30)) details.push(await commitDetail(p.repo, o.ref));
-    const meaningful = details.filter(
+    let meaningful = details.filter(
         (d) => d.parents <= 1 && d.files.some((f) => !f.filename.startsWith('.referee/')),
     );
+    // Copied work: a fork's upstream history, or commits that already exist in another public repo,
+    // are not new even if this repo only received them during the window.
+    let copied = 0;
+    if (info.fork && info.parent) {
+        const own = await aheadOfParent(p.repo, p.branch, info.parent);
+        copied += meaningful.filter((d) => !own.has(d.sha)).length;
+        meaningful = meaningful.filter((d) => own.has(d.sha));
+    }
+    const elsewhere = new Map<string, string>();
+    for (const d of meaningful.slice(0, 10)) {
+        const other = await foundElsewhere(p.repo, d.sha);
+        if (other) elsewhere.set(d.sha, other);
+    }
+    copied += elsewhere.size;
+    meaningful = meaningful.filter((d) => !elsewhere.has(d.sha));
     for (const d of meaningful) {
         const o = inWindow.find((x) => x.ref === d.sha)!;
         evidence.push({ kind: 'github_commit', ref: d.sha, first_seen: iso(Date.parse(o.first_seen)) });
@@ -171,7 +186,9 @@ async function judgeGithub(g: GoalRow, c: Criteria): Promise<Outcome> {
     const ignored: string[] = [];
     if (preexisting) ignored.push(`${preexisting} already present at stake time`);
     if (late) ignored.push(`${late} first seen after the deadline`);
-    if (details.length - meaningful.length) ignored.push(`${details.length - meaningful.length} merge or nonce-only`);
+    if (details.length - meaningful.length - copied) ignored.push(`${details.length - meaningful.length - copied} merge or nonce-only`);
+    if (copied)
+        ignored.push(`${copied} copied from ${elsewhere.size ? [...new Set(elsewhere.values())].join(', ') : 'the parent repo'}`);
     checks.push({
         name: 'commits_in_window',
         passed: meaningful.length >= p.min_commits,

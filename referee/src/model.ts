@@ -52,7 +52,7 @@ async function apiCall(model: string, system: string, user: string, schema: z.Zo
 // The CLI runs in an empty directory with no tools, no MCP servers and no settings,
 // so gathered evidence can only ever be read, never acted on.
 const sandboxDir = mkdtempSync(join(tmpdir(), 'referee-claude-'));
-const MAX_PARALLEL = Number(process.env.CLAUDE_MAX_PARALLEL ?? 3);
+const MAX_PARALLEL = Number(process.env.CLAUDE_MAX_PARALLEL ?? 6);
 let active = 0;
 const waiting: (() => void)[] = [];
 

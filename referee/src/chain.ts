@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, decodeEventLog, http, parseAbi, type Hex } from 'viem';
+import { createPublicClient, createWalletClient, decodeEventLog, http, nonceManager, parseAbi, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia, sepolia } from 'viem/chains';
 import { chainReady, config, signerReady } from './config.ts';
@@ -19,7 +19,7 @@ const chain = config.chainId === 11155111 ? sepolia : baseSepolia;
 const transport = http(config.rpcUrl || undefined);
 export const publicClient = createPublicClient({ chain, transport });
 const wallet = signerReady()
-    ? createWalletClient({ chain, transport, account: privateKeyToAccount(config.refereeKey as Hex) })
+    ? createWalletClient({ chain, transport, account: privateKeyToAccount(config.refereeKey as Hex, { nonceManager }) })
     : null;
 
 export type Cohort = {
@@ -80,28 +80,27 @@ export async function verifyStake(txHash: Hex, cohortId: number, staker: string,
     return 'stake transaction has no matching Staked event';
 }
 
-// One referee wallet: send verdict txs one at a time so concurrent posts never race for the same nonce.
-let writeQueue: Promise<unknown> = Promise.resolve();
+// One referee wallet. Sends go through a queue (and viem's nonce manager) so concurrent posts never
+// race for a nonce; confirmations are awaited in parallel so a full room posts in well under a minute.
+let sendQueue: Promise<unknown> = Promise.resolve();
 
-export function postVerdictOnChain(
+export async function postVerdictOnChain(
     cohortId: number,
     staker: string,
     passed: boolean,
     evidenceHash: Hex,
     onSent: (hash: Hex) => void,
 ): Promise<Hex> {
-    const run = writeQueue.then(() => sendVerdict(cohortId, staker, passed, evidenceHash, onSent));
-    writeQueue = run.catch(() => {});
-    return run;
+    const send = sendQueue.then(() => sendVerdict(cohortId, staker, passed, evidenceHash));
+    sendQueue = send.catch(() => {});
+    const hash = await send;
+    onSent(hash); // record before waiting, so a crash here never loses the tx hash
+    const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+    if (receipt.status !== 'success') throw new Error(`postVerdict reverted in ${hash}`);
+    return hash;
 }
 
-async function sendVerdict(
-    cohortId: number,
-    staker: string,
-    passed: boolean,
-    evidenceHash: Hex,
-    onSent: (hash: Hex) => void,
-): Promise<Hex> {
+async function sendVerdict(cohortId: number, staker: string, passed: boolean, evidenceHash: Hex): Promise<Hex> {
     if (!wallet) throw new Error('referee signer not configured');
     const { request } = await publicClient.simulateContract({
         account: wallet.account,
@@ -110,11 +109,7 @@ async function sendVerdict(
         functionName: 'postVerdict',
         args: [BigInt(cohortId), staker as Hex, passed, evidenceHash],
     });
-    const hash = await wallet.writeContract(request);
-    onSent(hash); // record before waiting, so a crash here never loses the tx hash
-    const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
-    if (receipt.status !== 'success') throw new Error(`postVerdict reverted in ${hash}`);
-    return hash;
+    return wallet.writeContract(request);
 }
 
 /** Whether a verdict for this staker is already on chain (e.g. after a crash mid-post). */
