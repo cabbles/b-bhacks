@@ -268,6 +268,7 @@ If CP2 slips past 3:00, cut `canvas_submission` and the `substance` model check,
 ## 10. Human tasks (agents cannot do these)
 
 - Before 1:00: create the keys and tokens in section 8; fund the treasury and referee addresses.
+- **DEFERRED (faucets need 0.001 mainnet ETH):** fund the treasury and the referee (`0x57CB6D4f98979403D89A6c2d6A7c17ef4D54eD3B`) with Base Sepolia ETH, and get tBNB if YZi requires BNB testnet. Ask the sponsor tables or try the Coinbase CDP faucet or the Google Cloud Sepolia faucet + bridge. The treasury is needed by CP2 (2:45); the referee only needs funds before verdicts post (~4:05). Referee keys, `ADMIN_KEY` and `GITHUB_TOKEN` are already in `referee/.env`.
 - Before 1:30: ask the Agora table for the AUSD address on Base Sepolia and whether signed-authorization transfers work there.
 - Before 1:30: ask the YZi table whether a Base Sepolia deployment is eligible or a BNB testnet deployment is required.
 - 3:20: announce the cohort and Fool the Ref to the room; put the cohort board on a screen.
