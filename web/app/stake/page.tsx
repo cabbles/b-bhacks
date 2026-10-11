@@ -136,7 +136,7 @@ function StakeInner() {
       </header>
 
       {/* Left: the form. */}
-      <section className="space-y-8 lg:col-span-7">
+      <section className="order-2 space-y-8 lg:order-none lg:col-span-7">
         <div>
           <label className="label" htmlFor="goal">What will you finish by the deadline?</label>
           <textarea
@@ -248,7 +248,7 @@ function StakeInner() {
       </section>
 
       {/* Right: the terms, as a ruled data list. */}
-      <aside className="lg:col-span-4 lg:col-start-9">
+      <aside className="order-1 lg:order-none lg:col-span-4 lg:col-start-9">
         <div className="label">Terms</div>
         {cohort ? (
           <dl className="grid grid-cols-2 border-t border-line text-sm [&>*]:border-b [&>*]:border-line [&>*]:py-3">

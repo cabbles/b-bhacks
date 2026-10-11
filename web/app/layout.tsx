@@ -19,15 +19,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="min-h-dvh">
         <header className="sticky top-0 z-10 border-b border-line bg-ink/90 backdrop-blur">
-          <nav className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3 sm:px-8">
-            <Link href="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
+          <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-8">
+            <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-lg font-bold tracking-tight">
               <span className="inline-block h-3 w-3 bg-accent" aria-hidden="true" />
               AI Referee
             </Link>
-            <div className="ml-auto flex gap-5 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">
+            <div className="ml-auto flex gap-3 whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.12em] text-muted sm:gap-5 sm:text-[11px] sm:tracking-[0.16em]">
               <Link href="/stake" className="hover:text-fg">Stake</Link>
               <Link href="/cohorts/1" className="hover:text-fg">Board</Link>
-              <Link href="/fool" className="hover:text-fg">Fool the Ref</Link>
+              <Link href="/fool" className="hover:text-fg">Fool&nbsp;the&nbsp;Ref</Link>
             </div>
           </nav>
         </header>
