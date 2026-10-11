@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { MOCK, MOCK_REFEREE, MOCK_RELAYER } from "@/lib/env";
+import { Backdrop } from "@/components/Backdrop";
+import GradientText from "@/components/reactbits/GradientText";
 
 export const metadata: Metadata = {
   title: "AI Referee",
@@ -12,11 +14,14 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-dvh">
-        <header className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur">
+      <body className="relative min-h-dvh">
+        <Backdrop />
+        <header className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/60 backdrop-blur-xl">
           <nav className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 text-sm">
-            <Link href="/" className="font-black tracking-tight text-lime-300">
-              🏁 AI Referee
+            <Link href="/" className="text-base font-black tracking-tight">
+              <GradientText colors={["#a3e635", "#22d3ee", "#a78bfa", "#a3e635"]} animationSpeed={6}>
+                AI Referee
+              </GradientText>
             </Link>
             <div className="ml-auto flex gap-4 text-zinc-300">
               <Link href="/stake" className="hover:text-white">Stake</Link>

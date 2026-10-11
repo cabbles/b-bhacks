@@ -7,6 +7,11 @@ import { countdown, short, useNow } from "@/lib/time";
 import type { RelayerConfig } from "@/lib/types";
 import { fmtAmount, myGoals, tokenBalance, tokenDecimals, useWallet, type MyGoal } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
+import SplitText from "@/components/reactbits/SplitText";
+import GradientText from "@/components/reactbits/GradientText";
+import ShinyText from "@/components/reactbits/ShinyText";
+import SpotlightCard from "@/components/reactbits/SpotlightCard";
+import ClickSpark from "@/components/reactbits/ClickSpark";
 
 export default function JoinPage() {
   const { account, dripState, dripTx, retryDrip } = useWallet();
@@ -35,24 +40,33 @@ export default function JoinPage() {
 
   return (
     <div className="space-y-6">
-      <section>
-        <h1 className="text-3xl font-black leading-tight sm:text-4xl">
-          Bet on yourself.
-          <br />
-          <span className="text-lime-300">The referee checks.</span>
-        </h1>
-        <p className="mt-3 text-zinc-300">
+      <section className="pt-6 sm:pt-12">
+        <SplitText
+          text="Bet on yourself."
+          tag="h1"
+          textAlign="left"
+          className="text-4xl font-black leading-tight tracking-tight sm:text-6xl"
+          delay={40}
+          duration={0.7}
+          splitType="chars"
+        />
+        <div className="text-4xl font-black leading-tight tracking-tight sm:text-6xl">
+          <GradientText colors={["#a3e635", "#22d3ee", "#a78bfa", "#a3e635"]} animationSpeed={5}>
+            The referee checks.
+          </GradientText>
+        </div>
+        <p className="mt-4 max-w-xl text-zinc-300 sm:text-lg">
           Stake testnet AUSD on finishing something by a deadline. An AI referee gathers the evidence itself, rules pass or fail
           with reasons, and the contract pays out. Forfeits go to the people who passed.
         </p>
       </section>
 
-      <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
-        <strong>Testnet only.</strong> This runs on Base Sepolia with free test tokens. Nothing here has real value and there is
+      <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur">
+        <ShinyText text="Testnet only." color="#fcd34d" shineColor="#fffbeb" speed={3} className="font-bold" /> This runs on Base Sepolia with free test tokens. Nothing here has real value and there is
         nothing to buy.
       </section>
 
-      <section className="card space-y-2">
+      <SpotlightCard theme="dark" spotlightColor="rgba(163, 230, 53, 0.25)" className="space-y-2 !rounded-2xl !p-5">
         <div className="label">Your wallet (created in this browser)</div>
         {account ? (
           <a className="link break-all font-mono text-sm" href={addrUrl(account.address)} target="_blank" rel="noreferrer">
@@ -87,7 +101,7 @@ export default function JoinPage() {
           </span>
         </div>
         <p className="text-xs text-zinc-500">No install, no seed phrase. Clearing this browser&apos;s data loses this wallet.</p>
-      </section>
+      </SpotlightCard>
 
       <ErrorBox msg={err} />
 
@@ -105,7 +119,11 @@ export default function JoinPage() {
               </div>
             </div>
             <Link href={`/cohorts/${c.id}`} className="btn-ghost">Board</Link>
-            <Link href={`/stake?cohort=${c.id}`} className="btn-primary">Stake</Link>
+            <div className="shrink-0">
+              <ClickSpark sparkColor="#a3e635" sparkCount={10} sparkRadius={22}>
+                <Link href={`/stake?cohort=${c.id}`} className="btn-primary">Stake</Link>
+              </ClickSpark>
+            </div>
           </div>
         ))}
       </section>
@@ -128,10 +146,10 @@ export default function JoinPage() {
           ["Try to fool it", "Declare a cheat attempt before the deadline. Every attempt goes on a public board, including the ones that worked."],
           ["It cannot profit", "The contract has no owner withdrawal. If no verdict is posted, you get a full refund."],
         ].map(([t, d]) => (
-          <div key={t} className="card">
+          <SpotlightCard key={t} theme="dark" spotlightColor="rgba(34, 211, 238, 0.22)" className="!rounded-2xl !p-5">
             <div className="font-bold text-lime-300">{t}</div>
             <p className="mt-1 text-sm text-zinc-300">{d}</p>
-          </div>
+          </SpotlightCard>
         ))}
       </section>
     </div>

@@ -4,6 +4,8 @@ import { getAttacks } from "@/lib/api";
 import { fmtTime, usePoll } from "@/lib/time";
 import { ATTACK_LABEL, type Attack } from "@/lib/types";
 import { ErrorBox, Spinner, Stat } from "@/components/ui";
+import DecryptedText from "@/components/reactbits/DecryptedText";
+import ClickSpark from "@/components/reactbits/ClickSpark";
 
 export default function FoolBoard() {
   const { data, error } = usePoll<Attack[]>(getAttacks, 8_000);
@@ -24,16 +26,23 @@ export default function FoolBoard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-black">😈 Fool the Ref</h1>
+        <h1 className="text-3xl font-black sm:text-5xl">
+          😈{" "}
+          <DecryptedText text="Fool the Ref" animateOn="view" sequential revealDirection="start" speed={45} encryptedClassName="text-red-400" />
+        </h1>
         <p className="mt-2 text-zinc-300">
           Anyone can try to get an unfinished goal approved. Every attempt is public, including the ones that worked.
         </p>
-        <Link href="/stake" className="btn-primary mt-3">Try to cheat</Link>
+        <div className="mt-3 inline-block">
+          <ClickSpark sparkColor="#f87171" sparkCount={12}>
+            <Link href="/stake" className="btn-primary">Try to cheat</Link>
+          </ClickSpark>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <Stat label="Caught" value={<span className="text-green-400">{caught}</span>} />
-        <Stat label="Fooled" value={<span className="text-red-400">{fooled}</span>} />
+        <Stat label="Caught" value={caught} tone="text-green-400" />
+        <Stat label="Fooled" value={fooled} tone="text-red-400" />
         <Stat label="Pending" value={pending} />
       </div>
 

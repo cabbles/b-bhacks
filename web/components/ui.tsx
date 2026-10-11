@@ -1,4 +1,5 @@
 import type { GoalStatus } from "@/lib/types";
+import CountUp from "@/components/reactbits/CountUp";
 import { txUrl } from "@/lib/env";
 import { short } from "@/lib/time";
 
@@ -36,10 +37,12 @@ export function Spinner() {
   return <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent align-[-2px]" />;
 }
 
-export function Stat({ label, value }: { label: string; value: React.ReactNode }) {
+export function Stat({ label, value, tone }: { label: string; value: number | React.ReactNode; tone?: string }) {
   return (
-    <div className="card text-center">
-      <div className="text-2xl font-black sm:text-3xl">{value}</div>
+    <div className="card text-center backdrop-blur">
+      <div className={`text-2xl font-black tabular-nums sm:text-3xl ${tone ?? ""}`}>
+        {typeof value === "number" ? <CountUp to={value} duration={1} /> : value}
+      </div>
       <div className="text-xs uppercase tracking-wider text-zinc-400">{label}</div>
     </div>
   );

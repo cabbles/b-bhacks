@@ -9,6 +9,9 @@ import { MOCK_REFEREE, MOCK_RELAYER } from "@/lib/env";
 import { fmtAmount, rememberGoal, signStakeAuthorization, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Spinner } from "@/components/ui";
+import SpotlightCard from "@/components/reactbits/SpotlightCard";
+import ClickSpark from "@/components/reactbits/ClickSpark";
+import GradientText from "@/components/reactbits/GradientText";
 
 const TYPE_OPTIONS: { value: GoalType | ""; label: string }[] = [
   { value: "", label: "Let the referee decide" },
@@ -129,7 +132,12 @@ function StakeInner() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-black">Stake on a goal</h1>
+      <h1 className="text-3xl font-black sm:text-4xl">
+        Stake on{" "}
+        <GradientText colors={["#a3e635", "#22d3ee", "#a3e635"]} animationSpeed={5}>
+          a goal
+        </GradientText>
+      </h1>
 
       {cohort ? (
         <div className="card flex flex-wrap gap-x-6 gap-y-1 text-sm">
@@ -222,7 +230,7 @@ function StakeInner() {
 
       {compiled && (
         <div className="space-y-4">
-          <div className="card space-y-2">
+          <SpotlightCard theme="dark" spotlightColor="rgba(163, 230, 53, 0.22)" className="space-y-2 !rounded-2xl !p-5">
             <div className="label">The referee will check</div>
             <p className="text-lg font-semibold">{compiled.summary}</p>
             <p className="text-xs text-zinc-500">
@@ -233,7 +241,7 @@ function StakeInner() {
               <pre className="mt-2 overflow-x-auto rounded-lg bg-black/60 p-2">{JSON.stringify(compiled.criteria, null, 2)}</pre>
               <div className="mt-1 break-all font-mono">goal_hash {compiled.goal_hash}</div>
             </details>
-          </div>
+          </SpotlightCard>
 
           <div className="card space-y-2">
             <div className="label">Before the deadline</div>
@@ -250,9 +258,13 @@ function StakeInner() {
 
           <div className="flex gap-3">
             <button className="btn-ghost" disabled={!!busy} onClick={() => setCompiled(null)}>Edit</button>
-            <button className="btn-primary flex-1" disabled={!confirmed || !!busy || closed || short || !!blocked} onClick={onStake}>
-              {busy ? <><Spinner />&nbsp;{busy}</> : short ? "Not enough AUSD yet" : "Stake"}
-            </button>
+            <div className="flex-1">
+              <ClickSpark sparkColor="#a3e635" sparkCount={12} sparkRadius={28}>
+                <button className="btn-primary w-full" disabled={!confirmed || !!busy || closed || short || !!blocked} onClick={onStake}>
+                  {busy ? <><Spinner />&nbsp;{busy}</> : short ? "Not enough AUSD yet" : "Stake"}
+                </button>
+              </ClickSpark>
+            </div>
           </div>
         </div>
       )}

@@ -11,6 +11,7 @@ import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { GoalResponse } from "@/lib/types";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Spinner, StatusPill, TxLink } from "@/components/ui";
+import DecryptedText from "@/components/reactbits/DecryptedText";
 
 const CHECK_LABEL: Record<string, string> = {
   repo_control: "You control the repo",
@@ -119,7 +120,15 @@ export default function GoalPage({ params }: { params: { id: string } }) {
       {verdict && (
         <>
           <div className={`rounded-2xl border p-5 ${verdict.passed ? "border-green-500/40 bg-green-500/10" : "border-red-500/40 bg-red-500/10"}`}>
-            <div className="text-4xl font-black">{verdict.passed ? "PASS ✅" : "FAIL ❌"}</div>
+            <div className={`text-5xl font-black tracking-tight ${verdict.passed ? "text-green-300" : "text-red-300"}`}>
+              <DecryptedText
+                text={verdict.passed ? "PASS" : "FAIL"}
+                animateOn="view"
+                sequential
+                speed={70}
+                characters="PASFILX01#"
+              />
+            </div>
             <p className="mt-2 text-lg">{verdict.reasons}</p>
             {verdict.human_override && (
               <p className="mt-2 text-sm font-semibold text-amber-300">A human overrode the automatic verdict. This is counted publicly.</p>

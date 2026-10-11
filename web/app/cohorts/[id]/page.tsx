@@ -8,6 +8,8 @@ import { countdown, short, useNow, usePoll } from "@/lib/time";
 import type { CohortResponse, GoalStatus } from "@/lib/types";
 import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { ErrorBox, Spinner, Stat, StatusPill } from "@/components/ui";
+import CountUp from "@/components/reactbits/CountUp";
+import GradientText from "@/components/reactbits/GradientText";
 
 const ORDER: Record<GoalStatus, number> = { needs_human: 0, watching: 1, passed: 2, failed: 3 };
 
@@ -41,7 +43,10 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
           <div className="font-mono text-6xl font-black tabular-nums sm:text-7xl lg:text-9xl">{countdown(target, now)}</div>
           <div className="text-sm text-zinc-400">{stakingOpen ? "until staking closes" : "until the goal deadline"}</div>
           <div className="mt-3 text-3xl font-black text-lime-300 lg:text-5xl">
-            {fmtAmount(stats.pot, dec)} <span className="text-lg text-zinc-400">AUSD in the pot</span>
+            <GradientText colors={["#a3e635", "#22d3ee", "#a3e635"]} animationSpeed={4}>
+              <CountUp to={Number(fmtAmount(stats.pot, dec).replace(/,/g, ""))} duration={1.2} separator="," />
+            </GradientText>{" "}
+            <span className="text-lg text-zinc-400">AUSD in the pot</span>
           </div>
         </div>
         {joinUrl && (
@@ -56,10 +61,10 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
 
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         <Stat label="Stakers" value={stats.stakers} />
-        <Stat label="Watching" value={stats.watching} />
-        <Stat label="Passed" value={<span className="text-green-400">{stats.passed}</span>} />
-        <Stat label="Failed" value={<span className="text-red-400">{stats.failed}</span>} />
-        <Stat label="Needs human" value={<span className="text-amber-400">{stats.needs_human}</span>} />
+        <Stat label="Watching" value={stats.watching} tone="text-blue-300" />
+        <Stat label="Passed" value={stats.passed} tone="text-green-400" />
+        <Stat label="Failed" value={stats.failed} tone="text-red-400" />
+        <Stat label="Needs human" value={stats.needs_human} tone="text-amber-400" />
       </div>
       {(stats.attacks !== undefined || stats.human_overrides !== undefined) && (
         <p className="text-sm text-zinc-400">
