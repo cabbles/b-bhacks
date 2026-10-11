@@ -9,7 +9,6 @@ import { MOCK_REFEREE, MOCK_RELAYER } from "@/lib/env";
 import { fmtAmount, rememberGoal, signStakeAuthorization, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Notice, Spinner } from "@/components/ui";
-import ClickSpark from "@/components/reactbits/ClickSpark";
 
 const TYPE_OPTIONS: { value: GoalType | ""; label: string }[] = [
   { value: "", label: "Let the referee decide" },
@@ -130,7 +129,7 @@ function StakeInner() {
   }
 
   return (
-    <div className="grid gap-y-10 lg:grid-cols-12 lg:gap-x-12">
+    <div className="grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:gap-x-12">
       <header className="lg:col-span-12">
         {fromGroup ? (
           <>
@@ -169,7 +168,7 @@ function StakeInner() {
           <div className="mt-2 space-y-1">
             {EXAMPLES.map((ex) => (
               <button key={ex} type="button" className="block text-left text-sm text-muted hover:text-fg" onClick={() => setText(ex)}>
-                <span className="text-accent">↳</span> {ex}
+                <span className="text-nose-deep">↳</span> {ex}
               </button>
             ))}
           </div>
@@ -214,7 +213,7 @@ function StakeInner() {
             </section>
 
             <label className="flex items-start gap-3 text-sm">
-              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#C6FF3D]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#1E1E1E]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
               <span>
                 This is my task. I stake {cohort ? fmtAmount(cohort.stake_amount, dec) : "?"} test
                 AUSD and lose it if the referee rules I failed.
@@ -224,11 +223,9 @@ function StakeInner() {
             <div className="flex gap-3">
               <button className="btn-ghost" disabled={!!busy} onClick={() => setCompiled(null)}>Edit</button>
               <div className="flex-1">
-                <ClickSpark sparkColor="#C6FF3D" sparkCount={12} sparkRadius={28}>
-                  <button className="btn-primary w-full" disabled={!confirmed || !!busy || closed || short || !!blocked} onClick={onStake}>
+                <button className="btn-primary w-full" disabled={!confirmed || !!busy || closed || short || !!blocked} onClick={onStake}>
                     {busy ? <><Spinner /> {busy}</> : short ? "Not enough AUSD yet" : "Stake"}
                   </button>
-                </ClickSpark>
               </div>
             </div>
           </div>

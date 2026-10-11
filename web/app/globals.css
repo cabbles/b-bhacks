@@ -2,22 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+:root { color-scheme: light; }
 body { @apply bg-ink font-sans text-fg antialiased; }
-::selection { @apply bg-accent text-ink; }
+::selection { @apply bg-nose text-fg; }
 
 @layer components {
-  /* Display type: tight and oversized. */
-  .display { @apply font-display font-bold leading-[0.88] tracking-tightest; }
+  /* Display type: big, rounded, friendly. */
+  .display { @apply font-display font-semibold leading-[0.95] tracking-tightest; }
   /* Small uppercase data label. */
-  .label { @apply mb-1 block font-mono text-[11px] uppercase tracking-[0.18em] text-muted; }
-  /* A panel is a ruled block, not a rounded card. */
-  .card { @apply border border-line bg-panel p-4; }
+  .label { @apply mb-1 block font-mono text-[11px] uppercase tracking-[0.16em] text-muted; }
+  /* A panel is a filled cream block: no outline. */
+  .card { @apply rounded-xl bg-panel p-5; }
   .rule { @apply border-t border-line; }
-  .btn { @apply inline-flex items-center justify-center gap-2 px-5 py-3 font-mono text-sm font-semibold uppercase tracking-[0.12em] transition disabled:cursor-not-allowed disabled:opacity-30; }
-  .btn-primary { @apply btn bg-accent text-ink hover:bg-fg; }
-  .btn-ghost { @apply btn border border-line text-fg hover:border-fg; }
-  .input { @apply w-full border border-line bg-ink px-3 py-3 text-base outline-none placeholder:text-muted/60 focus:border-accent; }
-  .link { @apply text-fg underline decoration-accent decoration-2 underline-offset-4 hover:text-accent; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-display text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40; }
+  /* Primary: solid charcoal, like the cow's hooves. */
+  .btn-primary { @apply btn bg-accent text-ink hover:bg-spot; }
+  /* Secondary: cartoon outline. */
+  .btn-ghost { @apply btn border-2 border-fg text-fg hover:bg-panel; }
+  .input { @apply w-full rounded-lg border-2 border-line bg-white px-3 py-3 text-base outline-none placeholder:text-muted/70 focus:border-fg; }
+  .link { @apply text-fg underline decoration-nose decoration-2 underline-offset-4 hover:text-nose-deep; }
   .num { @apply font-mono tabular-nums; }
 }

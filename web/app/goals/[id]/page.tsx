@@ -11,7 +11,6 @@ import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { GoalResponse } from "@/lib/types";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Spinner, StatusPill, TxLink } from "@/components/ui";
-import DecryptedText from "@/components/reactbits/DecryptedText";
 
 const CHECK_LABEL: Record<string, string> = {
   repo_control: "You control the repo",
@@ -76,7 +75,7 @@ export default function GoalPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="grid gap-y-12 lg:grid-cols-12 lg:gap-x-12">
+    <div className="grid grid-cols-1 gap-y-12 lg:grid-cols-12 lg:gap-x-12">
       {isNew && (
         <div className="border-l-2 border-accent pl-3 text-sm lg:col-span-12">Staked. The referee is now watching. Bookmark this page.</div>
       )}
@@ -93,7 +92,7 @@ export default function GoalPage({ params }: { params: { id: string } }) {
         </div>
         {verdict ? (
           <div className={`display mt-6 text-[28vw] sm:text-[11rem] lg:text-[14rem] ${verdict.passed ? "text-pass" : "text-fail"}`}>
-            <DecryptedText text={verdict.passed ? "PASS" : "FAIL"} animateOn="view" sequential speed={70} characters="PASFILX01#" />
+            {verdict.passed ? "PASS" : "FAIL"}
           </div>
         ) : status === "watching" ? (
           <div className="num mt-6 text-[18vw] font-semibold leading-none sm:text-9xl">{countdown(deadline, now)}</div>
@@ -218,7 +217,7 @@ export default function GoalPage({ params }: { params: { id: string } }) {
               ) : claimable && claimable.amount > 0n ? (
                 <>
                   <p className="num">
-                    Ready to claim: <span className="text-accent">{fmtAmount(claimable.amount, claimable.dec)} AUSD</span>
+                    Ready to claim: <span className="text-pass">{fmtAmount(claimable.amount, claimable.dec)} AUSD</span>
                   </p>
                   <button className="btn-primary w-full" disabled={claim.busy || !!claim.tx} onClick={onClaim}>
                     {claim.busy ? <Spinner /> : claim.tx ? "Claim sent" : "Claim payout"}

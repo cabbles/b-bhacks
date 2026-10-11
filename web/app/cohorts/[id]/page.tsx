@@ -6,7 +6,6 @@ import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { CohortResponse, GoalStatus } from "@/lib/types";
 import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { ErrorBox, Spinner, Stat, StatusPill } from "@/components/ui";
-import CountUp from "@/components/reactbits/CountUp";
 
 const ORDER: Record<GoalStatus, number> = { needs_human: 0, watching: 1, passed: 2, failed: 3 };
 
@@ -34,7 +33,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
   return (
     <div className="space-y-12">
       {/* Market head: clock (or state) and pot on the left, terms and entry on the right. */}
-      <section className="grid gap-10 border-b border-line pb-10 lg:grid-cols-12">
+      <section className="grid grid-cols-1 gap-10 border-b border-line pb-10 lg:grid-cols-12">
         <div className="lg:col-span-8">
           <div className="label">
             Market #{cohort.id} · {phase}
@@ -50,8 +49,8 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
             <div className="display text-[20vw] sm:text-[9rem] lg:text-[11rem]">{phase}.</div>
           )}
           <div className="mt-8 flex items-baseline gap-3">
-            <span className="num text-6xl font-semibold text-accent sm:text-7xl">
-              <CountUp to={Number(fmtAmount(stats.pot, dec).replace(/,/g, ""))} duration={1.2} separator="," />
+            <span className="num text-6xl font-semibold text-fg sm:text-7xl">
+              {fmtAmount(stats.pot, dec)}
             </span>
             <span className="label !mb-0">AUSD in the pot · no house, no fee</span>
           </div>

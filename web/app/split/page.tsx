@@ -69,7 +69,7 @@ export default function SplitPage() {
   );
 
   return (
-    <div className="grid gap-y-12 lg:grid-cols-12 lg:gap-x-12">
+    <div className="grid grid-cols-1 gap-y-12 lg:grid-cols-12 lg:gap-x-12">
       <header className="lg:col-span-12">
         <div className="label">Groups · do it with friends</div>
         <h1 className="display text-6xl sm:text-8xl">Split it three ways.</h1>

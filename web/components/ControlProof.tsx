@@ -38,7 +38,7 @@ export function ControlProof({ criteria, referee }: { criteria: Criteria; refere
     return (
       <div className="space-y-2 text-sm">
         <p>
-          Prove the repo is yours: add the file <code className="font-mono text-accent">.referee/{criteria.nonce}</code> to{" "}
+          Prove the repo is yours: add the file <code className="font-mono text-nose-deep">.referee/{criteria.nonce}</code> to{" "}
           <strong>{String(p.repo)}</strong> on branch <strong>{String(p.branch ?? "main")}</strong>.
         </p>
         <Code>{cmd}</Code>
@@ -58,7 +58,7 @@ export function ControlProof({ criteria, referee }: { criteria: Criteria; refere
       <div className="space-y-2 text-sm">
         <p>
           Prove the site is yours: put this text on <strong>{String(p.url)}</strong> or at{" "}
-          <span className="font-mono text-accent break-all">{wellKnown}</span>.
+          <span className="font-mono text-nose-deep break-all">{wellKnown}</span>.
         </p>
         <Code>{criteria.nonce}</Code>
         <p className="text-muted">

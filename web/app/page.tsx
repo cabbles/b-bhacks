@@ -7,8 +7,7 @@ import { countdown, short, useNow } from "@/lib/time";
 import type { RelayerConfig } from "@/lib/types";
 import { fmtAmount, myGoals, tokenBalance, tokenDecimals, useWallet, type MyGoal } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
-import SplitText from "@/components/reactbits/SplitText";
-import ClickSpark from "@/components/reactbits/ClickSpark";
+import { Cow } from "@/components/Cow";
 
 export default function JoinPage() {
   const { account, dripState, dripTx, retryDrip } = useWallet();
@@ -36,21 +35,18 @@ export default function JoinPage() {
   const open = (cfg?.cohorts || []).filter((c) => c.stake_deadline * 1000 > now);
 
   return (
-    <div className="grid gap-y-14 lg:grid-cols-12 lg:gap-x-12">
+    <div className="grid grid-cols-1 gap-y-14 lg:grid-cols-12 lg:gap-x-12">
       {/* Left: the pitch, set large. */}
       <section className="lg:col-span-7">
-        <div className="label">Testnet · Base Sepolia · AUSD</div>
-        <SplitText
-          text="Do it, or pay."
-          tag="h1"
-          textAlign="left"
-          className="display mt-4 text-[17vw] sm:text-8xl lg:text-[8.5rem]"
-          delay={35}
-          duration={0.6}
-          splitType="chars"
-        />
-        <p className="display mt-2 text-[11vw] text-muted sm:text-6xl lg:text-7xl">
-          A referee that <span className="text-accent">checks.</span>
+        <div className="flex min-w-0 items-end justify-between gap-6">
+          <div>
+            <div className="label">Cash Cow · testnet AUSD on Base Sepolia</div>
+            <h1 className="display mt-4 text-[15vw] sm:text-7xl lg:text-[6.25rem]">Do it, or pay.</h1>
+          </div>
+          <Cow full size={150} className="hidden shrink-0 sm:block" />
+        </div>
+        <p className="display mt-3 text-[10vw] text-muted sm:text-5xl lg:text-6xl">
+          A referee that <span className="text-nose-deep">checks.</span>
         </p>
         <p className="mt-10 max-w-md text-lg leading-relaxed text-fg/80">
           Put AUSD behind any task with a deadline. An AI referee gathers the evidence itself, rules pass or fail with reasons,
@@ -87,7 +83,7 @@ export default function JoinPage() {
           <div className="label">Your wallet · made in this browser</div>
           <div className="border-t border-line pt-3">
             {account ? (
-              <a className="num break-all text-sm text-fg hover:text-accent" href={addrUrl(account.address)} target="_blank" rel="noreferrer">
+              <a className="num break-all text-sm text-fg hover:text-nose-deep" href={addrUrl(account.address)} target="_blank" rel="noreferrer">
                 {account.address}
               </a>
             ) : (
@@ -149,11 +145,9 @@ export default function JoinPage() {
                 </dl>
                 <div className="mt-4 flex gap-3">
                   <div className="flex-1">
-                    <ClickSpark sparkColor="#C6FF3D" sparkCount={10} sparkRadius={22}>
-                      <Link href={`/stake?cohort=${c.id}`} className="btn-primary w-full">
+                    <Link href={`/stake?cohort=${c.id}`} className="btn-primary w-full">
                         Stake
                       </Link>
-                    </ClickSpark>
                   </div>
                   <Link href={`/cohorts/${c.id}`} className="btn-ghost">
                     View
@@ -170,7 +164,7 @@ export default function JoinPage() {
             <ul className="border-t border-line">
               {goals.map((g) => (
                 <li key={g.goal_id}>
-                  <Link href={`/goals/${g.goal_id}`} className="flex gap-3 border-b border-line py-3 hover:text-accent">
+                  <Link href={`/goals/${g.goal_id}`} className="flex gap-3 border-b border-line py-3 hover:text-nose-deep">
                     <span className="num text-xs text-muted">#{g.cohort_id}</span>
                     <span className="flex-1">{g.goal_text}</span>
                     <span aria-hidden="true">→</span>

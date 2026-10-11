@@ -66,7 +66,7 @@ export default function IntegrityPage() {
   }
 
   return (
-    <div className="grid gap-y-14 lg:grid-cols-12 lg:gap-x-12">
+    <div className="grid grid-cols-1 gap-y-14 lg:grid-cols-12 lg:gap-x-12">
       <header className="lg:col-span-8">
         <div className="label">Integrity</div>
         <h1 className="display text-6xl sm:text-8xl">How the referee stays fair.</h1>
@@ -78,7 +78,7 @@ export default function IntegrityPage() {
       <section className="lg:col-span-12">
         <ol className="border-t border-line">
           {SAFEGUARDS.map(([title, body, stops], i) => (
-            <li key={title} className="grid gap-x-6 gap-y-1 border-b border-line py-6 sm:grid-cols-[3rem_1fr_14rem]">
+            <li key={title} className="grid grid-cols-1 gap-x-6 gap-y-1 border-b border-line py-6 sm:grid-cols-[3rem_1fr_14rem]">
               <span className="num text-sm text-muted">{String(i + 1).padStart(2, "0")}</span>
               <div>
                 <div className="font-display text-xl font-bold tracking-tight">{title}</div>
@@ -95,7 +95,7 @@ export default function IntegrityPage() {
 
       {(tests.length > 0 || CONTRACT_TESTS.length > 0) && (
         <section className="lg:col-span-12">
-          <div className="grid gap-10 lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
             <div className="lg:col-span-5">
               <div className="label">Adversarial testing</div>
               <p className="max-w-md text-fg/80">
