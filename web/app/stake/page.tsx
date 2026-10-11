@@ -15,6 +15,8 @@ const TYPE_OPTIONS: { value: GoalType | ""; label: string }[] = [
   { value: "", label: "Let the referee decide" },
   { value: "github_commits", label: "GitHub commits" },
   { value: "url_live", label: "A URL goes live" },
+  // Referee only accepts this for wallets in CANVAS_ALLOWED_STAKERS (the team's own demo account).
+  { value: "canvas_submission", label: "Canvas assignment submitted (team demo)" },
 ];
 
 const EXAMPLES = [
