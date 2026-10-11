@@ -1,0 +1,77 @@
+"use client";
+import { useState } from "react";
+import type { Criteria } from "@/lib/types";
+
+function Copy({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      className="rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+      onClick={() => {
+        navigator.clipboard?.writeText(text).then(() => {
+          setDone(true);
+          setTimeout(() => setDone(false), 1200);
+        });
+      }}
+    >
+      {done ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
+function Code({ children }: { children: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-xl bg-black/60 p-3">
+      <pre className="flex-1 overflow-x-auto whitespace-pre-wrap [overflow-wrap:anywhere] font-mono text-xs text-lime-200">{children}</pre>
+      <Copy text={children} />
+    </div>
+  );
+}
+
+/** Tells the staker how to prove they control the repo or URL. */
+export function ControlProof({ criteria }: { criteria: Criteria }) {
+  const p = criteria.params as Record<string, string | number>;
+  if (criteria.type === "github_commits") {
+    const cmd = `mkdir -p .referee && echo ${criteria.nonce} > .referee/${criteria.nonce}\ngit add .referee && git commit -m "referee: ${criteria.nonce}" && git push origin ${p.branch ?? "main"}`;
+    return (
+      <div className="space-y-2 text-sm">
+        <p>
+          Prove the repo is yours: add the file <code className="font-mono text-lime-200">.referee/{criteria.nonce}</code> to{" "}
+          <strong>{String(p.repo)}</strong> on branch <strong>{String(p.branch ?? "main")}</strong>.
+        </p>
+        <Code>{cmd}</Code>
+        <p className="text-zinc-400">
+          Only commits the referee first sees after you stake count. Commit dates are ignored, so backdating does nothing.
+        </p>
+      </div>
+    );
+  }
+  if (criteria.type === "url_live") {
+    let wellKnown = "/.well-known/referee.txt";
+    try {
+      wellKnown = new URL("/.well-known/referee.txt", String(p.url)).toString();
+    } catch {}
+    return (
+      <div className="space-y-2 text-sm">
+        <p>
+          Prove the site is yours: put this text on <strong>{String(p.url)}</strong> or at{" "}
+          <span className="font-mono text-lime-200 break-all">{wellKnown}</span>.
+        </p>
+        <Code>{criteria.nonce}</Code>
+        <p className="text-zinc-400">
+          The page must <strong>not</strong> already show &ldquo;{String(p.must_contain)}&rdquo; right now. The referee checks at
+          stake time and again at the deadline.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2 text-sm">
+      <p>
+        Canvas goals are limited to the team&apos;s own demo account. Assignment {String(p.assignment_id)} in course{" "}
+        {String(p.course_id)}.
+      </p>
+    </div>
+  );
+}

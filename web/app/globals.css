@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+body { @apply bg-zinc-950 text-zinc-100 antialiased; }
+
+@layer components {
+  .card { @apply rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4; }
+  .btn { @apply inline-flex items-center justify-center rounded-xl px-4 py-3 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed; }
+  .btn-primary { @apply btn bg-lime-400 text-zinc-950 hover:bg-lime-300; }
+  .btn-ghost { @apply btn border border-zinc-700 text-zinc-200 hover:bg-zinc-800; }
+  .input { @apply w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-3 text-base outline-none focus:border-lime-400; }
+  .label { @apply mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-400; }
+  .link { @apply text-lime-300 underline decoration-lime-300/40 underline-offset-2 hover:decoration-lime-300; }
+}
