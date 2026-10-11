@@ -3,14 +3,21 @@
 @tailwind utilities;
 
 :root { color-scheme: dark; }
-body { @apply bg-zinc-950 text-zinc-100 antialiased; }
+body { @apply bg-ink font-sans text-fg antialiased; }
+::selection { @apply bg-accent text-ink; }
 
 @layer components {
-  .card { @apply rounded-2xl border border-white/10 bg-zinc-900/60 p-4 backdrop-blur; }
-  .btn { @apply inline-flex items-center justify-center rounded-xl px-4 py-3 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed; }
-  .btn-primary { @apply btn bg-lime-400 text-zinc-950 hover:bg-lime-300; }
-  .btn-ghost { @apply btn border border-zinc-700 text-zinc-200 hover:bg-zinc-800; }
-  .input { @apply w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-3 text-base outline-none focus:border-lime-400; }
-  .label { @apply mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-400; }
-  .link { @apply text-lime-300 underline decoration-lime-300/40 underline-offset-2 hover:decoration-lime-300; }
+  /* Display type: tight and oversized. */
+  .display { @apply font-display font-bold leading-[0.88] tracking-tightest; }
+  /* Small uppercase data label. */
+  .label { @apply mb-1 block font-mono text-[11px] uppercase tracking-[0.18em] text-muted; }
+  /* A panel is a ruled block, not a rounded card. */
+  .card { @apply border border-line bg-panel p-4; }
+  .rule { @apply border-t border-line; }
+  .btn { @apply inline-flex items-center justify-center gap-2 px-5 py-3 font-mono text-sm font-semibold uppercase tracking-[0.12em] transition disabled:cursor-not-allowed disabled:opacity-30; }
+  .btn-primary { @apply btn bg-accent text-ink hover:bg-fg; }
+  .btn-ghost { @apply btn border border-line text-fg hover:border-fg; }
+  .input { @apply w-full border border-line bg-ink px-3 py-3 text-base outline-none placeholder:text-muted/60 focus:border-accent; }
+  .link { @apply text-fg underline decoration-accent decoration-2 underline-offset-4 hover:text-accent; }
+  .num { @apply font-mono tabular-nums; }
 }

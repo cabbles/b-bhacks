@@ -9,7 +9,6 @@ import type { CohortResponse, GoalStatus } from "@/lib/types";
 import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { ErrorBox, Spinner, Stat, StatusPill } from "@/components/ui";
 import CountUp from "@/components/reactbits/CountUp";
-import GradientText from "@/components/reactbits/GradientText";
 
 const ORDER: Record<GoalStatus, number> = { needs_human: 0, watching: 1, passed: 2, failed: 3 };
 
@@ -35,61 +34,67 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
   const sorted = [...goals].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
 
   return (
-    // Breaks out of the layout's max-w-3xl so the board fills a projector.
-    <div className="relative left-1/2 w-[min(80rem,calc(100vw-2rem))] -translate-x-1/2 space-y-6">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-        <div className="flex-1">
-          <div className="label">Cohort #{cohort.id} · {phase}</div>
-          <div className="font-mono text-6xl font-black tabular-nums sm:text-7xl lg:text-9xl">{countdown(target, now)}</div>
-          <div className="text-sm text-zinc-400">{stakingOpen ? "until staking closes" : "until the goal deadline"}</div>
-          <div className="mt-3 text-3xl font-black text-lime-300 lg:text-5xl">
-            <GradientText colors={["#a3e635", "#22d3ee", "#a3e635"]} animationSpeed={4}>
+    <div className="space-y-12">
+      {/* Scoreboard head: clock and pot huge on the left, QR in a ruled corner on the right. */}
+      <section className="grid gap-10 border-b border-line pb-10 lg:grid-cols-12">
+        <div className="lg:col-span-8">
+          <div className="label">
+            Cohort #{cohort.id} · {phase}
+          </div>
+          <div className="num text-[24vw] font-semibold leading-[0.85] tracking-tight sm:text-[10rem] lg:text-[13rem]">
+            {countdown(target, now)}
+          </div>
+          <div className="label mt-2">{stakingOpen ? "until staking closes" : "until the goal deadline"}</div>
+          <div className="mt-8 flex items-baseline gap-3">
+            <span className="num text-6xl font-semibold text-accent sm:text-7xl">
               <CountUp to={Number(fmtAmount(stats.pot, dec).replace(/,/g, ""))} duration={1.2} separator="," />
-            </GradientText>{" "}
-            <span className="text-lg text-zinc-400">AUSD in the pot</span>
+            </span>
+            <span className="label !mb-0">AUSD in the pot</span>
           </div>
         </div>
         {joinUrl && (
-          <div className="flex flex-col items-center gap-2">
-            <div className="rounded-2xl bg-white p-3">
-              <QRCodeSVG value={joinUrl} size={180} className="h-44 w-44 lg:h-72 lg:w-72" />
+          <div className="flex flex-col items-start gap-3 lg:col-span-4 lg:items-end">
+            <div className="bg-fg p-3">
+              <QRCodeSVG value={joinUrl} size={180} bgColor="#ECEDEE" fgColor="#0D0F12" className="h-40 w-40 lg:h-64 lg:w-64" />
             </div>
-            <div className="text-xs text-zinc-400">Scan to join · no install</div>
+            <div className="label !mb-0">Scan to join · no install</div>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+      <section className="grid grid-cols-3 gap-y-8 sm:grid-cols-5">
         <Stat label="Stakers" value={stats.stakers} />
-        <Stat label="Watching" value={stats.watching} tone="text-blue-300" />
-        <Stat label="Passed" value={stats.passed} tone="text-green-400" />
-        <Stat label="Failed" value={stats.failed} tone="text-red-400" />
-        <Stat label="Needs human" value={stats.needs_human} tone="text-amber-400" />
-      </div>
-      {(stats.attacks !== undefined || stats.human_overrides !== undefined) && (
-        <p className="text-sm text-zinc-400">
-          {stats.attacks ?? 0} declared cheat attempts ·{" "}
-          <Link className="link" href="/fool">Fool the Ref board</Link> · {stats.human_overrides ?? 0} human overrides
-        </p>
-      )}
+        <Stat label="Watching" value={stats.watching} />
+        <Stat label="Passed" value={stats.passed} tone="text-pass" />
+        <Stat label="Failed" value={stats.failed} tone="text-fail" />
+        <Stat label="Needs human" value={stats.needs_human} tone="text-human" />
+      </section>
 
-      <ul className="grid gap-2 lg:grid-cols-2">
-        {sorted.length === 0 && <li className="text-zinc-400">No stakers yet. Be the first.</li>}
-        {sorted.map((g) => (
-          <li key={g.goal_id}>
-            <Link href={`/goals/${g.goal_id}`} className="card flex items-center gap-3 hover:border-zinc-600">
-              <span className="font-mono text-xs text-zinc-500">{short(g.staker)}</span>
-              <span className="flex-1 truncate">
-                {g.is_attack && <span title="Declared cheat attempt">😈 </span>}
-                {g.goal_text ?? g.type ?? g.goal_id}
-              </span>
-              {g.human_override && <span className="text-xs text-amber-300">override</span>}
-              <StatusPill status={g.status} />
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {error && <p className="text-xs text-red-400">Refresh failed: {error}</p>}
+      <section>
+        <div className="flex items-baseline justify-between">
+          <div className="label">Stakers</div>
+          <div className="label">
+            {stats.attacks ?? 0} cheat attempts · <Link className="hover:text-fg" href="/fool">Fool the Ref →</Link> · {stats.human_overrides ?? 0} overrides
+          </div>
+        </div>
+        <ul className="border-t border-line">
+          {sorted.length === 0 && <li className="py-4 text-muted">No stakers yet. Be the first.</li>}
+          {sorted.map((g) => (
+            <li key={g.goal_id}>
+              <Link href={`/goals/${g.goal_id}`} className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-x-4 border-b border-line py-3 hover:bg-panel">
+                <span className="num text-xs text-muted">{short(g.staker)}</span>
+                <span className="truncate">
+                  {g.is_attack && <span className="num mr-2 text-[10px] uppercase tracking-[0.14em] text-fail">cheat</span>}
+                  {g.goal_text ?? g.type ?? g.goal_id}
+                  {g.human_override && <span className="num ml-2 text-[10px] uppercase tracking-[0.14em] text-human">override</span>}
+                </span>
+                <StatusPill status={g.status} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {error && <p className="text-xs text-fail">Refresh failed: {error}</p>}
     </div>
   );
 }

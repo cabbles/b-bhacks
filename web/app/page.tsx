@@ -8,9 +8,6 @@ import type { RelayerConfig } from "@/lib/types";
 import { fmtAmount, myGoals, tokenBalance, tokenDecimals, useWallet, type MyGoal } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
 import SplitText from "@/components/reactbits/SplitText";
-import GradientText from "@/components/reactbits/GradientText";
-import ShinyText from "@/components/reactbits/ShinyText";
-import SpotlightCard from "@/components/reactbits/SpotlightCard";
 import ClickSpark from "@/components/reactbits/ClickSpark";
 
 export default function JoinPage() {
@@ -39,119 +36,144 @@ export default function JoinPage() {
   const open = (cfg?.cohorts || []).filter((c) => c.stake_deadline * 1000 > now);
 
   return (
-    <div className="space-y-6">
-      <section className="pt-6 sm:pt-12">
+    <div className="grid gap-y-14 lg:grid-cols-12 lg:gap-x-12">
+      {/* Left: the pitch, set large. */}
+      <section className="lg:col-span-7">
+        <div className="label">Testnet · Base Sepolia · AUSD</div>
         <SplitText
           text="Bet on yourself."
           tag="h1"
           textAlign="left"
-          className="text-4xl font-black leading-tight tracking-tight sm:text-6xl"
-          delay={40}
-          duration={0.7}
+          className="display mt-4 text-[17vw] sm:text-8xl lg:text-[8.5rem]"
+          delay={35}
+          duration={0.6}
           splitType="chars"
         />
-        <div className="text-4xl font-black leading-tight tracking-tight sm:text-6xl">
-          <GradientText colors={["#a3e635", "#22d3ee", "#a78bfa", "#a3e635"]} animationSpeed={5}>
-            The referee checks.
-          </GradientText>
-        </div>
-        <p className="mt-4 max-w-xl text-zinc-300 sm:text-lg">
-          Stake testnet AUSD on finishing something by a deadline. An AI referee gathers the evidence itself, rules pass or fail
+        <p className="display mt-2 text-[11vw] text-muted sm:text-6xl lg:text-7xl">
+          The referee <span className="text-accent">checks.</span>
+        </p>
+        <p className="mt-10 max-w-md text-lg leading-relaxed text-fg/80">
+          Stake test AUSD on finishing something by a deadline. An AI referee gathers the evidence itself, rules pass or fail
           with reasons, and the contract pays out. Forfeits go to the people who passed.
         </p>
-      </section>
 
-      <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur">
-        <ShinyText text="Testnet only." color="#fcd34d" shineColor="#fffbeb" speed={3} className="font-bold" /> This runs on Base Sepolia with free test tokens. Nothing here has real value and there is
-        nothing to buy.
-      </section>
-
-      <SpotlightCard theme="dark" spotlightColor="rgba(163, 230, 53, 0.25)" className="space-y-2 !rounded-2xl !p-5">
-        <div className="label">Your wallet (created in this browser)</div>
-        {account ? (
-          <a className="link break-all font-mono text-sm" href={addrUrl(account.address)} target="_blank" rel="noreferrer">
-            {account.address}
-          </a>
-        ) : (
-          <Spinner />
-        )}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-300">
-          <span>
-            Balance: <strong>{bal === null ? "…" : fmtAmount(bal, dec)} AUSD</strong>
-          </span>
-          <span>
-            {dripState === "pending" && (
-              <>
-                <Spinner /> Sending you 100 test AUSD…
-              </>
-            )}
-            {dripState === "done" && dripTx && (
-              <a className="link" href={txUrl(dripTx)} target="_blank" rel="noreferrer">
-                100 AUSD sent ↗
-              </a>
-            )}
-            {dripState === "error" && (
-              <span className="text-red-300">
-                Faucet failed.{" "}
-                <button type="button" className="link" onClick={retryDrip}>
-                  Try again
-                </button>
-              </span>
-            )}
-          </span>
-        </div>
-        <p className="text-xs text-zinc-500">No install, no seed phrase. Clearing this browser&apos;s data loses this wallet.</p>
-      </SpotlightCard>
-
-      <ErrorBox msg={err} />
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold">Open cohorts</h2>
-        {!cfg && !err && <Spinner />}
-        {cfg && open.length === 0 && <p className="text-zinc-400">No cohort is taking stakes right now.</p>}
-        {open.map((c) => (
-          <div key={c.id} className="card flex flex-wrap items-center gap-3">
-            <div className="flex-1">
-              <div className="font-bold">Cohort #{c.id}</div>
-              <div className="text-sm text-zinc-400">
-                Stake {fmtAmount(c.stake_amount, dec)} AUSD · staking closes in {countdown(c.stake_deadline, now)} · goal due in{" "}
-                {countdown(c.goal_deadline, now)}
+        <ol className="mt-16 max-w-xl">
+          {[
+            ["It looks for itself", "It watches your repo or URL directly. Uploads and claimed timestamps are ignored, so a backdated commit does not count."],
+            ["You can try to fool it", "Declare a cheat attempt before the deadline. Every attempt goes on a public board, including the ones that worked."],
+            ["It cannot profit", "The contract has no owner withdrawal. If no verdict is posted, you get a full refund."],
+          ].map(([t, d], i) => (
+            <li key={t} className="grid grid-cols-[3rem_1fr] gap-x-4 border-t border-line py-5">
+              <span className="num text-sm text-muted">0{i + 1}</span>
+              <div>
+                <div className="font-display text-xl font-bold tracking-tight">{t}</div>
+                <p className="mt-1 text-fg/70">{d}</p>
               </div>
-            </div>
-            <Link href={`/cohorts/${c.id}`} className="btn-ghost">Board</Link>
-            <div className="shrink-0">
-              <ClickSpark sparkColor="#a3e635" sparkCount={10} sparkRadius={22}>
-                <Link href={`/stake?cohort=${c.id}`} className="btn-primary">Stake</Link>
-              </ClickSpark>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {goals.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold">Your goals</h2>
-          {goals.map((g) => (
-            <Link key={g.goal_id} href={`/goals/${g.goal_id}`} className="card block hover:border-zinc-600">
-              <div className="text-sm text-zinc-400">Cohort #{g.cohort_id}</div>
-              <div>{g.goal_text}</div>
-            </Link>
+            </li>
           ))}
-        </section>
-      )}
-
-      <section className="grid gap-3 sm:grid-cols-3">
-        {[
-          ["It looks for itself", "The referee watches your repo or URL directly. Uploads and claimed timestamps are ignored, so a backdated commit does not count."],
-          ["Try to fool it", "Declare a cheat attempt before the deadline. Every attempt goes on a public board, including the ones that worked."],
-          ["It cannot profit", "The contract has no owner withdrawal. If no verdict is posted, you get a full refund."],
-        ].map(([t, d]) => (
-          <SpotlightCard key={t} theme="dark" spotlightColor="rgba(34, 211, 238, 0.22)" className="!rounded-2xl !p-5">
-            <div className="font-bold text-lime-300">{t}</div>
-            <p className="mt-1 text-sm text-zinc-300">{d}</p>
-          </SpotlightCard>
-        ))}
+        </ol>
       </section>
+
+      {/* Right: a ruled ticket column, offset down on wide screens. */}
+      <aside className="space-y-10 lg:col-span-5 lg:pt-28">
+        <section>
+          <div className="label">Your wallet · made in this browser</div>
+          <div className="border-t border-line pt-3">
+            {account ? (
+              <a className="num break-all text-sm text-fg hover:text-accent" href={addrUrl(account.address)} target="_blank" rel="noreferrer">
+                {account.address}
+              </a>
+            ) : (
+              <Spinner />
+            )}
+            <dl className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
+              <dt className="text-muted">Balance</dt>
+              <dd className="num text-right text-2xl font-semibold">
+                {bal === null ? "…" : fmtAmount(bal, dec)} <span className="text-sm text-muted">AUSD</span>
+              </dd>
+              <dt className="text-muted">Faucet</dt>
+              <dd className="text-right">
+                {dripState === "pending" && (
+                  <span className="text-muted">
+                    <Spinner /> sending 100
+                  </span>
+                )}
+                {dripState === "done" &&
+                  (dripTx ? (
+                    <a className="link" href={txUrl(dripTx)} target="_blank" rel="noreferrer">
+                      100 sent ↗
+                    </a>
+                  ) : (
+                    <span className="text-muted">received</span>
+                  ))}
+                {dripState === "error" && (
+                  <button type="button" className="link text-fail" onClick={retryDrip}>
+                    failed · try again
+                  </button>
+                )}
+              </dd>
+            </dl>
+            <p className="mt-4 text-xs text-muted">No install, no seed phrase. Clearing this browser&apos;s data loses the wallet.</p>
+          </div>
+        </section>
+
+        <ErrorBox msg={err} />
+
+        <section>
+          <div className="label">Open cohorts</div>
+          <div className="border-t border-line">
+            {!cfg && !err && (
+              <div className="py-4">
+                <Spinner />
+              </div>
+            )}
+            {cfg && open.length === 0 && <p className="py-4 text-muted">No cohort is taking stakes right now.</p>}
+            {open.map((c) => (
+              <div key={c.id} className="border-b border-line py-5">
+                <div className="flex items-baseline justify-between">
+                  <span className="display text-4xl">#{c.id}</span>
+                  <span className="num text-sm text-muted">{fmtAmount(c.stake_amount, dec)} AUSD stake</span>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm">
+                  <dt className="text-muted">Staking closes</dt>
+                  <dd className="num text-right">{countdown(c.stake_deadline, now)}</dd>
+                  <dt className="text-muted">Goal due</dt>
+                  <dd className="num text-right">{countdown(c.goal_deadline, now)}</dd>
+                </dl>
+                <div className="mt-4 flex gap-3">
+                  <div className="flex-1">
+                    <ClickSpark sparkColor="#C6FF3D" sparkCount={10} sparkRadius={22}>
+                      <Link href={`/stake?cohort=${c.id}`} className="btn-primary w-full">
+                        Stake
+                      </Link>
+                    </ClickSpark>
+                  </div>
+                  <Link href={`/cohorts/${c.id}`} className="btn-ghost">
+                    Board
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {goals.length > 0 && (
+          <section>
+            <div className="label">Your goals</div>
+            <ul className="border-t border-line">
+              {goals.map((g) => (
+                <li key={g.goal_id}>
+                  <Link href={`/goals/${g.goal_id}`} className="flex gap-3 border-b border-line py-3 hover:text-accent">
+                    <span className="num text-xs text-muted">#{g.cohort_id}</span>
+                    <span className="flex-1">{g.goal_text}</span>
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </aside>
     </div>
   );
 }

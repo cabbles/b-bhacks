@@ -103,25 +103,28 @@ export default function StatusPage() {
   }, [cfg, account, dripState, run]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <h1 className="flex-1 text-2xl font-black">System status</h1>
-        <button className="btn-ghost py-2" onClick={() => setRun((n) => n + 1)}>Re-run</button>
-      </div>
-      <ul className="card divide-y divide-zinc-800">
+    <div className="space-y-10">
+      <header className="flex items-end gap-4">
+        <div className="flex-1">
+          <div className="label">Pre-flight</div>
+          <h1 className="display text-6xl sm:text-8xl">Status.</h1>
+        </div>
+        <button className="btn-ghost" onClick={() => setRun((n) => n + 1)}>Re-run</button>
+      </header>
+      <ul className="border-t border-line">
         {rows.map((r) => (
-          <li key={r.name} className="flex gap-3 py-2 first:pt-0 last:pb-0">
-            <span className={r.ok === null ? "text-zinc-500" : r.ok ? "text-green-400" : "text-red-400"}>{r.ok ? "●" : "○"}</span>
-            <span className="w-36 shrink-0 font-semibold">{r.name}</span>
-            <span className="min-w-0 break-words text-sm text-zinc-300">{r.detail}</span>
+          <li key={r.name} className="grid grid-cols-[1rem_10rem_1fr] items-baseline gap-x-3 border-b border-line py-3 text-sm">
+            <span className={`inline-block h-2 w-2 ${r.ok === null ? "bg-muted" : r.ok ? "bg-pass" : "bg-fail"}`} aria-label={r.ok ? "ok" : "not ok"} />
+            <span className="font-medium">{r.name}</span>
+            <span className="num min-w-0 break-words text-xs text-muted">{r.detail}</span>
           </li>
         ))}
       </ul>
-      <div className="card text-sm">
+      <div>
         <div className="label">This browser&apos;s wallet</div>
-        <div className="break-all font-mono">{account?.address ?? "…"}</div>
-        <div className="text-zinc-400">
-          Faucet: {dripState} · balance {bal === null ? "…" : fmtAmount(bal, dec)} AUSD
+        <div className="num break-all border-t border-line pt-3 text-sm">{account?.address ?? "…"}</div>
+        <div className="num text-xs text-muted">
+          faucet {dripState} · balance {bal === null ? "…" : fmtAmount(bal, dec)} AUSD
         </div>
       </div>
     </div>

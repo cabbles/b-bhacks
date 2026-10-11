@@ -8,10 +8,8 @@ import { goalHashOf } from "@/lib/hashes";
 import { MOCK_REFEREE, MOCK_RELAYER } from "@/lib/env";
 import { fmtAmount, rememberGoal, signStakeAuthorization, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 import { ControlProof } from "@/components/ControlProof";
-import { ErrorBox, Spinner } from "@/components/ui";
-import SpotlightCard from "@/components/reactbits/SpotlightCard";
+import { ErrorBox, Notice, Spinner } from "@/components/ui";
 import ClickSpark from "@/components/reactbits/ClickSpark";
-import GradientText from "@/components/reactbits/GradientText";
 
 const TYPE_OPTIONS: { value: GoalType | ""; label: string }[] = [
   { value: "", label: "Let the referee decide" },
@@ -131,42 +129,19 @@ function StakeInner() {
   }
 
   return (
-    <div className="space-y-5">
-      <h1 className="text-3xl font-black sm:text-4xl">
-        Stake on{" "}
-        <GradientText colors={["#a3e635", "#22d3ee", "#a3e635"]} animationSpeed={5}>
-          a goal
-        </GradientText>
-      </h1>
+    <div className="grid gap-y-10 lg:grid-cols-12 lg:gap-x-12">
+      <header className="lg:col-span-12">
+        <div className="label">Cohort {cohort ? `#${cohort.id}` : "…"}</div>
+        <h1 className="display text-6xl sm:text-8xl">Stake on a goal.</h1>
+      </header>
 
-      {cohort ? (
-        <div className="card flex flex-wrap gap-x-6 gap-y-1 text-sm">
-          <span>
-            Cohort <strong>#{cohort.id}</strong>
-          </span>
-          <span>
-            Stake <strong>{fmtAmount(cohort.stake_amount, dec)} AUSD</strong>
-          </span>
-          <span>
-            Staking closes <strong>{closed ? "closed" : `in ${countdown(cohort.stake_deadline, now)}`}</strong>
-          </span>
-          <span>
-            Deadline <strong>{fmtTime(cohort.goal_deadline)}</strong>
-          </span>
-          <span className={short ? "text-red-300" : "text-zinc-400"}>
-            Your balance {bal === null ? "…" : fmtAmount(bal, dec)} AUSD
-          </span>
-        </div>
-      ) : (
-        cfg && <p className="text-zinc-400">No cohort available.</p>
-      )}
-
-      <div className="space-y-3">
+      {/* Left: the form. */}
+      <section className="space-y-8 lg:col-span-7">
         <div>
           <label className="label" htmlFor="goal">What will you finish by the deadline?</label>
           <textarea
             id="goal"
-            className="input min-h-28"
+            className="input min-h-32 text-lg"
             placeholder={EXAMPLES[0]}
             value={text}
             onChange={(e) => {
@@ -174,100 +149,125 @@ function StakeInner() {
               setCompiled(null);
             }}
           />
-          <div className="mt-1 flex flex-wrap gap-2">
+          <div className="mt-2 space-y-1">
             {EXAMPLES.map((ex) => (
-              <button key={ex} type="button" className="text-left text-xs text-zinc-400 underline" onClick={() => setText(ex)}>
-                {ex}
+              <button key={ex} type="button" className="block text-left text-sm text-muted hover:text-fg" onClick={() => setText(ex)}>
+                <span className="text-accent">↳</span> {ex}
               </button>
             ))}
           </div>
         </div>
-        <div>
-          <label className="label" htmlFor="type">Evidence type</label>
-          <select id="type" className="input" value={typeHint} onChange={(e) => setTypeHint(e.target.value as GoalType | "")}>
-            {TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div>
+            <label className="label" htmlFor="type">Evidence</label>
+            <select id="type" className="input" value={typeHint} onChange={(e) => setTypeHint(e.target.value as GoalType | "")}>
+              {TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <span className="label">Fool the Ref</span>
+            <label className={`flex cursor-pointer items-center gap-3 border px-3 py-3 ${isAttack ? "border-fail text-fail" : "border-line"}`}>
+              <input type="checkbox" className="h-4 w-4 accent-[#FF5A4E]" checked={isAttack} onChange={(e) => setIsAttack(e.target.checked)} />
+              <span className="font-medium">I am going to try to cheat</span>
+            </label>
+          </div>
         </div>
 
-        <div className={`rounded-2xl border p-4 ${isAttack ? "border-red-500/50 bg-red-500/10" : "border-zinc-800"}`}>
-          <label className="flex cursor-pointer items-center gap-3">
-            <input type="checkbox" className="h-5 w-5 accent-red-500" checked={isAttack} onChange={(e) => setIsAttack(e.target.checked)} />
-            <span className="font-semibold">😈 I am going to try to cheat</span>
-          </label>
-          <p className="mt-1 text-xs text-zinc-400">
-            Fool the Ref: try to get an unfinished goal approved. The referee never sees this flag. Your attempt goes on the public
-            board either way.
-          </p>
-          {isAttack && (
-            <div className="mt-3 space-y-3">
-              <div>
-                <label className="label" htmlFor="cat">Category</label>
-                <select id="cat" className="input" value={category} onChange={(e) => setCategory(e.target.value as AttackCategory)}>
-                  {ATTACK_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{ATTACK_LABEL[c]}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label" htmlFor="note">How will you cheat?</label>
-                <input id="note" className="input" maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. backdate commits to last week" />
-              </div>
+        {isAttack && (
+          <div className="grid gap-6 border-l-2 border-fail pl-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="cat">Category</label>
+              <select id="cat" className="input" value={category} onChange={(e) => setCategory(e.target.value as AttackCategory)}>
+                {ATTACK_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{ATTACK_LABEL[c]}</option>
+                ))}
+              </select>
             </div>
-          )}
-        </div>
+            <div>
+              <label className="label" htmlFor="note">How</label>
+              <input id="note" className="input" maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} placeholder="backdate commits to last week" />
+            </div>
+            <p className="text-sm text-muted sm:col-span-2">
+              The referee never sees this flag. Your attempt goes on the public board either way.
+            </p>
+          </div>
+        )}
 
         {!compiled && (
-          <button className="btn-primary w-full" disabled={!account || !text.trim() || !!busy || closed} onClick={onCompile}>
-            {busy ? <><Spinner />&nbsp;{busy}</> : "Check my goal"}
+          <button className="btn-primary w-full sm:w-auto" disabled={!account || !text.trim() || !!busy || closed} onClick={onCompile}>
+            {busy ? <><Spinner /> {busy}</> : "Check my goal →"}
           </button>
         )}
-      </div>
 
-      {blocked && <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">{blocked}</div>}
-      <ErrorBox msg={err} />
+        {blocked && <Notice>{blocked}</Notice>}
+        <ErrorBox msg={err} />
 
-      {compiled && (
-        <div className="space-y-4">
-          <SpotlightCard theme="dark" spotlightColor="rgba(163, 230, 53, 0.22)" className="space-y-2 !rounded-2xl !p-5">
-            <div className="label">The referee will check</div>
-            <p className="text-lg font-semibold">{compiled.summary}</p>
-            <p className="text-xs text-zinc-500">
-              Type: {compiled.criteria.type} · window ends {fmtTime(compiled.criteria.window.deadline)}
-            </p>
-            <details className="text-xs text-zinc-400">
-              <summary className="cursor-pointer">Exact criteria (frozen at stake time)</summary>
-              <pre className="mt-2 overflow-x-auto rounded-lg bg-black/60 p-2">{JSON.stringify(compiled.criteria, null, 2)}</pre>
-              <div className="mt-1 break-all font-mono">goal_hash {compiled.goal_hash}</div>
-            </details>
-          </SpotlightCard>
+        {compiled && (
+          <div className="space-y-8">
+            <section className="border-t-2 border-accent pt-4">
+              <div className="label">The referee will check</div>
+              <p className="font-display text-2xl font-bold leading-snug tracking-tight sm:text-3xl">{compiled.summary}</p>
+              <p className="num mt-2 text-xs text-muted">
+                {compiled.criteria.type} · window ends {fmtTime(compiled.criteria.window.deadline)}
+              </p>
+              <details className="mt-3 text-xs text-muted">
+                <summary className="cursor-pointer hover:text-fg">Exact criteria, frozen at stake time</summary>
+                <pre className="num mt-2 overflow-x-auto border border-line bg-panel p-3">{JSON.stringify(compiled.criteria, null, 2)}</pre>
+                <div className="num mt-1 break-all">goal_hash {compiled.goal_hash}</div>
+              </details>
+            </section>
 
-          <div className="card space-y-2">
-            <div className="label">Before the deadline</div>
-            <ControlProof criteria={compiled.criteria} referee={compiled.control_proof} />
-          </div>
+            <section className="rule pt-4">
+              <div className="label">Before the deadline</div>
+              <ControlProof criteria={compiled.criteria} referee={compiled.control_proof} />
+            </section>
 
-          <label className="flex items-start gap-3 text-sm">
-            <input type="checkbox" className="mt-0.5 h-5 w-5 accent-lime-400" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-            <span>
-              This is my goal. I stake {cohort ? fmtAmount(cohort.stake_amount, dec) : "?"} test AUSD and lose it if the referee rules
-              I failed.
-            </span>
-          </label>
+            <label className="flex items-start gap-3 text-sm">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#C6FF3D]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+              <span>
+                This is my goal. I stake {cohort ? fmtAmount(cohort.stake_amount, dec) : "?"} test AUSD and lose it if the referee rules
+                I failed.
+              </span>
+            </label>
 
-          <div className="flex gap-3">
-            <button className="btn-ghost" disabled={!!busy} onClick={() => setCompiled(null)}>Edit</button>
-            <div className="flex-1">
-              <ClickSpark sparkColor="#a3e635" sparkCount={12} sparkRadius={28}>
-                <button className="btn-primary w-full" disabled={!confirmed || !!busy || closed || short || !!blocked} onClick={onStake}>
-                  {busy ? <><Spinner />&nbsp;{busy}</> : short ? "Not enough AUSD yet" : "Stake"}
-                </button>
-              </ClickSpark>
+            <div className="flex gap-3">
+              <button className="btn-ghost" disabled={!!busy} onClick={() => setCompiled(null)}>Edit</button>
+              <div className="flex-1">
+                <ClickSpark sparkColor="#C6FF3D" sparkCount={12} sparkRadius={28}>
+                  <button className="btn-primary w-full" disabled={!confirmed || !!busy || closed || short || !!blocked} onClick={onStake}>
+                    {busy ? <><Spinner /> {busy}</> : short ? "Not enough AUSD yet" : "Stake"}
+                  </button>
+                </ClickSpark>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </section>
+
+      {/* Right: the terms, as a ruled data list. */}
+      <aside className="lg:col-span-4 lg:col-start-9">
+        <div className="label">Terms</div>
+        {cohort ? (
+          <dl className="grid grid-cols-2 border-t border-line text-sm [&>*]:border-b [&>*]:border-line [&>*]:py-3">
+            <dt className="text-muted">Stake</dt>
+            <dd className="num text-right text-lg font-semibold">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
+            <dt className="text-muted">Staking closes</dt>
+            <dd className="num text-right">{closed ? "closed" : countdown(cohort.stake_deadline, now)}</dd>
+            <dt className="text-muted">Deadline</dt>
+            <dd className="num text-right">{fmtTime(cohort.goal_deadline)}</dd>
+            <dt className="text-muted">Your balance</dt>
+            <dd className={`num text-right ${short ? "text-fail" : ""}`}>{bal === null ? "…" : fmtAmount(bal, dec)} AUSD</dd>
+          </dl>
+        ) : (
+          <p className="border-t border-line py-3 text-muted">{cfg ? "No cohort available." : <Spinner />}</p>
+        )}
+        <p className="mt-4 text-xs leading-relaxed text-muted">
+          Passers get their stake back plus an equal share of the forfeits. If no verdict is posted, everyone is refunded.
+        </p>
+      </aside>
     </div>
   );
 }

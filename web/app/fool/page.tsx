@@ -24,66 +24,77 @@ export default function FoolBoard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-black sm:text-5xl">
-          😈{" "}
-          <DecryptedText text="Fool the Ref" animateOn="view" sequential revealDirection="start" speed={45} encryptedClassName="text-red-400" />
+    <div className="grid gap-y-12 lg:grid-cols-12 lg:gap-x-12">
+      <header className="lg:col-span-7">
+        <div className="label">Public record · every attempt, including the ones that worked</div>
+        <h1 className="display text-[19vw] sm:text-9xl">
+          <DecryptedText text="Fool" animateOn="view" sequential speed={45} />
+          <br />
+          <span className="text-muted">the</span> <DecryptedText text="Ref." animateOn="view" sequential speed={45} />
         </h1>
-        <p className="mt-2 text-zinc-300">
-          Anyone can try to get an unfinished goal approved. Every attempt is public, including the ones that worked.
+        <p className="mt-6 max-w-md text-lg text-fg/80">
+          Try to get an unfinished goal approved. Declare it when you stake. The referee never sees the flag.
         </p>
-        <div className="mt-3 inline-block">
-          <ClickSpark sparkColor="#f87171" sparkCount={12}>
-            <Link href="/stake" className="btn-primary">Try to cheat</Link>
+        <div className="mt-8 inline-block">
+          <ClickSpark sparkColor="#FF5A4E" sparkCount={12}>
+            <Link href="/stake" className="btn-primary">Try to cheat →</Link>
           </ClickSpark>
         </div>
-      </div>
+      </header>
 
-      <div className="grid grid-cols-3 gap-2">
-        <Stat label="Caught" value={caught} tone="text-green-400" />
-        <Stat label="Fooled" value={fooled} tone="text-red-400" />
-        <Stat label="Pending" value={pending} />
-      </div>
+      <aside className="space-y-10 lg:col-span-5 lg:pt-10">
+        <div className="grid grid-cols-3">
+          <Stat label="Caught" value={caught} tone="text-pass" />
+          <Stat label="Fooled" value={fooled} tone="text-fail" />
+          <Stat label="Pending" value={pending} />
+        </div>
 
-      {byCat.size > 0 && (
-        <div className="card overflow-x-auto">
+        {byCat.size > 0 && (
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wider text-zinc-400">
-              <tr><th className="pb-2">Category</th><th className="pb-2 text-right">Caught</th><th className="pb-2 text-right">Fooled</th><th className="pb-2 text-right">Pending</th></tr>
+            <thead>
+              <tr className="label text-left [&>th]:pb-2 [&>th]:font-normal">
+                <th>Category</th>
+                <th className="text-right">Caught</th>
+                <th className="text-right">Fooled</th>
+                <th className="text-right">Pending</th>
+              </tr>
             </thead>
-            <tbody>
+            <tbody className="num">
               {[...byCat.entries()].map(([cat, r]) => (
-                <tr key={cat} className="border-t border-zinc-800">
-                  <td className="py-2">{ATTACK_LABEL[cat] ?? cat.replace(/_/g, " ")}</td>
-                  <td className="py-2 text-right text-green-400">{r.caught}</td>
-                  <td className="py-2 text-right text-red-400">{r.fooled}</td>
-                  <td className="py-2 text-right">{r.pending}</td>
+                <tr key={cat} className="border-t border-line [&>td]:py-2.5">
+                  <td className="font-sans">{ATTACK_LABEL[cat] ?? cat.replace(/_/g, " ")}</td>
+                  <td className="text-right text-pass">{r.caught}</td>
+                  <td className="text-right text-fail">{r.fooled}</td>
+                  <td className="text-right text-muted">{r.pending}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </aside>
 
-      <ul className="space-y-2">
-        {data.length === 0 && <li className="text-zinc-400">No attempts yet.</li>}
-        {[...data].reverse().map((a) => (
-          <li key={a.goal_id}>
-            <Link href={`/goals/${a.goal_id}`} className="card flex items-start gap-3 hover:border-zinc-600">
-              <span className="text-2xl">{a.outcome === "caught" ? "🛡️" : a.outcome === "fooled" ? "🎭" : "⏳"}</span>
-              <div className="flex-1">
-                <div className="text-xs uppercase tracking-wider text-zinc-400">{ATTACK_LABEL[a.category] ?? a.category.replace(/_/g, " ")}</div>
-                <div>{a.note || <span className="text-zinc-500">No note</span>}</div>
-                {a.decided_at && <div className="text-xs text-zinc-500">decided {fmtTime(a.decided_at)}</div>}
-              </div>
-              <span className={`font-bold ${a.outcome === "caught" ? "text-green-400" : a.outcome === "fooled" ? "text-red-400" : "text-zinc-400"}`}>
-                {a.outcome ?? "pending"}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <section className="lg:col-span-12">
+        <div className="label">Log</div>
+        <ul className="border-t border-line">
+          {data.length === 0 && <li className="py-4 text-muted">No attempts yet.</li>}
+          {[...data].reverse().map((a) => (
+            <li key={a.goal_id}>
+              <Link href={`/goals/${a.goal_id}`} className="grid grid-cols-[1fr_auto] gap-x-6 border-b border-line py-4 hover:bg-panel sm:grid-cols-[12rem_1fr_auto]">
+                <span className="label !mb-0 self-center">{ATTACK_LABEL[a.category] ?? a.category.replace(/_/g, " ")}</span>
+                <span className="col-span-2 row-start-2 sm:col-span-1 sm:row-start-auto">
+                  {a.note || <span className="text-muted">No note</span>}
+                  {a.decided_at && <span className="num ml-2 text-xs text-muted">{fmtTime(a.decided_at)}</span>}
+                </span>
+                <span
+                  className={`num self-center text-xs uppercase tracking-[0.14em] ${a.outcome === "caught" ? "text-pass" : a.outcome === "fooled" ? "text-fail" : "text-muted"}`}
+                >
+                  {a.outcome ?? "pending"}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

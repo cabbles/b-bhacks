@@ -1,49 +1,56 @@
 import type { GoalStatus } from "@/lib/types";
-import CountUp from "@/components/reactbits/CountUp";
 import { txUrl } from "@/lib/env";
 import { short } from "@/lib/time";
+import CountUp from "@/components/reactbits/CountUp";
 
 const STATUS: Record<GoalStatus, { label: string; cls: string }> = {
-  watching: { label: "Watching", cls: "bg-blue-500/15 text-blue-300 border-blue-500/30" },
-  passed: { label: "Passed", cls: "bg-green-500/15 text-green-300 border-green-500/30" },
-  failed: { label: "Failed", cls: "bg-red-500/15 text-red-300 border-red-500/30" },
-  needs_human: { label: "Needs human", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+  watching: { label: "Watching", cls: "border-fg/40 text-fg" },
+  passed: { label: "Passed", cls: "border-pass bg-pass text-ink" },
+  failed: { label: "Failed", cls: "border-fail text-fail" },
+  needs_human: { label: "Needs human", cls: "border-human text-human" },
 };
 
 export function StatusPill({ status, big }: { status: GoalStatus; big?: boolean }) {
   const s = STATUS[status] ?? STATUS.watching;
   return (
-    <span className={`inline-flex items-center rounded-full border font-semibold ${s.cls} ${big ? "px-4 py-1.5 text-lg" : "px-2.5 py-0.5 text-xs"}`}>
+    <span
+      className={`inline-flex items-center border font-mono uppercase tracking-[0.14em] ${s.cls} ${big ? "px-3 py-1.5 text-sm" : "px-2 py-0.5 text-[10px]"}`}
+    >
       {s.label}
     </span>
   );
 }
 
 export function TxLink({ hash, label }: { hash?: string | null; label: string }) {
-  if (!hash) return <span className="text-zinc-500">{label}: pending</span>;
+  if (!hash) return <span className="text-muted">{label}: pending</span>;
   return (
     <a className="link" href={txUrl(hash)} target="_blank" rel="noreferrer">
-      {label}: <span className="font-mono">{short(hash, 6)}</span> ↗
+      {label} <span className="num">{short(hash, 6)}</span> ↗
     </a>
   );
 }
 
 export function ErrorBox({ msg }: { msg: string | null }) {
   if (!msg) return null;
-  return <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">{msg}</div>;
+  return <div className="border-l-2 border-fail bg-fail/10 px-3 py-2 text-sm text-fail">{msg}</div>;
+}
+
+export function Notice({ children }: { children: React.ReactNode }) {
+  return <div className="border-l-2 border-human bg-human/10 px-3 py-2 text-sm text-human">{children}</div>;
 }
 
 export function Spinner() {
-  return <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent align-[-2px]" />;
+  return <span className="inline-block h-3 w-3 animate-spin border-2 border-current border-t-transparent align-[-1px]" />;
 }
 
+/** Scoreboard figure: big mono number over a small label, separated by hairlines, not boxed. */
 export function Stat({ label, value, tone }: { label: string; value: number | React.ReactNode; tone?: string }) {
   return (
-    <div className="card text-center backdrop-blur">
-      <div className={`text-2xl font-black tabular-nums sm:text-3xl ${tone ?? ""}`}>
+    <div className="border-l border-line pl-3">
+      <div className={`num text-3xl font-semibold sm:text-5xl ${tone ?? ""}`}>
         {typeof value === "number" ? <CountUp to={value} duration={1} /> : value}
       </div>
-      <div className="text-xs uppercase tracking-wider text-zinc-400">{label}</div>
+      <div className="label mt-1">{label}</div>
     </div>
   );
 }

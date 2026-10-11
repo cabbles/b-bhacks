@@ -76,159 +76,156 @@ export default function GoalPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="grid gap-y-12 lg:grid-cols-12 lg:gap-x-12">
       {isNew && (
-        <div className="rounded-2xl border border-lime-400/40 bg-lime-400/10 p-3 text-sm text-lime-200">
-          Staked. The referee is now watching. Bookmark this page.
-        </div>
+        <div className="border-l-2 border-accent pl-3 text-sm lg:col-span-12">Staked. The referee is now watching. Bookmark this page.</div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <StatusPill status={status} big />
-        {cohortId !== undefined && (
-          <Link href={`/cohorts/${cohortId}`} className="text-sm text-zinc-400 hover:text-white">
-            Cohort #{cohortId} →
-          </Link>
+      {/* Headline: the ruling, set as large as the screen allows. */}
+      <header className="lg:col-span-12">
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusPill status={status} big />
+          {cohortId !== undefined && (
+            <Link href={`/cohorts/${cohortId}`} className="label !mb-0 hover:text-fg">
+              Cohort #{cohortId} →
+            </Link>
+          )}
+        </div>
+        {verdict ? (
+          <div className={`display mt-6 text-[28vw] sm:text-[11rem] lg:text-[14rem] ${verdict.passed ? "text-pass" : "text-fail"}`}>
+            <DecryptedText text={verdict.passed ? "PASS" : "FAIL"} animateOn="view" sequential speed={70} characters="PASFILX01#" />
+          </div>
+        ) : status === "watching" ? (
+          <div className="num mt-6 text-[18vw] font-semibold leading-none sm:text-9xl">{countdown(deadline, now)}</div>
+        ) : (
+          <div className="display mt-6 text-6xl text-human sm:text-8xl">Under review</div>
         )}
-      </div>
-
-      <div>
-        <div className="label">Goal</div>
-        <h1 className="text-2xl font-bold">{criteria.goal_text}</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          Staker <span className="font-mono">{short(criteria.staker)}</span> · {criteria.type} · deadline{" "}
-          {fmtTime(criteria.window.deadline)}
+        <h1 className="mt-6 max-w-3xl font-display text-2xl font-bold leading-snug tracking-tight sm:text-4xl">{criteria.goal_text}</h1>
+        <p className="num mt-2 text-xs text-muted">
+          {short(criteria.staker)} · {criteria.type} · deadline {fmtTime(criteria.window.deadline)}
         </p>
-      </div>
+      </header>
 
-      {status === "watching" && (
-        <div className="card space-y-3">
-          <div className="text-center">
-            <div className="label">Time left</div>
-            <div className="font-mono text-4xl font-black">{countdown(deadline, now)}</div>
+      {/* Main column: reasons and checks. */}
+      <section className="space-y-10 lg:col-span-7">
+        {status === "watching" && (
+          <div className="border-t-2 border-accent pt-4">
+            <div className="label">Before the deadline</div>
+            <ControlProof criteria={criteria} />
           </div>
-          <ControlProof criteria={criteria} />
-        </div>
-      )}
+        )}
 
-      {status === "needs_human" && !verdict && (
-        <div className="card text-sm text-amber-200">
-          The two model checks disagreed. A human will review this and the override will be shown publicly.
-        </div>
-      )}
+        {status === "needs_human" && !verdict && (
+          <p className="border-l-2 border-human pl-3 text-human">
+            The two model checks disagreed. A human will review this, and the override will be shown publicly.
+          </p>
+        )}
 
-      {verdict && (
-        <>
-          <div className={`rounded-2xl border p-5 ${verdict.passed ? "border-green-500/40 bg-green-500/10" : "border-red-500/40 bg-red-500/10"}`}>
-            <div className={`text-5xl font-black tracking-tight ${verdict.passed ? "text-green-300" : "text-red-300"}`}>
-              <DecryptedText
-                text={verdict.passed ? "PASS" : "FAIL"}
-                animateOn="view"
-                sequential
-                speed={70}
-                characters="PASFILX01#"
-              />
+        {verdict && (
+          <>
+            <div>
+              <div className="label">Reasons</div>
+              <p className="border-t border-line pt-4 font-display text-2xl leading-snug tracking-tight">{verdict.reasons}</p>
+              {verdict.human_override && <p className="mt-3 text-sm text-human">A human overrode the automatic verdict. This is counted publicly.</p>}
+              <p className="num mt-3 text-xs text-muted">Decided {fmtTime(verdict.decided_at)}</p>
             </div>
-            <p className="mt-2 text-lg">{verdict.reasons}</p>
-            {verdict.human_override && (
-              <p className="mt-2 text-sm font-semibold text-amber-300">A human overrode the automatic verdict. This is counted publicly.</p>
-            )}
-            <p className="mt-2 text-xs text-zinc-400">Decided {fmtTime(verdict.decided_at)}</p>
-          </div>
 
-          <div className="space-y-2">
-            <h2 className="text-lg font-bold">Checks</h2>
-            <ul className="space-y-2">
-              {verdict.checks.map((c) => (
-                <li key={c.name} className="card flex gap-3">
-                  <span className={`mt-0.5 text-lg ${c.passed ? "text-green-400" : "text-red-400"}`}>{c.passed ? "✓" : "✗"}</span>
-                  <div>
-                    <div className="font-semibold">{CHECK_LABEL[c.name] ?? c.name}</div>
-                    <div className="text-sm text-zinc-400">{c.detail}</div>
+            <div>
+              <div className="label">Checks</div>
+              <ol className="border-t border-line">
+                {verdict.checks.map((c, i) => (
+                  <li key={c.name} className="grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-3 border-b border-line py-4">
+                    <span className="num text-xs text-muted">{String(i + 1).padStart(2, "0")}</span>
+                    <div>
+                      <div className="font-medium">{CHECK_LABEL[c.name] ?? c.name}</div>
+                      <div className="mt-0.5 text-sm text-muted">{c.detail}</div>
+                    </div>
+                    <span className={`num text-xs uppercase tracking-[0.14em] ${c.passed ? "text-pass" : "text-fail"}`}>{c.passed ? "pass" : "fail"}</span>
+                  </li>
+                ))}
+              </ol>
+              {verdict.model_votes.length > 0 && (
+                <p className="num mt-3 text-xs text-muted">
+                  {verdict.model_votes.map((m) => `${m.model}: ${m.passed ? "pass" : "fail"}`).join(" · ")}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Side column: evidence, receipts, verification, claim. */}
+      <aside className="space-y-10 lg:col-span-4 lg:col-start-9">
+        {verdict && verdict.evidence.length > 0 && (
+          <div>
+            <div className="label">Evidence the referee saw</div>
+            <ul className="border-t border-line text-sm">
+              {verdict.evidence.map((e, i) => (
+                <li key={i} className="border-b border-line py-3">
+                  <div className="num break-all">{e.ref}</div>
+                  <div className="text-xs text-muted">
+                    {e.kind} · first seen {fmtTime(e.first_seen)}
                   </div>
                 </li>
               ))}
             </ul>
           </div>
+        )}
 
-          {verdict.model_votes.length > 0 && (
-            <div className="flex flex-wrap gap-2 text-sm">
-              {verdict.model_votes.map((m, i) => (
-                <span key={i} className="rounded-full border border-zinc-700 px-3 py-1">
-                  {m.model}: {m.passed ? "pass" : "fail"}
-                </span>
-              ))}
-            </div>
-          )}
+        <div>
+          <div className="label">On-chain</div>
+          <div className="space-y-2 border-t border-line pt-3 text-sm">
+            <div><TxLink hash={g.stake_tx_hash} label="Stake tx" /></div>
+            {(verdict || g.verdict_tx_hash) && <div><TxLink hash={g.verdict_tx_hash} label="Verdict tx" /></div>}
+            {verdict && <div className="num break-all text-[11px] text-muted">goal_hash {verdict.goal_hash}</div>}
+          </div>
+        </div>
 
-          {verdict.evidence.length > 0 && (
-            <div className="space-y-2">
-              <h2 className="text-lg font-bold">Evidence the referee saw</h2>
-              <ul className="card divide-y divide-zinc-800 text-sm">
-                {verdict.evidence.map((e, i) => (
-                  <li key={i} className="flex flex-wrap justify-between gap-2 py-2 first:pt-0 last:pb-0">
-                    <span>
-                      <span className="text-zinc-400">{e.kind}</span> <span className="break-all font-mono">{e.ref}</span>
-                    </span>
-                    <span className="text-zinc-400">first seen {fmtTime(e.first_seen)}</span>
+        <div>
+          <div className="label">Check it yourself</div>
+          <div className="border-t border-line pt-3">
+            {!LIVE ? (
+              <p className="text-sm text-muted">Hash and on-chain checks run against live data only.</p>
+            ) : !proofs ? (
+              <Spinner />
+            ) : (
+              <ul className="space-y-3 text-sm">
+                {proofs.map((p) => (
+                  <li key={p.name}>
+                    <div className="flex justify-between">
+                      <span className="font-medium">{p.name}</span>
+                      <span className={`num text-xs uppercase ${p.ok === null ? "text-muted" : p.ok ? "text-pass" : "text-fail"}`}>
+                        {p.ok === null ? "n/a" : p.ok ? "match" : "mismatch"}
+                      </span>
+                    </div>
+                    <div className="num break-all text-[11px] text-muted">{p.detail}</div>
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
-        </>
-      )}
-
-      <div className="card space-y-1 text-sm">
-        <div><TxLink hash={g.stake_tx_hash} label="Stake tx" /></div>
-        {(verdict || g.verdict_tx_hash) && <div><TxLink hash={g.verdict_tx_hash} label="Verdict tx" /></div>}
-        {verdict && <div className="break-all font-mono text-xs text-zinc-500">goal_hash {verdict.goal_hash}</div>}
-      </div>
-
-      <div className="space-y-2">
-        <h2 className="text-lg font-bold">Check it yourself</h2>
-        {!LIVE ? (
-          <p className="text-sm text-zinc-500">Hash and on-chain checks run against live data only.</p>
-        ) : !proofs ? (
-          <Spinner />
-        ) : (
-          <ul className="card space-y-2 text-sm">
-            {proofs.map((p) => (
-              <li key={p.name} className="flex gap-3">
-                <span className={p.ok === null ? "text-zinc-500" : p.ok ? "text-green-400" : "text-red-400"}>
-                  {p.ok === null ? "…" : p.ok ? "✓" : "✗"}
-                </span>
-                <div className="min-w-0">
-                  <div className="font-semibold">{p.name}</div>
-                  <div className="break-all font-mono text-xs text-zinc-400">{p.detail}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="text-xs text-zinc-500">
-          Computed in your browser from the criteria and verdict JSON and from Base Sepolia, without trusting the referee.
-        </p>
-      </div>
-
-      {verdict && cohortId !== undefined && (
-        <div className="space-y-2">
-          <button className="btn-ghost w-full" disabled={claim.busy || !!claim.tx} onClick={onClaim}>
-            {claim.busy ? <Spinner /> : claim.tx ? "Claim sent" : verdict.passed ? "Claim payout" : "Trigger settlement claim"}
-          </button>
-          {claimable && claimable.amount > 0n && !claim.tx && (
-            <p className="text-sm text-lime-300">Claimable now: {fmtAmount(claimable.amount, claimable.dec)} AUSD</p>
-          )}
-          {claim.tx && <TxLink hash={claim.tx} label="Claim tx" />}
-          <ErrorBox msg={claim.err ?? null} />
-          <p className="text-xs text-zinc-500">Claims open once the cohort is settled (10 minutes after the deadline). Funds always go to the staker.</p>
+            )}
+            <p className="mt-3 text-xs text-muted">Computed in your browser from the JSON and Base Sepolia, without trusting the referee.</p>
+          </div>
         </div>
-      )}
 
-      <details className="text-xs text-zinc-400">
-        <summary className="cursor-pointer">Raw criteria{verdict ? " and verdict" : ""} JSON</summary>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-black/60 p-2">{JSON.stringify({ criteria, verdict }, null, 2)}</pre>
-      </details>
+        {verdict && cohortId !== undefined && (
+          <div className="space-y-2">
+            {claimable && claimable.amount > 0n && !claim.tx && (
+              <p className="num text-sm">Claimable now: <span className="text-accent">{fmtAmount(claimable.amount, claimable.dec)} AUSD</span></p>
+            )}
+            <button className="btn-ghost w-full" disabled={claim.busy || !!claim.tx} onClick={onClaim}>
+              {claim.busy ? <Spinner /> : claim.tx ? "Claim sent" : verdict.passed ? "Claim payout" : "Trigger settlement claim"}
+            </button>
+            {claim.tx && <TxLink hash={claim.tx} label="Claim tx" />}
+            <ErrorBox msg={claim.err ?? null} />
+            <p className="text-xs text-muted">Claims open once the cohort settles, 10 minutes after the deadline. Funds always go to the staker.</p>
+          </div>
+        )}
+
+        <details className="text-xs text-muted">
+          <summary className="cursor-pointer hover:text-fg">Raw criteria{verdict ? " and verdict" : ""} JSON</summary>
+          <pre className="num mt-2 overflow-x-auto border border-line bg-panel p-3">{JSON.stringify({ criteria, verdict }, null, 2)}</pre>
+        </details>
+      </aside>
     </div>
   );
 }
