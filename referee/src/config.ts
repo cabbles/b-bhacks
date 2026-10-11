@@ -30,9 +30,13 @@ export const config = {
     pool: (env.POOL_ADDRESS ?? dep.pool ?? '') as `0x${string}` | '',
     refereeKey: (env.REFEREE_PRIVATE_KEY ?? '') as `0x${string}` | '',
 
+    // claude-cli: shell out to `claude -p` on the logged-in Claude subscription (default, no API bill).
+    // api: Anthropic API with MODEL_API_KEY. off: deterministic checks only.
+    modelProvider: (env.MODEL_PROVIDER ?? (env.MODEL_API_KEY ? 'api' : 'claude-cli')) as 'claude-cli' | 'api' | 'off',
+    claudeBin: env.CLAUDE_BIN ?? 'claude',
     modelApiKey: env.MODEL_API_KEY ?? '',
-    modelA: env.MODEL_NAME_A ?? 'claude-opus-5-5',
-    modelB: env.MODEL_NAME_B ?? 'claude-sonnet-5-5',
+    modelA: env.MODEL_NAME_A ?? (env.MODEL_API_KEY ? 'claude-opus-5-5' : 'opus'),
+    modelB: env.MODEL_NAME_B ?? (env.MODEL_API_KEY ? 'claude-sonnet-5-5' : 'sonnet'),
 
     githubToken: env.GITHUB_TOKEN ?? '',
     adminKey: env.ADMIN_KEY ?? '',
