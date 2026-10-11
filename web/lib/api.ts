@@ -70,6 +70,18 @@ export async function getConfig(): Promise<RelayerConfig> {
   };
 }
 
+export async function createGroup(args: {
+  stake_minutes: number;
+  goal_minutes: number;
+  stake: number;
+}): Promise<{ group_id: number; cohort: Cohort; tx_hash: string }> {
+  if (MOCK_RELAYER) throw new Error("Starting a group requires the live relayer.");
+  const result = await http<{ group_id: number; cohort: Record<string, unknown>; tx_hash: string }>(
+    RELAYER_URL, "/groups", post(args),
+  );
+  return { ...result, cohort: normalizeCohort({ ...result.cohort, id: result.group_id }) };
+}
+
 export async function drip(address: string): Promise<{ tx_hash: string }> {
   if (MOCK_RELAYER) return delay(300).then(() => ({ tx_hash: fx.FX_TX }));
   return http(RELAYER_URL, "/drip", post({ address }));

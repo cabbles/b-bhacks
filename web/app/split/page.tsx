@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { getConfig } from "@/lib/api";
-import { WEB_URL } from "@/lib/env";
+import { createGroup, getConfig } from "@/lib/api";
+import { MOCK_RELAYER, WEB_URL } from "@/lib/env";
 import { countdown, useNow } from "@/lib/time";
 import type { Cohort } from "@/lib/types";
 import { ErrorBox, Spinner } from "@/components/ui";
@@ -23,6 +23,28 @@ export default function SplitPage() {
   const [origin, setOrigin] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
+
+  const [creating, setCreating] = useState(false);
+  const [stakeMinutes, setStakeMinutes] = useState(60);
+  const [goalMinutes, setGoalMinutes] = useState(60);
+  const [stakeAmount, setStakeAmount] = useState(10);
+
+  async function startGroup(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (creating) return;
+    setCreating(true);
+    setErr(null);
+    try {
+      const result = await createGroup({ stake_minutes: stakeMinutes, goal_minutes: goalMinutes, stake: stakeAmount });
+      setGroups((all) => [...(all || []), result.cohort]);
+      setGroupId(result.group_id);
+      setCopied(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not start the group.");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   useEffect(() => {
     setOrigin(WEB_URL || window.location.origin);
@@ -52,7 +74,7 @@ export default function SplitPage() {
         <div className="label">Groups · do it with friends</div>
         <h1 className="display text-6xl sm:text-8xl">Split it three ways.</h1>
         <p className="mt-4 max-w-2xl text-lg text-fg/80">
-          One task per friend. Each of you bets on your own part. If someone drops theirs, their stake goes to the two who
+          One task per friend. Each of you stakes on your own part. If someone drops theirs, their stake goes to the two who
           delivered.
         </p>
       </header>
@@ -75,6 +97,18 @@ export default function SplitPage() {
             </select>
           )}
         </div>
+        <form onSubmit={startGroup} className="space-y-4 border-y border-line py-6">
+          <div className="label">Start a group</div>
+          <p className="text-sm text-muted">Create a market for your friends, then share their task links. Stakes use test AUSD.</p>
+          <label className="block text-sm" htmlFor="stake-minutes">Time to join (minutes)</label>
+          <input id="stake-minutes" className="input" type="number" min={5} max={10080} step={1} required value={stakeMinutes} onChange={(e) => setStakeMinutes(Number(e.target.value))} />
+          <label className="block text-sm" htmlFor="goal-minutes">Time to finish after joining closes (minutes)</label>
+          <input id="goal-minutes" className="input" type="number" min={0} max={43200} step={1} required value={goalMinutes} onChange={(e) => setGoalMinutes(Number(e.target.value))} />
+          <label className="block text-sm" htmlFor="group-stake">Stake per friend (test AUSD)</label>
+          <input id="group-stake" className="input" type="number" min={1} max={100} step={1} required value={stakeAmount} onChange={(e) => setStakeAmount(Number(e.target.value))} />
+          <button className="btn-primary" type="submit" disabled={creating || MOCK_RELAYER}>{creating ? "Creating market…" : "Start a group"}</button>
+          {MOCK_RELAYER && <p className="text-sm text-muted">Group creation needs the live relayer.</p>}
+        </form>
         <div>
           <label className="label" htmlFor="project">Project</label>
           <input id="project" className="input" value={project} onChange={(e) => setProject(e.target.value)} placeholder="CS 61B Project 2" />

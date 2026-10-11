@@ -6,6 +6,8 @@ Put testnet AUSD behind any task with a deadline. An AI referee gathers the evid
 
 Today the referee checks two kinds of evidence: commits pushed to a public GitHub repo, and a public page going live with the promised content. (A Canvas check exists for the team's own account only.)
 
+Live app: [AI Referee](https://considering-particles-fraction-bool.trycloudflare.com). This laptop tunnel must stay running during the demo.
+
 Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 
 ## What makes it different
@@ -19,7 +21,7 @@ Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 
 A feature on top of the core product, for school work (full proposal: [`docs/PIVOT.md`](docs/PIVOT.md)).
 
-- **Live now: the commitment stake.** Friends join the same market and each stakes on their own task. Split a group project three ways at `/split`: each friend gets an invite link with their task filled in. Whoever delivers gets their stake back plus an equal share of the stakes of whoever did not. No house, no fee.
+- **Live now: the commitment stake.** Friends join the same market and each stakes on their own task. Start a group with its own stake and deadlines, then split a group project three ways at `/split`: each friend gets an invite link with their task filled in. Whoever delivers gets their stake back plus an equal share of the stakes of whoever did not. No house, no fee.
 - **Next: a public YES/NO market on each task.** Anyone bets on whether the owner will finish; the owner cannot bet against themselves, and the market never touches the owner's stake. It needs a `MarketPool` contract that resolves from the verdict already on `StakePool`, so the two can never disagree. Not built yet.
 
 ## Sponsor tracks
@@ -27,7 +29,7 @@ A feature on top of the core product, for school work (full proposal: [`docs/PIV
 | Track | What we built for it |
 | ----- | -------------------- |
 | **Best Use of AUSD** | Every stake and payout is AUSD on Base Sepolia, moved with ERC-3009 `ReceiveWithAuthorization` so users never hold gas. The referee is also a paid API: agents buy rulings over **x402** with ERC-3009 `TransferWithAuthorization` (live, tested on-chain). |
-| **YZi Labs** | A trusted AI agent that moves money: every decision is hashed and posted on-chain, re-verified in the browser, and red-teamed in public (12 attacks, 0 missed). The contract gives the operator no way to take funds. |
+| **YZi Labs** | A trusted AI agent that moves money: every decision is hashed and posted on-chain, re-verified in the browser, and red-teamed in public (13 attacks, 0 missed). The contract gives the operator no way to take funds. |
 | **General (Most Creative)** | An AI referee that gathers its own evidence instead of trusting uploads, plus Groups for school work. |
 
 ## How it works
@@ -121,7 +123,7 @@ _Filled in at code freeze (4:20 PT)._
 
 ## Red team
 
-Scripted cheats run against the live referee and contract with real stakes. Full report: [redteam/results.md](redteam/results.md). **12 caught, 0 missed.** An honest control goal still passed.
+Scripted cheats run against the live referee and contract with real stakes. Full report: [redteam/results.md](redteam/results.md). **13 caught, 0 missed.** An honest control goal still passed.
 
 | Attack | Caught | Missed | Stopped by |
 | ------ | ------ | ------ | ---------- |
@@ -134,9 +136,10 @@ Scripted cheats run against the live referee and contract with real stakes. Full
 | Verdict before the deadline / settle too early | 2 | 0 | `TooEarly` |
 | Relayer reuses a signature for another goal | 1 | 0 | `BadNonce` (nonce binds cohort + goal) |
 | Replay a used stake signature | 1 | 0 | `AlreadyStaked` |
+| Claim the same stake twice | 1 | 0 | `AlreadyClaimed` |
 | Operator withdraws the pot | 1 | 0 | no such function exists |
 
-The double-claim test was skipped in that run because no cohort had settled yet.
+The settled-cohort double-claim test reverted with `AlreadyClaimed`.
 
 ## Safety
 
