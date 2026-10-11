@@ -2,16 +2,33 @@ import { config } from '../config.ts';
 
 const API = 'https://api.github.com';
 
+// Conditional requests: GitHub answers an unchanged resource with 304, which does not count against
+// the 5,000/hour limit. Without this, a full room polling every 30s would exhaust the token mid-cohort.
+const etagCache = new Map<string, { etag: string; body: string }>();
+const ETAG_CACHE_MAX = 2000;
+
 async function gh(path: string): Promise<Response> {
-    return fetch(`${API}${path}`, {
+    const cached = etagCache.get(path);
+    const r = await fetch(`${API}${path}`, {
         headers: {
             Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
             'User-Agent': 'ai-referee',
             ...(config.githubToken ? { Authorization: `Bearer ${config.githubToken}` } : {}),
+            ...(cached ? { 'If-None-Match': cached.etag } : {}),
         },
         signal: AbortSignal.timeout(15_000),
     });
+    if (r.status === 304 && cached) return new Response(cached.body, { status: 200 });
+    const etag = r.headers.get('etag');
+    if (r.ok && etag) {
+        const body = await r.text();
+        etagCache.delete(path); // re-insert to keep recently used entries last
+        etagCache.set(path, { etag, body });
+        if (etagCache.size > ETAG_CACHE_MAX) etagCache.delete(etagCache.keys().next().value!);
+        return new Response(body, { status: r.status });
+    }
+    return r;
 }
 
 export type RepoInfo = {
