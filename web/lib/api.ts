@@ -76,10 +76,16 @@ export async function createGroup(args: {
   stake: number;
 }): Promise<{ group_id: number; cohort: Cohort; tx_hash: string }> {
   if (MOCK_RELAYER) throw new Error("Starting a group requires the live relayer.");
-  const result = await http<{ group_id: number; cohort: Record<string, unknown>; tx_hash: string }>(
+  const result = await http<{ group_id: number; cohort: Record<string, unknown> | null; tx_hash: string }>(
     RELAYER_URL, "/groups", post(args),
   );
-  return { ...result, cohort: normalizeCohort({ ...result.cohort, id: result.group_id }) };
+  const cohort = result.cohort
+    ? normalizeCohort({ ...result.cohort, id: result.group_id })
+    : (await getConfig().catch(() => null))?.cohorts.find((c) => c.id === result.group_id);
+  if (!cohort) {
+    throw new Error(`Market #${result.group_id} was created, but its details are still loading. Reload this page to select it; do not create it again.`);
+  }
+  return { ...result, cohort };
 }
 
 export async function drip(address: string): Promise<{ tx_hash: string }> {
