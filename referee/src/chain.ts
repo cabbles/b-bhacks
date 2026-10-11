@@ -135,3 +135,50 @@ export async function getOpenCohort(): Promise<Cohort | null> {
     }
     return null;
 }
+
+/* ------------------------------------------------------------------ x402 */
+
+export const tokenAbi = parseAbi([
+    'function transferWithAuthorization(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, bytes signature) external',
+    'function authorizationState(address authorizer, bytes32 nonce) view returns (bool)',
+    'function balanceOf(address) view returns (uint256)',
+]);
+
+export type Authorization = { from: Hex; to: Hex; value: bigint; validAfter: bigint; validBefore: bigint; nonce: Hex };
+
+/** Dry-run an ERC-3009 transfer: proves the signature, balance and nonce are good without moving funds. */
+export async function simulatePayment(token: Hex, auth: Authorization, signature: Hex): Promise<void> {
+    if (!wallet) throw new Error('referee signer not configured');
+    await publicClient.simulateContract({
+        account: wallet.account,
+        address: token,
+        abi: tokenAbi,
+        functionName: 'transferWithAuthorization',
+        args: [auth.from, auth.to, auth.value, auth.validAfter, auth.validBefore, auth.nonce, signature],
+    });
+}
+
+/** Execute the ERC-3009 transfer (referee pays gas). Shares the verdict send queue so nonces never collide. */
+export async function settlePayment(token: Hex, auth: Authorization, signature: Hex): Promise<Hex> {
+    const send = sendQueue.then(async () => {
+        const { request } = await publicClient.simulateContract({
+            account: wallet!.account,
+            address: token,
+            abi: tokenAbi,
+            functionName: 'transferWithAuthorization',
+            args: [auth.from, auth.to, auth.value, auth.validAfter, auth.validBefore, auth.nonce, signature],
+        });
+        return wallet!.writeContract(request);
+    });
+    sendQueue = send.catch(() => {});
+    const hash = await send;
+    const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+    if (receipt.status !== 'success') throw new Error(`payment transfer reverted in ${hash}`);
+    return hash;
+}
+
+/** EIP-191 signature by the referee key over an evidence hash, so third parties can verify who ruled. */
+export async function signAttestation(hash: Hex): Promise<{ signer: Hex; signature: Hex }> {
+    if (!wallet) throw new Error('referee signer not configured');
+    return { signer: wallet.account.address, signature: await wallet.account.signMessage({ message: { raw: hash } }) };
+}

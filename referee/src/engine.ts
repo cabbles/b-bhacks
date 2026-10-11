@@ -374,3 +374,6 @@ export function override(goalId: number, passed: boolean, note: string): Verdict
 
 export { nowIso };
 export { INJECTION as _injection };
+
+/** The substance ruling on its own (injection tripwire + both judges), for the paid x402 API. */
+export const judgeEvidence = (goalText: string, evidence: unknown) => substance(goalText, evidence);

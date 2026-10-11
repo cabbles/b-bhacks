@@ -4,7 +4,7 @@ import { chainReady, config, signerReady } from './config.ts';
 import { modelsReady } from './model.ts';
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
-await app.register(cors, { origin: true });
+await app.register(cors, { origin: true, exposedHeaders: ['X-PAYMENT-RESPONSE'] });
 
 if (config.fixtures) {
     const { fixtureRoutes } = await import('./fixtures.ts');
@@ -13,6 +13,8 @@ if (config.fixtures) {
     const { routes } = await import('./routes.ts');
     const { startWorker } = await import('./worker.ts');
     await app.register(routes);
+    const { x402Routes } = await import('./x402.ts');
+    await app.register(x402Routes);
     startWorker();
 }
 

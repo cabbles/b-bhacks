@@ -41,6 +41,18 @@ The service that decides whether a staker did what they committed to. It gathers
 - **Fetching is restricted.** Only `https` URLs are fetched, every redirect hop is re-checked, private and loopback addresses are refused, and bodies are capped at 512 KB.
 - **Rate limits.** `/goals/compile` allows 15 calls per staker per hour and 400 per hour in total.
 
+## x402: the referee as a paid API
+
+Third-party apps and agents can buy a one-off ruling ("does this evidence deliver this goal?") for **0.10 AUSD per request**, with HTTP `402 Payment Required` and the x402 `exact` scheme on Base Sepolia. Groups never pay this; it's how the referee would fund itself without taking a cut of anyone's pot.
+
+1. `POST /x402/verify` with `{ goal_text, evidence }`, where `evidence` is `{ type: "url", url, must_contain? }` or `{ type: "github", repo, shas: [...] }`.
+2. With no payment, the response is `402` with `accepts: [{ scheme: "exact", network: "base-sepolia", maxAmountRequired: "100000", asset: <AUSD>, payTo: <referee>, extra: { name: "Agora Dollar", version: "1" } }]`.
+3. The agent signs an ERC-3009 `TransferWithAuthorization` (no gas needed) and retries with it base64-encoded in `X-PAYMENT`.
+4. The referee checks the signature, dry-runs the transfer, gathers the evidence itself, runs the injection tripwire and both judges, and **only then** settles the transfer on chain. Bad evidence or a failed ruling is never charged.
+5. The response has the `ruling`, its `evidence_hash`, an `attestation` (the referee key's EIP-191 signature over the hash) and the payment transaction. The `X-PAYMENT-RESPONSE` header carries the settlement receipt.
+
+A replayed `X-PAYMENT` is refused, because the token rejects a used authorization nonce. `GET /x402` lists the price for agents discovering the API. `pnpm x402-demo [referee_url]` runs the whole flow with a fresh wallet funded by the relayer's `/drip`.
+
 ## Known limits
 
 These are honest gaps, not bugs. Fool the Ref attempts that exploit them should count as `fooled`.
@@ -83,6 +95,8 @@ Chain reads use the contract's getters (`cohorts`, `cohortCount`, `stakes`) rath
 | `POST /goals/:id/verify`   | admin (`x-admin-key`): decide now, idempotent                         |
 | `POST /goals/:id/override` | admin: `{ passed, note }`, sets `human_override: true`                |
 | `GET /admin/queue`         | admin: `needs_human` and erroring goals                               |
+| `POST /x402/verify`        | paid (x402, 0.10 AUSD): one-off ruling on a URL or commits, signed    |
+| `GET /x402`                | price list for agents                                                 |
 | `GET /health`              | `{ ok: true }`                                                        |
 
 ## Tests
