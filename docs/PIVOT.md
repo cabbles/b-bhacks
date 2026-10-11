@@ -4,7 +4,12 @@ Written Sun Oct 11, ~3:00 PT. **Groups is a feature on top of the existing produ
 
 ## 1. The feature in one paragraph
 
-Three friends form a **group**. Each term they put their school work on the board: assignments, test scores, project milestones. Every item becomes a small **market** ("Will Maya submit the CS61B project by Friday?", "Will Leo score 85+ on the stats midterm?"). You bet **on yourself**; your friends can bet **against you**. An AI referee gathers the evidence itself and settles each market on-chain. There is **no house and no fee**: every AUSD that goes in stays in the group and is paid out to whoever was right.
+Three friends form a **group**. Each term they put their school work on the board: assignments, test scores, project milestones. Every item becomes a small **market** ("Will Maya submit the CS61B project by Friday?", "Will Leo score 85+ on the stats midterm?"). Two separate pots ride on each item:
+
+- **The commitment stake.** The owner puts AUSD behind their own task. Finish it and they get it back; miss it and they lose it. That loss is the point: it's what makes the commitment real. Forfeited stakes go to the group members who did finish theirs (how the contract already works).
+- **The prediction market, for fun.** Friends and the public can bet **YES or NO** on whether the owner will finish. Nobody is required to bet against anyone. Bettors who called it right split the market pool. The owner's stake is never part of this pool.
+
+An AI referee gathers the evidence itself and settles both on-chain with one verdict. There is **no house and no fee**: every AUSD stays with the people who were right.
 
 Group projects work the same way: the project is split into three tasks, one per member, and each task is its own market. The group as a whole wins when everyone delivers; whoever drops their part pays the others.
 
@@ -12,8 +17,9 @@ Group projects work the same way: the project is split into three tasks, one per
 
 | Rule | Why |
 |---|---|
-| You can only bet YES on your own markets, never NO | Betting against yourself pays you to fail on purpose. |
-| Friends can bet NO on you, up to a cap (e.g. 2x your own YES stake) | Keeps it a nudge, not a way to farm a friend who is struggling. |
+| The owner's commitment stake is separate from the market | The owner risks only their own stake; the market can't move it. |
+| The owner can't bet NO on their own market | Betting against yourself would pay you to fail on purpose. |
+| Anyone can bet YES or NO; nobody has to bet against anyone | The market is a side bet for fun, not pressure. |
 | A market opens only after its owner accepts it | Nobody puts your grades on a board without consent. |
 | The referee gathers evidence itself: no screenshots, no self-reported scores | Same trust model as today: uploads and claimed timestamps are ignored. |
 | No verdict by the settle time means everyone is refunded | A referee outage never costs anyone money. |
@@ -31,7 +37,7 @@ Integrity safeguards (control proofs, first-seen timing, two-model substance che
 - Contract with no owner withdrawal; passers split forfeits; no verdict = refund.
 - Web: in-browser wallet, stake flow, verdict page that re-verifies hashes against the chain, live cohort board with QR, integrity page.
 
-**Mapping the pivot onto what exists:** a *cohort* is a *group*; each member's goal is their *market*; "passers split the forfeits" is already "bet on yourself, money stays in the group". This part works today with no contract change.
+**Mapping the pivot onto what exists:** a *cohort* is a *group*; each member's goal and stake is their *commitment*; "passers split the forfeits" is already "miss it and you lose your stake". The commitment part works today with no contract change. The public YES/NO market on top is new (row 3).
 
 **New work, in priority order:**
 
@@ -39,7 +45,7 @@ Integrity safeguards (control proofs, first-seen timing, two-model substance che
 |---|---|---|---|---|
 | 1 | Web: rename cohort to group, show members and their tasks, group invite link + QR, "split a project into 3 tasks" form | C | 45 min | Yes |
 | 2 | Relayer: public `POST /groups` that creates a cohort (so friends start their own group) | A | 20 min | Yes |
-| 3 | Contract: `MarketPool` with YES/NO pools per market (parimutuel: winners split losers' pool pro rata, no fee) so friends can bet against you | A | 90 min + tests | Risky before 4:20 freeze |
+| 3 | Contract: `MarketPool` with YES/NO pools per market (parimutuel: the side that called it right splits the other side's pool pro rata, no fee), separate from the owner's commitment stake, open to friends and the public | A | 90 min + tests | Risky before 4:20 freeze |
 | 4 | Referee: `canvas_grade` evidence type (score >= threshold), read with the student's own consented, read-only token | B | 60 min + privacy review | No (PLAN keeps Canvas to the team's own account) |
 | 5 | XRPL settlement rail (section 5.3) | new owner | 60-90 min | Only if the human team accepts a second chain |
 
@@ -91,9 +97,9 @@ Costs: 60-90 min for one agent (adapter + script running a 3-person group on tes
 
 Our markets are private group markets settled by the referee; Gemini's API serves public event markets. The only honest integration would be letting a group also trade a public Gemini sandbox market from the same screen (needs a sandbox account and API key from the human team). Recommend not targeting this track.
 
-### 5.5 Bonus: Context.dev: **reasonable fit**
+### 5.5 Bonus: Context.dev: **stretch goal**
 
-The referee could use Context.dev website monitoring and scraping to watch published pages and course sites instead of raw fetches. Owner B, ~45 min. Optional.
+**Stretch goal: only if everything else is done before the freeze.** The referee fetches raw HTML for "a page goes live" markets, so a page that only renders with JavaScript (most React apps) looks empty and fails (`referee/README.md`, Known limits). Context.dev's scraping and monitoring API could return the fully rendered page instead, fixing that gap. Owner B, ~45 min, needs a Context.dev API key from the human team. Helps URL markets only.
 
 ### 5.6 Bonus: ElevenLabs: **light fit**
 
@@ -103,17 +109,17 @@ Read verdicts aloud on the group board ("Leo passed his midterm market; Maya and
 
 | Risk | Mitigation |
 |---|---|
-| Reads as gambling on grades | Testnet only; framed as accountability among friends; no house, no fee, money stays in the group; caps on betting against friends. |
+| Reads as gambling on grades | Testnet only; framed as accountability among friends; no house, no fee; the market is an optional side bet and never touches anyone's commitment stake. |
 | Incentive to cheat on the test itself | Out of the referee's sight. Markets are on outcomes the school already polices; we state this plainly. |
 | Grade privacy | Consent per market, read-only token, only yes/no stored, nothing shown publicly. |
-| Sandbagging | You cannot bet against yourself. |
-| Friend pile-on | NO bets capped relative to the owner's own stake. |
+| Sandbagging | The owner can't bet NO on their own market, and failing costs them their commitment stake. |
+| Friend pile-on | Betting is optional and either way; the market never touches the owner's stake. |
 | Scope creep before freeze | Ship rows 1-2 of section 3; everything else is roadmap. |
 
 ## 7. Demo script (2 minutes)
 
 1. **0:00** Three friends, one group, three tasks: Maya's project, Leo's midterm, Sam's essay. Each bets 10 AUSD on themselves.
-2. **0:20** Leo's friends bet that he won't hit 85. The pot stays inside the group.
+2. **0:20** Friends and strangers bet YES or NO on each task. That market is separate from the stakes.
 3. **0:40** A backdated commit is rejected: the referee only counts what it saw happen.
 4. **1:00** Deadline. Verdicts post on-chain with reasons; the browser re-verifies each hash.
 5. **1:30** Settle: whoever was right is paid in AUSD, gaslessly. No house, no fee.
@@ -124,4 +130,4 @@ Read verdicts aloud on the group board ("Leo passed his midterm market; Maya and
 1. Adopt Groups as a feature and add it to PLAN.md (the core product description stays)?
 2. Allow a second chain for the Ripple track, and who owns `xrpl/`?
 3. Ask the YZi table about Base Sepolia vs. BSC Testnet.
-4. Attempt `MarketPool` (betting against friends) before the freeze, or keep it as roadmap?
+4. Attempt `MarketPool` (the public YES/NO market) before the freeze, or keep it as roadmap?
