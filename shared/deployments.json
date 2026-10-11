@@ -3,7 +3,7 @@
   "pool": null,
   "token": "0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC",
   "referee": "0x57CB6D4f98979403D89A6c2d6A7c17ef4D54eD3B",
-  "relayer_url": null,
+  "relayer_url": "https://pattern-css-build-plates.trycloudflare.com",
   "referee_url": null,
   "web_url": null
 }
