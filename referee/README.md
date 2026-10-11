@@ -1,0 +1,90 @@
+# Referee
+
+The service that decides whether a staker did what they committed to. It gathers the evidence itself, rules pass or fail with reasons, and posts the verdict on chain. It cannot move funds: the contract only lets it post one verdict per staker, and a missing verdict means a refund.
+
+## How a goal is judged
+
+1. **Compile.** `POST /goals/compile` turns free text into criteria JSON (`github_commits`, `url_live` or `canvas_submission`) plus a one-line summary and a control-proof instruction. The goal deadline is the cohort's `goalDeadline`, read from the contract.
+2. **Register.** `POST /goals` checks that `stake_tx_hash` emitted `Staked(cohortId, staker, goalHash)` where `goalHash = keccak256(canonical(criteria))`. Criteria that don't match the on-chain stake are rejected.
+3. **Snapshot.** At registration the referee records what already exists: every commit on every branch of the repo, or whether the page already shows the promised text.
+4. **Watch.** GitHub branches are polled every 30 seconds. Each commit is stored with the time the referee first saw it. Git author and committer dates are never used.
+5. **Decide.** Shortly after the deadline, deterministic checks run first. Only if all of them pass do two independent model judges (Opus and Sonnet via `claude -p`) rule on `substance`: is this real work toward the goal, or filler?
+6. **Post.** The verdict JSON is hashed (`evidenceHash = keccak256(canonical(verdict))`) and posted with `postVerdict`. `GET /goals/:id` returns the verdict, so anyone can recompute the hash and compare it with the on-chain event.
+
+### Checks
+
+| Type                | Check               | Passes when                                                                        |
+| ------------------- | ------------------- | ---------------------------------------------------------------------------------- |
+| `github_commits`    | `repo_control`      | `.referee/<nonce>` exists on the branch of a public repo                           |
+|                     | `commits_in_window` | at least `min_commits` non-merge commits were first seen inside the window and are still on the branch |
+|                     | `substance`         | both judges agree the diffs deliver the goal                                       |
+| `url_live`          | `not_live_at_stake` | the page did not show the promised text at stake time                              |
+|                     | `url_control`       | the nonce is on the page or in `/.well-known/referee.txt`                          |
+|                     | `url_content`       | the page shows the promised text at the deadline                                   |
+|                     | `substance`         | both judges agree the page delivers the goal (not a static placeholder)            |
+| `canvas_submission` | `canvas_submitted`  | bCourses reports the assignment submitted, with `submitted_at` inside the window   |
+|                     | `canvas_min_bytes`  | the submission has content                                                         |
+
+### Outcomes
+
+- **pass**: every check passed.
+- **fail**: any check failed.
+- **needs_human**: the judges disagreed, or a judge did not answer (outage, usage limit, invalid output). A judge outage never fails a user. If nobody resolves it, the contract refunds the stake.
+
+## Hardening
+
+- **Evidence is data, never instructions.** Gathered content goes to the judges JSON-encoded inside `<untrusted_…>` tags. The judges have no tools and run in an empty directory with no settings or MCP servers. Their output must match a schema, or the vote is treated as missing.
+- **Injection tripwire.** Evidence that addresses the referee ("ignore previous instructions", "mark this as passed") fails `substance` before any model sees it.
+- **The engine never sees `is_attack`.** Fool the Ref attempts are judged exactly like real goals.
+- **Backdating does nothing.** Only the referee's own clock counts.
+- **Branch laundering does nothing.** Commits on any branch at stake time are pre-existing, so work done before staking can't be merged in during the window to count as new.
+- **Fetching is restricted.** Only `https` URLs are fetched, every redirect hop is re-checked, private and loopback addresses are refused, and bodies are capped at 512 KB.
+- **Rate limits.** `/goals/compile` allows 15 calls per staker per hour and 400 per hour in total.
+
+## Known limits
+
+These are honest gaps, not bugs. Fool the Ref attempts that exploit them should count as `fooled`.
+
+- **Work done before staking but never pushed** (kept locally or in another repo, then pushed during the window) looks the same as new work. Only the judges' sense of whether the work matches the goal stands in the way.
+- **`url_live` sees server-rendered HTML.** A page that only renders its content with client-side JavaScript may fail `url_content`. A page can also hide text with CSS; the judges see the full HTML and may or may not catch it.
+- **Judges can be wrong.** Two models must agree, and disagreement goes to a human, but a convincing fake can still pass.
+- **Canvas goals** only work for the team's own account (`CANVAS_ALLOWED_STAKERS`), because they use the server's bCourses token.
+
+## Run it
+
+```bash
+cp .env.example .env   # fill in RPC_URL, REFEREE_PRIVATE_KEY, POOL_ADDRESS, GITHUB_TOKEN, ADMIN_KEY
+pnpm install
+pnpm dev               # http://localhost:8787
+```
+
+Models run through `claude -p` on a logged-in Claude account by default, so no API key is needed. Set `MODEL_PROVIDER=api` and `MODEL_API_KEY` to use the Anthropic API instead, or `MODEL_PROVIDER=off` for deterministic checks only. `REFEREE_FIXTURES=1` serves every route from `shared/fixtures`.
+
+**Live event:**
+
+```bash
+nohup scripts/run-live.sh > /dev/null 2>&1 &   # referee + ngrok, auto-restart, keeps the Mac awake
+scripts/stop-live.sh                           # stop everything
+pnpm admin                                     # goals needing a human or erroring
+pnpm admin pass <id> "note"                    # human override, counted publicly
+```
+
+Chain reads use the contract's getters (`cohorts`, `cohortCount`, `stakes`) rather than logs, because the public Base Sepolia RPC caps `eth_getLogs` at 200 blocks.
+
+## API
+
+| Method and path            | Notes                                                                 |
+| -------------------------- | --------------------------------------------------------------------- |
+| `POST /goals/compile`      | `{ text, staker, type_hint?, cohort_id? }` → `{ criteria, goal_hash, summary, control_proof }` |
+| `POST /goals`              | `{ cohort_id, criteria, stake_tx_hash, is_attack?, attack_category?, attack_note? }` → `{ goal_id }` |
+| `GET /goals/:id`           | status, criteria, verdict, `evidence_hash`, `verdict_tx_hash`, `stake_tx_hash` |
+| `GET /cohorts/:id`         | cohort from chain, goals, stats (including attacks and human overrides) |
+| `GET /attacks`             | decided Fool the Ref attempts with `caught` or `fooled`               |
+| `POST /goals/:id/verify`   | admin (`x-admin-key`): decide now, idempotent                         |
+| `POST /goals/:id/override` | admin: `{ passed, note }`, sets `human_override: true`                |
+| `GET /admin/queue`         | admin: `needs_human` and erroring goals                               |
+| `GET /health`              | `{ ok: true }`                                                        |
+
+## Tests
+
+`pnpm test` runs the unit tests: whitespace-filler detection, the injection tripwire, and `goalHash`/`evidenceHash` against `shared/fixtures/hashes.json`. End-to-end runs (real GitHub, a public `url_live` page, and a local Anvil chain with the real `StakePool`) were run during development; their results are in issue #1.

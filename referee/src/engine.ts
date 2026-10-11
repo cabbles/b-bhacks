@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { config } from './config.ts';
 import { db, getGoal, nowIso, observations, observe, type GoalRow } from './db.ts';
-import { commitDetail, fileExists, isWhitespaceOnly, listBranchShas, repoInfo, type CommitDetail } from './collectors/github.ts';
+import { commitDetail, fileExists, isWhitespaceOnly, listBranches, listBranchShas, repoInfo, type CommitDetail } from './collectors/github.ts';
 import { fetchText, visibleText, wellKnownUrl } from './collectors/url.ts';
 import { ownSubmission } from './collectors/canvas.ts';
 import { modelsReady, quote, structuredCall } from './model.ts';
@@ -32,9 +32,13 @@ export async function takeSnapshot(goalId: number) {
     if (c.type === 'github_commits') {
         const p = c.params as GithubParams;
         const info = await repoInfo(p.repo);
-        const shas = info.exists ? ((await listBranchShas(p.repo, p.branch)) ?? []) : [];
+        // Snapshot every branch, not just the goal branch: work done before staking on a side branch
+        // and merged in during the window must not count as new.
+        const branches = info.exists ? [p.branch, ...(await listBranches(p.repo)).filter((b) => b !== p.branch)].slice(0, 30) : [];
+        const shas = new Set<string>();
+        for (const b of branches) for (const sha of (await listBranchShas(p.repo, b)) ?? []) shas.add(sha);
         for (const sha of shas) observe(goalId, 'github_commit', sha, null, true);
-        snap = { ...snap, repo: info, preexisting_commits: shas.length };
+        snap = { ...snap, repo: info, branches_snapshotted: branches.length, preexisting_commits: shas.size };
     } else if (c.type === 'url_live') {
         const p = c.params as UrlParams;
         const page = await fetchText(p.url);

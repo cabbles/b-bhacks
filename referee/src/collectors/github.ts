@@ -33,6 +33,14 @@ export async function listBranchShas(repo: string, branch: string): Promise<stri
     return j.map((c) => c.sha as string);
 }
 
+/** Branch names in the repo (first 100; plenty for a hackathon repo). */
+export async function listBranches(repo: string): Promise<string[]> {
+    const r = await gh(`/repos/${repo}/branches?per_page=100`);
+    if (r.status === 404 || r.status === 409) return [];
+    if (!r.ok) throw new Error(`github branches ${repo}: ${r.status}`);
+    return ((await r.json()) as any[]).map((b) => b.name as string);
+}
+
 export type CommitDetail = {
     sha: string;
     message: string;
