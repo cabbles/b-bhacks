@@ -1,0 +1,570 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "token_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "referee_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "SETTLE_DELAY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "authNonce",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "goalHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "claimFor",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "staker",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimable",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "staker",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "cohortCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "cohorts",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "ruleHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "stakeDeadline",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "goalDeadline",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "stakeAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "stakerCount",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "passCount",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "failCount",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "settled",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "forfeitPool",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "createCohort",
+    "inputs": [
+      {
+        "name": "ruleHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "stakeDeadline",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "goalDeadline",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "stakeAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "postVerdict",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "staker",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "passed",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "evidenceHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "referee",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "settle",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "stakeWithAuthorization",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "staker",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "goalHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "validAfter",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "validBefore",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "nonce",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "v",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "r",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "s",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "stakes",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "goalHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "outcome",
+        "type": "uint8",
+        "internalType": "enum StakePool.Outcome"
+      },
+      {
+        "name": "claimed",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "token",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "Claimed",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "staker",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CohortCreated",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "ruleHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "stakeDeadline",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "goalDeadline",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "stakeAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Settled",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "passCount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "forfeitPool",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Staked",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "staker",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "goalHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Verdict",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "staker",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "passed",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      },
+      {
+        "name": "evidenceHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AlreadyClaimed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "AlreadyDecided",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "AlreadySettled",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "AlreadyStaked",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadNonce",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadParams",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotReferee",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotSettled",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotStaked",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NothingToClaim",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "StakingClosed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TooEarly",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TransferFailed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnknownCohort",
+    "inputs": []
+  }
+]
