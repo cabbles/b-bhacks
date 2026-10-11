@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
-import { createPublicClient, formatUnits, http, parseAbi } from "viem";
-import { baseSepolia } from "viem/chains";
+import { formatUnits } from "viem";
+import { client, erc20Abi } from "./chain";
 import { drip } from "./api";
-import { MOCK, RPC_URL } from "./env";
+import { MOCK } from "./env";
 
 const KEY = "ref.pk";
 const DRIP_KEY = "ref.dripped";
@@ -93,11 +93,7 @@ export { signStakeAuthorization } from "./erc3009";
 
 // ---------- token reads ----------
 
-const erc20 = parseAbi([
-  "function decimals() view returns (uint8)",
-  "function balanceOf(address) view returns (uint256)",
-]);
-const client = createPublicClient({ chain: baseSepolia, transport: http(RPC_URL) });
+const erc20 = erc20Abi;
 
 let decimalsCache: number | null = null;
 export async function tokenDecimals(token: `0x${string}`): Promise<number> {

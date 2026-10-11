@@ -74,7 +74,11 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
           <li key={g.goal_id}>
             <Link href={`/goals/${g.goal_id}`} className="card flex items-center gap-3 hover:border-zinc-600">
               <span className="font-mono text-xs text-zinc-500">{short(g.staker)}</span>
-              <span className="flex-1 truncate">{g.goal_text ?? g.type ?? g.goal_id}</span>
+              <span className="flex-1 truncate">
+                {g.is_attack && <span title="Declared cheat attempt">😈 </span>}
+                {g.goal_text ?? g.type ?? g.goal_id}
+              </span>
+              {g.human_override && <span className="text-xs text-amber-300">override</span>}
               <StatusPill status={g.status} />
             </Link>
           </li>

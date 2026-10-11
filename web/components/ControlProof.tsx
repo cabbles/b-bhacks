@@ -30,8 +30,9 @@ function Code({ children }: { children: string }) {
 }
 
 /** Tells the staker how to prove they control the repo or URL. */
-export function ControlProof({ criteria }: { criteria: Criteria }) {
+export function ControlProof({ criteria, referee }: { criteria: Criteria; referee?: string }) {
   const p = criteria.params as Record<string, string | number>;
+  const fromReferee = referee ? <p className="text-xs text-zinc-500">Referee: {referee}</p> : null;
   if (criteria.type === "github_commits") {
     const cmd = `mkdir -p .referee && echo ${criteria.nonce} > .referee/${criteria.nonce}\ngit add .referee && git commit -m "referee: ${criteria.nonce}" && git push origin ${p.branch ?? "main"}`;
     return (
@@ -44,6 +45,7 @@ export function ControlProof({ criteria }: { criteria: Criteria }) {
         <p className="text-zinc-400">
           Only commits the referee first sees after you stake count. Commit dates are ignored, so backdating does nothing.
         </p>
+        {fromReferee}
       </div>
     );
   }
@@ -63,6 +65,7 @@ export function ControlProof({ criteria }: { criteria: Criteria }) {
           The page must <strong>not</strong> already show &ldquo;{String(p.must_contain)}&rdquo; right now. The referee checks at
           stake time and again at the deadline.
         </p>
+        {fromReferee}
       </div>
     );
   }
@@ -72,6 +75,7 @@ export function ControlProof({ criteria }: { criteria: Criteria }) {
         Canvas goals are limited to the team&apos;s own demo account. Assignment {String(p.assignment_id)} in course{" "}
         {String(p.course_id)}.
       </p>
+      {fromReferee}
     </div>
   );
 }

@@ -3,7 +3,9 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { compileGoal, getConfig, relayStake, submitGoal } from "@/lib/api";
 import { countdown, fmtTime, useNow } from "@/lib/time";
-import { ATTACK_CATEGORIES, type CompileResponse, type GoalType, type RelayerConfig } from "@/lib/types";
+import { ATTACK_CATEGORIES, ATTACK_LABEL, type AttackCategory, type CompileResponse, type GoalType, type RelayerConfig } from "@/lib/types";
+import { goalHashOf } from "@/lib/hashes";
+import { MOCK } from "@/lib/env";
 import { fmtAmount, rememberGoal, signStakeAuthorization, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Spinner } from "@/components/ui";
@@ -33,7 +35,7 @@ function StakeInner() {
   const [text, setText] = useState("");
   const [typeHint, setTypeHint] = useState<GoalType | "">("");
   const [isAttack, setIsAttack] = useState(false);
-  const [category, setCategory] = useState<string>(ATTACK_CATEGORIES[0]);
+  const [category, setCategory] = useState<AttackCategory>(ATTACK_CATEGORIES[0]);
   const [note, setNote] = useState("");
 
   const [compiled, setCompiled] = useState<CompileResponse | null>(null);
@@ -69,7 +71,15 @@ function StakeInner() {
     setCompiled(null);
     setConfirmed(false);
     try {
-      setCompiled(await compileGoal(text.trim(), account.address, typeHint || undefined));
+      const c = await compileGoal({
+        text: text.trim(),
+        staker: account.address,
+        type_hint: typeHint || undefined,
+        cohort_id: cohort?.id,
+      });
+      // We sign over goal_hash, so recompute it from the criteria instead of trusting the referee's value.
+      if (!MOCK && goalHashOf(c.criteria) !== c.goal_hash) throw new Error("Referee returned a goal_hash that does not match the criteria.");
+      setCompiled(c);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -82,7 +92,11 @@ function StakeInner() {
     setErr(null);
     try {
       setBusy("Signing the stake authorization…");
-      const authorization = await signStakeAuthorization(account, cfg, stakeAmount);
+      const authorization = await signStakeAuthorization(account, cfg, {
+        cohortId: cohort.id,
+        goalHash: compiled.goal_hash,
+        value: stakeAmount,
+      });
       setBusy("Sending stake on-chain…");
       const { tx_hash } = await relayStake({
         cohort_id: cohort.id,
@@ -95,9 +109,9 @@ function StakeInner() {
         cohort_id: cohort.id,
         criteria: compiled.criteria,
         stake_tx_hash: tx_hash,
-        ...(isAttack ? { is_attack: true, attack_note: `[${category}] ${note}`.trim() } : {}),
+        ...(isAttack ? { is_attack: true, attack_category: category, attack_note: note.trim() } : {}),
       });
-      rememberGoal({ goal_id, cohort_id: cohort.id, goal_text: compiled.criteria.goal_text, created_at: new Date().toISOString() });
+      rememberGoal({ goal_id: String(goal_id), cohort_id: cohort.id, goal_text: compiled.criteria.goal_text, created_at: new Date().toISOString() });
       router.push(`/goals/${goal_id}?new=1`);
     } catch (e) {
       setErr((e as Error).message);
@@ -174,9 +188,9 @@ function StakeInner() {
             <div className="mt-3 space-y-3">
               <div>
                 <label className="label" htmlFor="cat">Category</label>
-                <select id="cat" className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <select id="cat" className="input" value={category} onChange={(e) => setCategory(e.target.value as AttackCategory)}>
                   {ATTACK_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c.replace(/_/g, " ")}</option>
+                    <option key={c} value={c}>{ATTACK_LABEL[c]}</option>
                   ))}
                 </select>
               </div>
@@ -214,7 +228,7 @@ function StakeInner() {
 
           <div className="card space-y-2">
             <div className="label">Before the deadline</div>
-            <ControlProof criteria={compiled.criteria} />
+            <ControlProof criteria={compiled.criteria} referee={compiled.control_proof} />
           </div>
 
           <label className="flex items-start gap-3 text-sm">

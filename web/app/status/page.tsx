@@ -1,15 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { createPublicClient, http } from "viem";
 import { baseSepolia } from "viem/chains";
+import { client, poolAbi } from "@/lib/chain";
+import { authNonce } from "@/lib/erc3009";
 import { getConfig } from "@/lib/api";
-import { addrUrl, MOCK, REFEREE_URL, RELAYER_URL, RPC_URL } from "@/lib/env";
+import { addrUrl, MOCK, REFEREE_URL, RELAYER_URL } from "@/lib/env";
 import type { RelayerConfig } from "@/lib/types";
 import { fmtAmount, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 
 type Row = { name: string; ok: boolean | null; detail: React.ReactNode };
-
-const client = createPublicClient({ chain: baseSepolia, transport: http(RPC_URL) });
 
 async function timed<T>(fn: () => Promise<T>): Promise<[T, number]> {
   const t = performance.now();
@@ -64,6 +63,16 @@ export default function StatusPage() {
           } catch (e) {
             push({ name: label, ok: false, detail: `${addr} · RPC error: ${(e as Error).message}` });
           }
+        }
+
+        // The stake signature's nonce must equal the pool's authNonce, or every stake reverts with BadNonce.
+        const probe = "0x3e5c02e53300b935e6edb8c6962e480928f0a50736085a4044ce1b23ff2e145b" as const;
+        try {
+          const onChain = await client.readContract({ address: c.pool, abi: poolAbi, functionName: "authNonce", args: [1n, probe] });
+          const ok = onChain === authNonce(1, probe);
+          push({ name: "Stake nonce rule", ok, detail: ok ? "web authNonce matches pool.authNonce" : `pool ${onChain} vs web ${authNonce(1, probe)}` });
+        } catch (e) {
+          push({ name: "Stake nonce rule", ok: false, detail: `pool.authNonce failed: ${(e as Error).message.split("\n")[0]}` });
         }
       }
 

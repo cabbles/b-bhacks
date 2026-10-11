@@ -1,8 +1,11 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { getGoal, relayClaim } from "@/lib/api";
+import { getConfig, getGoal, relayClaim } from "@/lib/api";
+import { MOCK } from "@/lib/env";
+import { claimableOf, verifyGoal, type Proof } from "@/lib/verify";
+import { fmtAmount, tokenDecimals } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { GoalResponse } from "@/lib/types";
 import { ControlProof } from "@/components/ControlProof";
@@ -25,6 +28,31 @@ export default function GoalPage({ params }: { params: { id: string } }) {
   const now = useNow();
   const { data: g, error } = usePoll<GoalResponse>(() => getGoal(params.id), 10_000, [params.id]);
   const [claim, setClaim] = useState<{ busy?: boolean; tx?: string; err?: string }>({});
+  const [proofs, setProofs] = useState<Proof[] | null>(null);
+  const [claimable, setClaimable] = useState<{ amount: bigint; dec: number } | null>(null);
+
+  // Independent checks against the chain; re-run when the verdict or its tx appears.
+  const verdictKey = `${g?.status}:${g?.verdict_tx_hash ?? ""}:${claim.tx ?? ""}`;
+  useEffect(() => {
+    if (!g || MOCK) return;
+    let alive = true;
+    getConfig()
+      .then(async (cfg) => {
+        const [p, amount, dec] = await Promise.all([
+          verifyGoal(g, cfg.pool),
+          g.cohort_id !== undefined ? claimableOf(cfg.pool, g.cohort_id, g.criteria.staker) : null,
+          tokenDecimals(cfg.token),
+        ]);
+        if (!alive) return;
+        setProofs(p);
+        setClaimable(amount !== null ? { amount, dec } : null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verdictKey]);
 
   if (error && !g) return <ErrorBox msg={error} />;
   if (!g) return <Spinner />;
@@ -146,11 +174,40 @@ export default function GoalPage({ params }: { params: { id: string } }) {
         {verdict && <div className="break-all font-mono text-xs text-zinc-500">goal_hash {verdict.goal_hash}</div>}
       </div>
 
+      <div className="space-y-2">
+        <h2 className="text-lg font-bold">Check it yourself</h2>
+        {MOCK ? (
+          <p className="text-sm text-zinc-500">Hash and on-chain checks run against live data only.</p>
+        ) : !proofs ? (
+          <Spinner />
+        ) : (
+          <ul className="card space-y-2 text-sm">
+            {proofs.map((p) => (
+              <li key={p.name} className="flex gap-3">
+                <span className={p.ok === null ? "text-zinc-500" : p.ok ? "text-green-400" : "text-red-400"}>
+                  {p.ok === null ? "…" : p.ok ? "✓" : "✗"}
+                </span>
+                <div className="min-w-0">
+                  <div className="font-semibold">{p.name}</div>
+                  <div className="break-all font-mono text-xs text-zinc-400">{p.detail}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-zinc-500">
+          Computed in your browser from the criteria and verdict JSON and from Base Sepolia, without trusting the referee.
+        </p>
+      </div>
+
       {verdict && cohortId !== undefined && (
         <div className="space-y-2">
           <button className="btn-ghost w-full" disabled={claim.busy || !!claim.tx} onClick={onClaim}>
             {claim.busy ? <Spinner /> : claim.tx ? "Claim sent" : verdict.passed ? "Claim payout" : "Trigger settlement claim"}
           </button>
+          {claimable && claimable.amount > 0n && !claim.tx && (
+            <p className="text-sm text-lime-300">Claimable now: {fmtAmount(claimable.amount, claimable.dec)} AUSD</p>
+          )}
           {claim.tx && <TxLink hash={claim.tx} label="Claim tx" />}
           <ErrorBox msg={claim.err ?? null} />
           <p className="text-xs text-zinc-500">Claims open once the cohort is settled (10 minutes after the deadline). Funds always go to the staker.</p>

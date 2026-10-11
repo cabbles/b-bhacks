@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { getAttacks } from "@/lib/api";
 import { fmtTime, usePoll } from "@/lib/time";
-import type { Attack } from "@/lib/types";
+import { ATTACK_LABEL, type Attack } from "@/lib/types";
 import { ErrorBox, Spinner, Stat } from "@/components/ui";
 
 export default function FoolBoard() {
@@ -46,7 +46,7 @@ export default function FoolBoard() {
             <tbody>
               {[...byCat.entries()].map(([cat, r]) => (
                 <tr key={cat} className="border-t border-zinc-800">
-                  <td className="py-2">{cat.replace(/_/g, " ")}</td>
+                  <td className="py-2">{ATTACK_LABEL[cat] ?? cat.replace(/_/g, " ")}</td>
                   <td className="py-2 text-right text-green-400">{r.caught}</td>
                   <td className="py-2 text-right text-red-400">{r.fooled}</td>
                   <td className="py-2 text-right">{r.pending}</td>
@@ -64,7 +64,7 @@ export default function FoolBoard() {
             <Link href={`/goals/${a.goal_id}`} className="card flex items-start gap-3 hover:border-zinc-600">
               <span className="text-2xl">{a.outcome === "caught" ? "🛡️" : a.outcome === "fooled" ? "🎭" : "⏳"}</span>
               <div className="flex-1">
-                <div className="text-xs uppercase tracking-wider text-zinc-400">{a.category.replace(/_/g, " ")}</div>
+                <div className="text-xs uppercase tracking-wider text-zinc-400">{ATTACK_LABEL[a.category] ?? a.category.replace(/_/g, " ")}</div>
                 <div>{a.note || <span className="text-zinc-500">No note</span>}</div>
                 {a.decided_at && <div className="text-xs text-zinc-500">decided {fmtTime(a.decided_at)}</div>}
               </div>

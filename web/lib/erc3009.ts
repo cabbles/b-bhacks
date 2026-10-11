@@ -1,4 +1,4 @@
-import { bytesToHex, parseSignature } from "viem";
+import { encodeAbiParameters, keccak256, parseSignature } from "viem";
 import type { PrivateKeyAccount } from "viem/accounts";
 import type { Authorization, RelayerConfig } from "./types";
 
@@ -14,16 +14,24 @@ export const RECEIVE_WITH_AUTHORIZATION_TYPES = {
 } as const;
 
 /**
+ * The ERC-3009 nonce the pool requires: StakePool.authNonce = keccak256(abi.encode(cohortId, goalHash)).
+ * Binds the signature to one cohort and one goal; any other nonce reverts with BadNonce.
+ */
+export function authNonce(cohortId: number | bigint, goalHash: `0x${string}`): `0x${string}` {
+  return keccak256(encodeAbiParameters([{ type: "uint256" }, { type: "bytes32" }], [BigInt(cohortId), goalHash]));
+}
+
+/**
  * Sign ReceiveWithAuthorization. `to` is the pool: the pool calls
  * token.receiveWithAuthorization, so only the pool can redeem this signature.
  */
 export async function signStakeAuthorization(
   account: PrivateKeyAccount,
   cfg: Pick<RelayerConfig, "chainId" | "pool" | "token" | "tokenDomain">,
-  value: bigint,
+  stake: { cohortId: number; goalHash: `0x${string}`; value: bigint },
   ttlSeconds = 3600,
 ): Promise<Authorization> {
-  const nonce = bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+  const nonce = authNonce(stake.cohortId, stake.goalHash);
   const validAfter = 0n;
   const validBefore = BigInt(Math.floor(Date.now() / 1000) + ttlSeconds);
   const sig = await account.signTypedData({
@@ -35,7 +43,7 @@ export async function signStakeAuthorization(
     },
     types: RECEIVE_WITH_AUTHORIZATION_TYPES,
     primaryType: "ReceiveWithAuthorization",
-    message: { from: account.address, to: cfg.pool, value, validAfter, validBefore, nonce },
+    message: { from: account.address, to: cfg.pool, value: stake.value, validAfter, validBefore, nonce },
   });
   const { r, s, v, yParity } = parseSignature(sig);
   return {

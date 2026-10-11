@@ -41,7 +41,13 @@ export type Verdict = {
   decided_at: string;
 };
 
-export type CompileResponse = { criteria: Criteria; goal_hash: `0x${string}`; summary: string };
+export type CompileResponse = {
+  criteria: Criteria;
+  goal_hash: `0x${string}`;
+  summary: string;
+  /** Referee's instruction text for proving control (agent-b addition). */
+  control_proof?: string;
+};
 
 export type GoalResponse = {
   status: GoalStatus;
@@ -50,6 +56,10 @@ export type GoalResponse = {
   verdict_tx_hash?: string;
   stake_tx_hash?: string;
   cohort_id?: number;
+  goal_id?: number | string;
+  goal_hash?: `0x${string}`;
+  evidence_hash?: `0x${string}`;
+  human_override?: boolean;
 };
 
 export type Cohort = {
@@ -62,11 +72,13 @@ export type Cohort = {
 };
 
 export type CohortGoal = {
-  goal_id: string;
+  goal_id: number | string;
   staker: string;
   status: GoalStatus;
   goal_text?: string;
   type?: GoalType;
+  is_attack?: boolean;
+  human_override?: boolean;
 };
 
 export type CohortStats = {
@@ -83,7 +95,7 @@ export type CohortStats = {
 export type CohortResponse = { cohort: Cohort; goals: CohortGoal[]; stats: CohortStats };
 
 export type Attack = {
-  goal_id: string;
+  goal_id: number | string;
   category: string;
   note: string;
   outcome: "caught" | "fooled" | null;
@@ -107,11 +119,23 @@ export type Authorization = {
   s: `0x${string}`;
 };
 
+// Must match referee/src/routes.ts ATTACK_CATEGORIES; anything else is guessed from the note.
 export const ATTACK_CATEGORIES = [
   "backdated_commits",
-  "someone_elses_repo",
+  "foreign_repo",
   "filler_commits",
   "prompt_injection",
-  "fake_static_page",
+  "fake_page",
   "other",
 ] as const;
+export type AttackCategory = (typeof ATTACK_CATEGORIES)[number];
+
+export const ATTACK_LABEL: Record<string, string> = {
+  backdated_commits: "Backdated commits",
+  foreign_repo: "Someone else's repo",
+  filler_commits: "Filler commits",
+  prompt_injection: "Prompt injection",
+  fake_page: "Fake static page",
+  static_fake: "Fake static page",
+  other: "Other",
+};

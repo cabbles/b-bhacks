@@ -2,6 +2,7 @@ import { MOCK, REFEREE_URL, RELAYER_URL } from "./env";
 import * as fx from "./fixtures";
 import type {
   Attack,
+  AttackCategory,
   Authorization,
   Cohort,
   CohortResponse,
@@ -78,16 +79,22 @@ export async function relayClaim(cohort_id: number, staker: string): Promise<{ t
 
 // ---------- Referee ----------
 
-export async function compileGoal(text: string, staker: `0x${string}`, type_hint?: GoalType): Promise<CompileResponse> {
-  if (MOCK) return delay(700).then(() => fx.fxCompile(text, staker, type_hint));
-  return http(REFEREE_URL, "/goals/compile", post({ text, staker, type_hint }));
+export async function compileGoal(args: {
+  text: string;
+  staker: `0x${string}`;
+  type_hint?: GoalType;
+  /** Makes the referee use the cohort's goal deadline; without it POST /goals can reject the criteria. */
+  cohort_id?: number;
+}): Promise<CompileResponse> {
+  if (MOCK) return delay(700).then(() => fx.fxCompile(args.text, args.staker, args.type_hint));
+  return http(REFEREE_URL, "/goals/compile", post(args));
 }
 
 // ---------- mock store: goals staked in mock mode live in localStorage and get a verdict after MOCK_JUDGE_MS ----------
 
 const MOCK_GOALS_KEY = "ref.mockGoals";
 const MOCK_JUDGE_MS = 20_000;
-type MockGoal = GoalResponse & { created_ms: number; is_attack?: boolean; attack_note?: string };
+type MockGoal = GoalResponse & { created_ms: number; is_attack?: boolean; attack_category?: string; attack_note?: string };
 
 function mockGoals(): Record<string, MockGoal> {
   try {
@@ -116,8 +123,9 @@ export async function submitGoal(args: {
   criteria: Criteria;
   stake_tx_hash: string;
   is_attack?: boolean;
+  attack_category?: AttackCategory;
   attack_note?: string;
-}): Promise<{ goal_id: string }> {
+}): Promise<{ goal_id: number | string }> {
   if (MOCK) {
     const goal_id = "m" + Date.now().toString(36);
     const all = mockGoals();
@@ -128,6 +136,7 @@ export async function submitGoal(args: {
       cohort_id: args.cohort_id,
       created_ms: Date.now(),
       is_attack: args.is_attack,
+      attack_category: args.attack_category,
       attack_note: args.attack_note,
     };
     try {
@@ -141,7 +150,7 @@ export async function submitGoal(args: {
 export async function getGoal(id: string): Promise<GoalResponse> {
   if (MOCK) {
     const m = mockGoals()[id];
-    const g = fx.fxGoals[id] || (m && judged(m));
+    const g = fx.fxGoal(id) || (m && judged(m));
     if (!g) throw new Error(`goal ${id} not found`);
     return g;
   }
@@ -155,7 +164,7 @@ export async function getCohort(id: number): Promise<CohortResponse> {
       .filter(([, g]) => (g.cohort_id ?? 1) === id)
       .map(([goal_id, g]) => {
         const j = judged(g);
-        return { goal_id, staker: j.criteria.staker, status: j.status, goal_text: j.criteria.goal_text, type: j.criteria.type };
+        return { goal_id, staker: j.criteria.staker, status: j.status, goal_text: j.criteria.goal_text, type: j.criteria.type, is_attack: g.is_attack };
       });
     const goals = [...mine, ...base.goals];
     const count = (st: string) => goals.filter((g) => g.status === st).length;
@@ -181,11 +190,10 @@ export async function getAttacks(): Promise<Attack[]> {
       .filter(([, g]) => g.is_attack)
       .map(([goal_id, g]) => {
         const j = judged(g);
-        const m = /^\[([a-z_]+)\]\s*(.*)$/.exec(g.attack_note ?? "");
         return {
           goal_id,
-          category: m?.[1] ?? "other",
-          note: m?.[2] ?? g.attack_note ?? "",
+          category: g.attack_category ?? "other",
+          note: g.attack_note ?? "",
           outcome: j.verdict ? (j.verdict.passed ? "fooled" : "caught") : null,
           decided_at: j.verdict?.decided_at ?? null,
         };
