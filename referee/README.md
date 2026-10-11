@@ -59,6 +59,7 @@ These are honest gaps, not bugs. Fool the Ref attempts that exploit them should 
 
 - **Work done before staking but never pushed** (kept locally or in another repo, then pushed during the window) looks the same as new work. Only the judges' sense of whether the work matches the goal stands in the way.
 - **`url_live` sees server-rendered HTML.** A page that only renders its content with client-side JavaScript may fail `url_content`. A page can also hide text with CSS; the judges see the full HTML and may or may not catch it.
+- **Goals on the same repo and branch share commits.** The referee can't tell whose push a commit was: git authors are forgeable, and the nonce file only proves push access. Group projects should give each member their own branch ("…on branch maya") or repo; otherwise only the judges' check that the work matches each goal tells them apart.
 - **Judges can be wrong.** Two models must agree, and disagreement goes to a human, but a convincing fake can still pass.
 - **Canvas goals** only work for the team's own account (`CANVAS_ALLOWED_STAKERS`), because they use the server's bCourses token.
 
