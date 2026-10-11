@@ -29,6 +29,27 @@ function guessCategory(note: string): string {
 
 const bad = (reply: FastifyReply, code: number, error: string) => reply.code(code).send({ error });
 
+// Compile runs a model call on the team's Claude subscription, so cap it. Keyed by staker, not IP:
+// the whole room shares one Wi-Fi IP.
+const COMPILE_PER_STAKER_PER_HOUR = Number(process.env.COMPILE_PER_STAKER_PER_HOUR ?? 15);
+const COMPILE_TOTAL_PER_HOUR = Number(process.env.COMPILE_TOTAL_PER_HOUR ?? 400);
+const compileLog = new Map<string, number[]>();
+function compileAllowed(staker: string): string | null {
+    const hourAgo = Date.now() - 3_600_000;
+    let total = 0;
+    for (const [k, ts] of compileLog) {
+        const recent = ts.filter((t) => t > hourAgo);
+        if (recent.length) compileLog.set(k, recent);
+        else compileLog.delete(k);
+        total += recent.length;
+    }
+    const mine = compileLog.get(staker) ?? [];
+    if (mine.length >= COMPILE_PER_STAKER_PER_HOUR) return 'Too many goal checks from this wallet. Try again in a few minutes.';
+    if (total >= COMPILE_TOTAL_PER_HOUR) return 'The referee is busy. Try again in a few minutes.';
+    compileLog.set(staker, [...mine, Date.now()]);
+    return null;
+}
+
 function isAdmin(req: FastifyRequest) {
     const key = req.headers['x-admin-key'] ?? (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
     return Boolean(config.adminKey) && key === config.adminKey;
@@ -74,6 +95,10 @@ export async function routes(app: FastifyInstance) {
 
     app.post('/goals/compile', async (req, reply) => {
         const b = (req.body ?? {}) as any;
+        if (typeof b.staker === 'string') {
+            const limited = compileAllowed(b.staker.toLowerCase());
+            if (limited) return bad(reply, 429, limited);
+        }
         try {
             return await compileGoal({ text: b.text, staker: b.staker, type_hint: b.type_hint, cohort_id: b.cohort_id, deadline: b.deadline });
         } catch (err) {

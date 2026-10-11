@@ -94,21 +94,29 @@ async function substance(goalText: string, evidence: unknown): Promise<{ check: 
     // No model configured: deterministic checks only (PLAN section 7 fallback).
     if (!modelsReady()) return { check: null, votes: [], split: false };
     const user = `${quote('goal', goalText)}\n\n${quote('evidence', evidence)}\n\nDoes the evidence plausibly deliver the goal?`;
-    const [a, b] = await Promise.all([
-        structuredCall(config.modelA, SUBSTANCE_SYSTEM, user, Vote, 1500),
-        structuredCall(config.modelB, SUBSTANCE_SYSTEM, user, Vote, 1500),
-    ]);
-    // A failed or invalid model call is a "no" vote: fail closed.
-    const votes: ModelVote[] = [
-        { model: config.modelA, passed: a?.passed ?? false },
-        { model: config.modelB, passed: b?.passed ?? false },
-    ];
-    const split = votes[0].passed !== votes[1].passed;
-    const reason = (s: { reason: string } | null, m: string) => (s ? s.reason.slice(0, 240) : `${m} gave no valid answer`);
+    // One retry each: a transient CLI or API failure should not decide anyone's stake.
+    const ask = async (model: string) =>
+        (await structuredCall(model, SUBSTANCE_SYSTEM, user, Vote, 1500)) ??
+        (await structuredCall(model, SUBSTANCE_SYSTEM, user, Vote, 1500));
+    const [a, b] = await Promise.all([ask(config.modelA), ask(config.modelB)]);
+    const votes: ModelVote[] = [];
+    if (a) votes.push({ model: config.modelA, passed: a.passed });
+    if (b) votes.push({ model: config.modelB, passed: b.passed });
+    // A judge that never answered (outage, usage limit, invalid output) is not a "fail" vote:
+    // a real user must not lose their stake to our outage, so a human decides instead.
+    if (!a || !b) {
+        const missing = [!a && config.modelA, !b && config.modelB].filter(Boolean).join(' and ');
+        return {
+            check: { name: 'substance', passed: false, detail: `Model judge ${missing} gave no valid answer, so a human will decide.` },
+            votes,
+            split: true,
+        };
+    }
+    const split = a.passed !== b.passed;
     const detail = split
-        ? `Models disagree: ${reason(a, 'model A')} / ${reason(b, 'model B')}`
-        : reason(votes[0].passed ? a : (a ?? b), 'model');
-    return { check: { name: 'substance', passed: !split && votes[0].passed, detail }, votes, split };
+        ? `Models disagree: ${a.reason.slice(0, 240)} / ${b.reason.slice(0, 240)}`
+        : a.reason.slice(0, 240);
+    return { check: { name: 'substance', passed: !split && a.passed, detail }, votes, split };
 }
 
 function clip(s: string, n: number) {
@@ -187,6 +195,9 @@ async function judgeGithub(g: GoalRow, c: Criteria): Promise<Outcome> {
                 return { file: f.filename, status: f.status, additions: f.additions, deletions: f.deletions, patch };
             }),
     }));
+    // The model judges only run once every deterministic check has passed: a goal that already
+    // failed is a fail regardless, and skipping saves model calls.
+    if (checks.some((x) => !x.passed)) return { checks, evidence, votes: [], split: false };
     const s = await substance(c.goal_text, { repo: p.repo, branch: p.branch, commits });
     if (s.check) checks.push(s.check);
     return { checks, evidence, votes: s.votes, split: s.split };
@@ -234,6 +245,9 @@ async function judgeUrl(g: GoalRow, c: Criteria): Promise<Outcome> {
         checks.push({ name: 'substance', passed: false, detail: 'Page is not live with the promised content.' });
         return { checks, evidence, votes: [], split: false };
     }
+    // The model judges only run once every deterministic check has passed: a goal that already
+    // failed is a fail regardless, and skipping saves model calls.
+    if (checks.some((x) => !x.passed)) return { checks, evidence, votes: [], split: false };
     const s = await substance(c.goal_text, {
         url: page.final_url ?? p.url,
         visible_text: clip(text, 20_000),
@@ -276,7 +290,7 @@ async function judgeCanvas(g: GoalRow, c: Criteria): Promise<Outcome> {
 /* ---------------------------------------------------------------- decision */
 
 function reasonsFor(passed: boolean, split: boolean, checks: Check[]): string {
-    if (split) return 'The two model judges disagreed on whether the work is real, so a human will decide.';
+    if (split) return 'The model judges disagreed or did not answer on whether the work is real, so a human will decide.';
     if (passed) return `All ${checks.length} checks passed. ${checks.find((x) => x.name === 'substance')?.detail ?? ''}`.trim();
     const failed = checks.filter((x) => !x.passed);
     return `Failed ${failed.length} of ${checks.length} checks. ${failed[0].detail}`;
