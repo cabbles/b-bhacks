@@ -40,7 +40,7 @@ Paste this into a new chat to continue the work. Date: Sun Oct 11 2026, around 3
   - StakePool: `0x1470af4526f820DC7Ca5bE70cA77bBf2400e76f9`.
   - AUSD: `0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC`, 6 decimals, EIP-712 domain "Agora Dollar" v1.
   - Referee signer: `0x57CB6D4f98979403D89A6c2d6A7c17ef4D54eD3B`.
-- **Relayer (Agent A):** `https://pattern-css-build-plates.trycloudflare.com`. Routes `/config`, `/drip`, `/stake`, `/claim`.
+- **Relayer (Agent A):** `https://alfred-laptop-packages-continental.trycloudflare.com`. Routes `/config`, `/drip`, `/stake`, `/claim`.
 - **Referee (Agent B):** `https://hamster-visitor-anyplace.ngrok-free.dev`. Every request needs the header `ngrok-skip-browser-warning: 1`.
   - x402: `POST /x402/verify` costs 0.10 AUSD via ERC-3009 `TransferWithAuthorization`; `GET /x402` lists the price.
 - Both service URLs are in `shared/deployments.json`.
