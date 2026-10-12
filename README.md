@@ -6,7 +6,7 @@ Put testnet AUSD behind any task with a deadline. An AI referee gathers the evid
 
 Today the referee checks two kinds of evidence: commits pushed to a public GitHub repo, and a public page going live with the promised content. (A Canvas check exists for the team's own account only.)
 
-Live app: [Cash Cow](https://considering-particles-fraction-bool.trycloudflare.com). This laptop tunnel must stay running during the demo.
+Live app: [Cash Cow](https://infringement-environmental-necessary-registrar.trycloudflare.com). This laptop tunnel must stay running during the demo.
 
 Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 
