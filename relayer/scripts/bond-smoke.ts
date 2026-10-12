@@ -1,7 +1,12 @@
 // Live check of the owner's bond path: create market -> drip -> stake -> bond -> read.
-import { encodeAbiParameters, keccak256, parseSignature, toHex, type Address } from 'viem';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { encodeAbiParameters, keccak256, parseSignature, stringToHex, toHex, type Address } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
-const R = process.env.RELAYER ?? 'https://pattern-css-build-plates.trycloudflare.com';
+const dep = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../shared/deployments.json'), 'utf8'));
+const R = (process.env.RELAYER ?? dep.relayer_url).replace(/\/$/, '');
+const MARKET_TAG = keccak256(stringToHex('cashcow:group'));
 const call = async (p: string, b?: unknown) => {
     const r = await fetch(R + p, { method: b ? 'POST' : 'GET', headers: { 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined });
     const j: any = await r.json();
@@ -11,7 +16,7 @@ const call = async (p: string, b?: unknown) => {
 };
 const types = { ReceiveWithAuthorization: [{ name: 'from', type: 'address' }, { name: 'to', type: 'address' }, { name: 'value', type: 'uint256' }, { name: 'validAfter', type: 'uint256' }, { name: 'validBefore', type: 'uint256' }, { name: 'nonce', type: 'bytes32' }] } as const;
 const cfg = await call('/config');
-const m = await call('/groups', { stake: 1, stake_minutes: 5, goal_minutes: 5, rule_hash: '0x5a05ea52b7adfc2c950dd65ee2aa5bd7c39481f5fb3c11666d103147fd1c6487' });
+const m = await call('/groups', { stake: 1, stake_minutes: 5, goal_minutes: 5, rule_hash: MARKET_TAG });
 const id = BigInt(m.group_id);
 const user = privateKeyToAccount(generatePrivateKey());
 await call('/drip', { address: user.address });

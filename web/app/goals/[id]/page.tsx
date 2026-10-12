@@ -6,7 +6,8 @@ import { getConfig, getGoal, relayClaim } from "@/lib/api";
 import { MOCK } from "@/lib/env";
 const LIVE = !MOCK;
 import { payoutOf, verifyGoal, type Proof } from "@/lib/verify";
-import { fmtAmount, tokenDecimals } from "@/lib/wallet";
+import { kindOf } from "@/lib/kinds";
+import { fmtAmount, tokenDecimals, useWallet } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { GoalResponse } from "@/lib/types";
 import { PredictionMarket } from "@/components/PredictionMarket";
@@ -33,6 +34,8 @@ export default function GoalPage({ params }: { params: { id: string } }) {
   const [claim, setClaim] = useState<{ busy?: boolean; tx?: string; err?: string }>({});
   const [proofs, setProofs] = useState<Proof[] | null>(null);
   const [claimable, setClaimable] = useState<{ amount: bigint; claimed: boolean; dec: number } | null>(null);
+  const [round, setRound] = useState<{ market: boolean; settled: boolean } | null>(null);
+  const { account } = useWallet();
 
   // Independent checks against the chain; re-run when the verdict or its tx appears.
   const verdictKey = `${g?.status}:${g?.verdict_tx_hash ?? ""}:${claim.tx ?? ""}`;
@@ -48,6 +51,8 @@ export default function GoalPage({ params }: { params: { id: string } }) {
           tokenDecimals(cfg.token, cfg.decimals),
         ]);
         if (!alive) return;
+        const cohort = g.cohort_id !== undefined ? cfg.cohorts.find((c) => c.id === g.cohort_id) : undefined;
+        setRound(cohort ? { market: kindOf(cohort) === "group", settled: !!cohort.settled } : null);
         setProofs(p);
         setClaimable(amount !== null ? { ...amount, dec } : null);
       })
@@ -210,25 +215,33 @@ export default function GoalPage({ params }: { params: { id: string } }) {
 
         {verdict && cohortId !== undefined && (
           <div>
-            <div className="label">Payout</div>
+            <div className="label">{round?.market ? "Entry" : "Payout"}</div>
             <div className="space-y-2 border-t border-line pt-3 text-sm">
               {claimable?.claimed ? (
-                <p>
-                  Paid out to the staker. <span className="text-muted">Nothing left to claim.</span>
-                </p>
+                <p>Paid to the task owner ({short(criteria.staker)}). Nothing left on this entry.</p>
               ) : claimable && claimable.amount > 0n ? (
                 <>
-                  <p className="num">
-                    Ready to claim: <span className="text-pass">{fmtAmount(claimable.amount, claimable.dec)} AUSD</span>
+                  <p>
+                    <span className="num text-pass">{fmtAmount(claimable.amount, claimable.dec)} AUSD</span>{" "}
+                    {round?.market ? "goes back to the owner" : "is ready for"} ({short(criteria.staker)})
+                    {account && account.address.toLowerCase() !== criteria.staker.toLowerCase() ? ". Sending it still pays them, not you." : "."}
                   </p>
                   <button className="btn-primary w-full" disabled={claim.busy || !!claim.tx} onClick={onClaim}>
-                    {claim.busy ? <Spinner /> : claim.tx ? "Claim sent" : "Claim payout"}
+                    {claim.busy ? <Spinner /> : claim.tx ? "Sent" : round?.market ? "Refund entry to the owner" : `Pay ${short(criteria.staker)}`}
                   </button>
                 </>
+              ) : round?.market ? (
+                <p className="text-muted">
+                  {round.settled
+                    ? "Nothing left to refund on the entry."
+                    : "The entry is refunded to the owner after settlement. Winning bets pay the people who bet that side. The owner's stake goes back to them if they finish, or to the people who bet NO if they miss."}
+                </p>
+              ) : !round?.settled ? (
+                <p className="text-muted">Claims open once the round settles, 10 minutes after the deadline. The payout goes to this task's staker.</p>
               ) : verdict.passed ? (
-                <p className="text-muted">Claims open once the market settles, 10 minutes after the deadline.</p>
+                <p className="text-muted">Nothing left to claim for this staker.</p>
               ) : (
-                <p className="text-muted">This stake goes to the stakers who delivered, once the market settles.</p>
+                <p className="text-muted">This stake goes to the people who finished.</p>
               )}
               {claim.tx && <TxLink hash={claim.tx} label="Claim tx" />}
               <ErrorBox msg={claim.err ?? null} />

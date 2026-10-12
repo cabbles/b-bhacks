@@ -5,16 +5,16 @@ import Database from 'better-sqlite3';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isAddress, parseEventLogs, parseUnits, type Address, type Hex } from 'viem';
+import { isAddress, keccak256, parseEventLogs, parseUnits, stringToHex, type Address, type Hex } from 'viem';
 import { deployments, poolAbi, publicClient, reason, requirePool, send, tokenAbi, treasury } from './chain.ts';
 
 const env = process.env;
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(env.PORT ?? 8788);
-// keccak256('cashcow:group'): rounds created as one-person prediction markets (see web/lib/kinds.ts).
-const MARKET_TAG = '0x5a05ea52b7adfc2c950dd65ee2aa5bd7c39481f5fb3c11666d103147fd1c6487';
-// keccak256('cashcow:solo'): shared solo-stake rounds, the only rounds that hold many tasks.
-const SOLO_TAG = '0x416252916541b8054ea5d4d1c6da5970a0b054e52232954e3f6c1cab76874c85';
+// Rounds created as one-person prediction markets (see web/lib/kinds.ts).
+const MARKET_TAG = keccak256(stringToHex('cashcow:group'));
+// Shared solo-stake rounds, the only rounds that hold many tasks.
+const SOLO_TAG = keccak256(stringToHex('cashcow:solo'));
 const DRIP = env.DRIP_AMOUNT ?? '100';
 
 const db = new Database(env.RELAYER_DB ?? resolve(here, '../relayer.db'));

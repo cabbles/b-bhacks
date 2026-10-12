@@ -65,9 +65,11 @@ function StakeInner() {
   }, [cfg, account, dripState, busy]);
 
   const cohort = cfg?.cohorts.find((c) => c.id === cohortId) || null;
+  const market = kindOf(cohort) === "group";
   const stakeAmount = cohort ? BigInt(cohort.stake_amount) : 0n;
+  const bondRaw = market && bondAusd > 0 ? BigInt(Math.round(bondAusd * 10 ** dec)) : 0n;
   // A market holds exactly one task: once its owner has staked, nobody else can add one.
-  const taken = !!cohort && kindOf(cohort) === "group" && (cohort.staker_count ?? 0) >= 1;
+  const taken = !!cohort && market && (cohort.staker_count ?? 0) >= 1;
   const closed = taken || (cohort ? cohort.stake_deadline * 1000 <= now : true);
 
   // A market that already has its task: go straight to that task's betting page.
@@ -77,7 +79,7 @@ function StakeInner() {
       .then((r) => { if (r.goals[0]) router.replace(`/goals/${r.goals[0].goal_id}`); })
       .catch(() => {});
   }, [taken, cohort?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const short = bal !== null && bal < stakeAmount;
+  const short = bal !== null && bal < stakeAmount + bondRaw;
   // A real stake needs a deployed pool, and both services live (or both mocked, for rehearsal).
   const blocked = !cfg
     ? null
@@ -241,8 +243,15 @@ function StakeInner() {
             <label className="flex items-start gap-3 text-sm">
               <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#1E1E1E]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
               <span>
-                This is my task. I stake {cohort ? fmtAmount(cohort.stake_amount, dec) : "?"} test
-                AUSD and lose it if the referee rules I failed.
+                {market && bondRaw > 0n ? (
+                  <>
+                    This is my task. I put {fmtAmount(bondRaw, dec)} AUSD behind it. Finish and I get exactly that back. Miss it and it goes to the people who bet NO. The {cohort ? fmtAmount(cohort.stake_amount, dec) : "?"} AUSD entry is refunded.
+                  </>
+                ) : (
+                  <>
+                    This is my task. I stake {cohort ? fmtAmount(cohort.stake_amount, dec) : "?"} test AUSD and lose it if the referee rules I failed.
+                  </>
+                )}
               </span>
             </label>
 
@@ -263,9 +272,20 @@ function StakeInner() {
         <div className="label">Terms</div>
         {cohort ? (
           <dl className="grid grid-cols-2 border-t border-line text-sm [&>*]:border-b [&>*]:border-line [&>*]:py-3">
-            <dt className="text-muted">Stake</dt>
-            <dd className="num text-right text-lg font-semibold">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
-            <dt className="text-muted">Staking closes</dt>
+            {market && bondRaw > 0n ? (
+              <>
+                <dt className="text-muted">Your stake</dt>
+                <dd className="num text-right text-lg font-semibold">{fmtAmount(bondRaw, dec)} AUSD</dd>
+                <dt className="text-muted">Entry (refunded)</dt>
+                <dd className="num text-right">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
+              </>
+            ) : (
+              <>
+                <dt className="text-muted">Stake</dt>
+                <dd className="num text-right text-lg font-semibold">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
+              </>
+            )}
+            <dt className="text-muted">{market ? "Betting closes" : "Staking closes"}</dt>
             <dd className="num text-right">{closed ? "closed" : countdown(cohort.stake_deadline, now)}</dd>
             <dt className="text-muted">Deadline</dt>
             <dd className="num text-right">{fmtTime(cohort.goal_deadline)}</dd>
@@ -276,8 +296,9 @@ function StakeInner() {
           <p className="border-t border-line py-3 text-muted">{cfg ? "No market is open right now." : <Spinner />}</p>
         )}
         <p className="mt-4 text-xs leading-relaxed text-muted">
-          Everyone who delivers gets their stake back plus an equal share of the missed stakes. No house, no fee. If no verdict is
-          posted, everyone is refunded.
+          {market
+            ? "Finish and your stake comes back in full. Miss it and that stake is split among the people who bet NO. Bets are a separate pot. If no verdict is posted, everyone is refunded."
+            : "Everyone who delivers gets their stake back plus an equal share of the missed stakes. No house, no fee. If no verdict is posted, everyone is refunded."}
         </p>
       </aside>
     </div>

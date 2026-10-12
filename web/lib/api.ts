@@ -268,6 +268,7 @@ export async function relayBond(args: { cohort_id: number; owner: string; amount
 }
 
 export async function getBond(cohortId: number, owner: string, bettor?: string): Promise<{ amount: string; result: "pending" | "returned" | "to_no" | "burned"; claimable: string }> {
+  if (MOCK_RELAYER) throw new Error("Bonds require the live relayer.");
   return http(RELAYER_URL, `/bonds/${cohortId}/${owner}${bettor ? `?bettor=${bettor}` : ""}`);
 }
 

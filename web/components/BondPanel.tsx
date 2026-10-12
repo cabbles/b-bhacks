@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { claimBond, getBond, getConfig } from "@/lib/api";
 import { MOCK } from "@/lib/env";
-import { usePoll } from "@/lib/time";
+import { short, usePoll } from "@/lib/time";
 import { fmtAmount, useWallet } from "@/lib/wallet";
 import { ErrorBox, Spinner, TxLink } from "./ui";
 
@@ -51,10 +51,15 @@ export function BondPanel({ cohortId, owner }: { cohortId: number; owner: `0x${s
         Separate from the bets. Finish: the owner gets exactly this back. Miss: it goes to the people who bet NO.
       </p>
       <p className="mt-2 text-sm font-medium">{RESULT[bond.result]}</p>
-      {claimable > 0n && (
-        <button type="button" className="btn-primary mt-4 w-full" disabled={busy} onClick={onClaim}>
-          {busy ? <Spinner /> : `Claim ${fmtAmount(bond.claimable, dec)} AUSD of the owner's stake`}
-        </button>
+      {claimable > 0n && account && (
+        <>
+          <p className="mt-3 text-sm">
+            {fmtAmount(bond.claimable, dec)} AUSD of this stake is yours to claim. It pays your wallet ({short(account.address)}).
+          </p>
+          <button type="button" className="btn-primary mt-4 w-full" disabled={busy} onClick={onClaim}>
+            {busy ? <Spinner /> : "Claim my share"}
+          </button>
+        </>
       )}
       {tx && <div className="mt-2 text-sm"><TxLink hash={tx} label="Claimed" /></div>}
       <ErrorBox msg={err} />

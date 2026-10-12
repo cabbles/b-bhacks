@@ -4,11 +4,32 @@ import { useEffect, useState } from "react";
 import { getConfig } from "@/lib/api";
 import { addrUrl, txUrl } from "@/lib/env";
 import { countdown, short, useNow } from "@/lib/time";
-import type { RelayerConfig } from "@/lib/types";
+import type { Cohort, RelayerConfig } from "@/lib/types";
 import { fmtAmount, myGoals, tokenBalance, tokenDecimals, useWallet, type MyGoal } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
 import { Cow } from "@/components/Cow";
+import { useLiveMarket } from "@/components/useLiveMarket";
 import { kindOf } from "@/lib/kinds";
+
+function OpenMarket({ c, dec, now }: { c: Cohort; dec: number; now: number }) {
+  const live = useLiveMarket(c.id, dec);
+  return (
+    <div className="border-b border-line py-5">
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="display text-4xl">#{c.id}</span>
+        {live.bets && <span className="num text-right text-sm text-muted">{live.bets}</span>}
+      </div>
+      <p className="mt-2 line-clamp-2 font-display text-lg font-semibold">{live.title}</p>
+      <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm">
+        <dt className="text-muted">Betting closes</dt>
+        <dd className="num text-right">{countdown(c.stake_deadline, now)}</dd>
+        <dt className="text-muted">Deadline</dt>
+        <dd className="num text-right">{countdown(c.goal_deadline, now)}</dd>
+      </dl>
+      <Link href={live.href} className="btn-primary mt-4 w-full">View &amp; bet</Link>
+    </div>
+  );
+}
 
 export default function JoinPage() {
   const { account, dripState, dripTx, retryDrip } = useWallet();
@@ -145,28 +166,7 @@ export default function JoinPage() {
             )}
             {cfg && open.length === 0 && <p className="py-4 text-muted">No market is open right now. <Link href="/cohorts/new" className="link">Start one</Link>.</p>}
             {open.map((c) => (
-              <div key={c.id} className="border-b border-line py-5">
-                <div className="flex items-baseline justify-between">
-                  <span className="display text-4xl">#{c.id}</span>
-                  <span className="num text-sm text-muted">{fmtAmount(c.stake_amount, dec)} AUSD per task</span>
-                </div>
-                <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm">
-                  <dt className="text-muted">Staking closes</dt>
-                  <dd className="num text-right">{countdown(c.stake_deadline, now)}</dd>
-                  <dt className="text-muted">Deadline</dt>
-                  <dd className="num text-right">{countdown(c.goal_deadline, now)}</dd>
-                </dl>
-                <div className="mt-4 flex gap-3">
-                  <div className="flex-1">
-                    <Link href={`/stake?cohort=${c.id}`} className="btn-primary w-full">
-                        Join
-                      </Link>
-                  </div>
-                  <Link href={`/cohorts/${c.id}`} className="btn-ghost">
-                    View &amp; bet
-                  </Link>
-                </div>
-              </div>
+              <OpenMarket key={c.id} c={c} dec={dec} now={now} />
             ))}
           </div>
         </section>

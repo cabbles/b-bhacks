@@ -1,9 +1,14 @@
+import { useId } from "react";
+
 /** The Cash Cow mascot, drawn after the brand reference: round white head, charcoal spots, pink snout. */
 const OUT = "#1E1E1E";
 const SPOT = "#4A4A4A";
 const NOSE = "#F4A9BC";
 
 export function Cow({ size = 40, full = false, className = "" }: { size?: number; full?: boolean; className?: string }) {
+  const uid = useId().replace(/:/g, "");
+  const headId = `${uid}-head`;
+  const bodyId = `${uid}-body`;
   const h = full ? 240 : 170;
   return (
     <svg
@@ -17,11 +22,11 @@ export function Cow({ size = 40, full = false, className = "" }: { size?: number
       strokeLinecap="round"
     >
       <defs>
-        <clipPath id={full ? "cow-head-full" : "cow-head"}>
+        <clipPath id={headId}>
           <ellipse cx="110" cy="92" rx="72" ry="66" />
         </clipPath>
         {full && (
-          <clipPath id="cow-body">
+          <clipPath id={bodyId}>
             <ellipse cx="110" cy="168" rx="92" ry="62" />
           </clipPath>
         )}
@@ -35,7 +40,7 @@ export function Cow({ size = 40, full = false, className = "" }: { size?: number
           <path d="M74 214v18M146 214v18" stroke={OUT} strokeWidth="4" />
           {/* Body */}
           <ellipse cx="110" cy="168" rx="92" ry="62" fill="#fff" />
-          <g clipPath="url(#cow-body)" fill={SPOT}>
+          <g clipPath={`url(#${bodyId})`} fill={SPOT}>
             <path d="M14 150c18-8 34 4 30 24s-22 30-34 22z" />
             <path d="M176 140c16-6 30 10 26 32s-16 32-30 28-14-22-10-38 6-20 14-22z" />
             <path d="M92 196c14-8 34-2 36 12s-16 26-30 22-18-26-6-34z" />
@@ -53,7 +58,7 @@ export function Cow({ size = 40, full = false, className = "" }: { size?: number
 
       {/* Head with clipped spots */}
       <ellipse cx="110" cy="92" rx="72" ry="66" fill="#fff" />
-      <g clipPath={`url(#${full ? "cow-head-full" : "cow-head"})`} fill={SPOT}>
+      <g clipPath={`url(#${headId})`} fill={SPOT}>
         <path d="M132 22c20-4 40 10 40 26s-18 20-30 14-24-12-22-22 4-16 12-18z" />
         <path d="M36 112c14-6 26 4 24 18s-14 22-26 16z" />
       </g>

@@ -23,3 +23,12 @@ body { @apply bg-ink font-sans text-fg antialiased; }
   .link { @apply text-fg underline decoration-nose decoration-2 underline-offset-4 hover:text-nose-deep; }
   .num { @apply font-mono tabular-nums; }
 }
+
+/* The cow orbits the viewport while a bet is confirming, tumbling as it goes. */
+.cow-orbit {
+  animation: cow-orbit 1.7s linear infinite;
+}
+@keyframes cow-orbit {
+  from { transform: rotate(0deg) translateX(min(26vw, 220px)) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(min(26vw, 220px)) rotate(720deg); }
+}

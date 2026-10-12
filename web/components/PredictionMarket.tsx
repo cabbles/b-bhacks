@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseUnits } from "viem";
 import { getConfig, getPredictionMarket, relayBet, resolvePredictionMarket, claimPredictionMarket } from "@/lib/api";
 import { signBetAuthorization } from "@/lib/erc3009";
@@ -8,6 +8,7 @@ import { fmtAmount, tokenBalance, useWallet } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { RelayerConfig } from "@/lib/types";
 import { ErrorBox, Spinner, TxLink } from "./ui";
+import { BetCelebration } from "./BetCelebration";
 import { kindOf } from "@/lib/kinds";
 
 type Props = { cohortId: number; owner: `0x${string}` };
@@ -31,6 +32,12 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
   const locked = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [tx, setTx] = useState<string | null>(null);
+  const [celebrate, setCelebrate] = useState<"spinning" | "done" | null>(null);
+  useEffect(() => {
+    if (celebrate !== "done") return;
+    const t = setTimeout(() => setCelebrate(null), 4200);
+    return () => clearTimeout(t);
+  }, [celebrate]);
   const dec = cfg.decimals ?? 6;
   const { data, error: readError } = usePoll(async () => {
     if (!account) return null;
@@ -54,6 +61,7 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
   async function transact(action: "bet" | "resolve" | "claim") {
     if (!account || !m || locked.current) return;
     locked.current = true; setBusy(true); setError(null); setTx(null);
+    if (action === "bet") setCelebrate("spinning");
     try {
       let result;
       if (action === "bet") {
@@ -66,7 +74,11 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
       } else if (action === "resolve") result = await resolvePredictionMarket(cohortId, owner);
       else result = await claimPredictionMarket(cohortId, owner, account.address);
       setTx(result.tx_hash);
-    } catch (e) { setError((e as Error).message); }
+      if (action === "bet") setCelebrate("done");
+    } catch (e) {
+      if (action === "bet") setCelebrate(null);
+      setError((e as Error).message);
+    }
     finally { locked.current = false; setBusy(false); refresh((v) => v + 1); }
   }
 
@@ -104,8 +116,8 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
           <div className="label">Your bets</div>
           <p className="num">YES {fmtAmount(m.yes_amount, dec)} · NO {fmtAmount(m.no_amount, dec)} AUSD</p>
           {m.claimed ? <p className="text-pass">Payout received.</p> : BigInt(m.claimable) > 0n ? <>
-            <p>{fmtAmount(m.claimable, dec)} AUSD ready to claim.</p>
-            <button className="btn-primary w-full" disabled={busy || !!readError} onClick={() => void transact("claim")}>{busy ? "Confirming…" : m.result === 3 ? "Claim refund" : "Claim betting payout"}</button>
+            <p>{fmtAmount(m.claimable, dec)} AUSD ready to claim. It pays your wallet{account ? ` (${short(account.address)})` : ""}, not the task owner.</p>
+            <button className="btn-primary w-full" disabled={busy || !!readError} onClick={() => void transact("claim")}>{busy ? "Confirming…" : m.result === 3 ? "Refund my bet" : "Claim my betting payout"}</button>
           </> : m.result > 0 && BigInt(m.yes_amount) + BigInt(m.no_amount) > 0n ? <p className="text-muted">No winning bet to claim.</p> : null}
           {m.result === 0 && m.settled && <button className="btn-ghost w-full" disabled={busy || !!readError} onClick={() => void transact("resolve")}>{busy ? "Confirming…" : "Resolve from on-chain verdict"}</button>}
         </div>
@@ -132,6 +144,7 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
           </div>
         </div>
       )}
+      {celebrate && <BetCelebration phase={celebrate} />}
       {tx && <TxLink hash={tx} label="Betting transaction" />}
       <a className="link text-xs" href={addrUrl(cfg.market_pool!)} target="_blank" rel="noreferrer">View betting contract ↗</a>
     </section>

@@ -4,14 +4,46 @@ import { useEffect, useState } from "react";
 import { getConfig } from "@/lib/api";
 import { countdown, useNow, usePoll } from "@/lib/time";
 import type { Cohort } from "@/lib/types";
-import { fmtAmount, tokenDecimals } from "@/lib/wallet";
+import { tokenDecimals } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
+import { useLiveMarket } from "@/components/useLiveMarket";
 import { kindOf } from "@/lib/kinds";
 
 function phase(c: Cohort, now: number) {
   if (c.stake_deadline * 1000 > now) return "open";
   if (c.goal_deadline * 1000 > now) return "in progress";
   return c.settled ? "paid out" : "judging";
+}
+
+function MarketRow({ c, dec, now, open }: { c: Cohort; dec: number; now: number; open: boolean }) {
+  const live = useLiveMarket(c.id, dec);
+  if (!open) {
+    return (
+      <li>
+        <Link href={live.href} className="flex items-center gap-6 py-4 hover:text-nose-deep">
+          <span className="display w-20 shrink-0 text-3xl">#{c.id}</span>
+          <span className="min-w-0 flex-1 text-sm">
+            <span className="block truncate font-display text-lg font-semibold">{live.title}</span>
+            {live.bets && <span className="num text-muted">{live.bets}</span>}
+          </span>
+          <span className="label !mb-0">{phase(c, now)}</span>
+        </Link>
+      </li>
+    );
+  }
+  return (
+    <li className="flex flex-wrap items-center gap-x-6 gap-y-3 py-5">
+      <span className="display w-20 text-4xl">#{c.id}</span>
+      <div className="min-w-0 flex-1 text-sm">
+        <div className="truncate font-display text-lg font-semibold">{live.title}</div>
+        <div className="num text-muted">
+          {live.bets ? `${live.bets} · ` : ""}
+          betting closes in {countdown(c.stake_deadline, now)} · deadline in {countdown(c.goal_deadline, now)}
+        </div>
+      </div>
+      <Link href={live.href} className="btn-primary">View &amp; bet</Link>
+    </li>
+  );
 }
 
 /** Every market, open ones first, with the way to start a new one. */
@@ -55,20 +87,7 @@ export default function Markets() {
           ) : (
             <ul className="divide-y divide-line">
               {open.map((c) => (
-                <li key={c.id} className="flex flex-wrap items-center gap-x-6 gap-y-3 py-5">
-                  <span className="display w-20 text-4xl">#{c.id}</span>
-                  <div className="min-w-0 flex-1 text-sm">
-                    <div className="font-display text-lg font-semibold">
-                      One task · open it to see the bets
-                    </div>
-                    <div className="num text-muted">
-                      betting closes in {countdown(c.stake_deadline, now)} · deadline in {countdown(c.goal_deadline, now)}
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <Link href={`/stake?cohort=${c.id}`} className="btn-primary">View &amp; bet</Link>
-                  </div>
-                </li>
+                <MarketRow key={c.id} c={c} dec={dec} now={now} open />
               ))}
             </ul>
           )}
@@ -80,15 +99,7 @@ export default function Markets() {
           <div className="label">Betting closed</div>
           <ul className="divide-y divide-line">
             {rest.map((c) => (
-              <li key={c.id}>
-                <Link href={`/cohorts/${c.id}`} className="flex items-center gap-6 py-4 hover:text-nose-deep">
-                  <span className="display w-20 text-3xl">#{c.id}</span>
-                  <span className="flex-1 text-sm">
-                    One task · open it to see the bets
-                  </span>
-                  <span className="label !mb-0">{phase(c, now)}</span>
-                </Link>
-              </li>
+              <MarketRow key={c.id} c={c} dec={dec} now={now} open={false} />
             ))}
           </ul>
         </section>
