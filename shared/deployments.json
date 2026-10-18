@@ -1,9 +1,11 @@
 {
   "chainId": 84532,
-  "pool": "0x1470af4526f820DC7Ca5bE70cA77bBf2400e76f9",
+  "pool": "0x2f3060762463c88a71781c06418bdd4ea7b7c77a",
   "token": "0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC",
-  "referee": "0x57CB6D4f98979403D89A6c2d6A7c17ef4D54eD3B",
-  "referee_url": "https://hamster-visitor-anyplace.ngrok-free.dev",
-  "web_url": "https://lion-browsing-princess-legends.trycloudflare.com",
-  "deployBlock": 47992424
+  "referee": "0xDE284483a14bf92681e4e4Bcc88D6D3B9C3e1fad",
+  "referee_url": "https://cashcow-referee.cashcow-app.workers.dev",
+  "web_url": "",
+  "deployBlock": 48269940,
+  "market_pool": "0xeb5781f90bf852b34d1f05fced4c01291476f2ae",
+  "bond_pool": "0xccbc587267df0940c467ae2441a7db0864cb9087"
 }

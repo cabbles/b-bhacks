@@ -15,7 +15,7 @@
       "binding": "DB",
       "database_name": "cashcow-referee",
       // From `wrangler d1 create cashcow-referee`.
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "c2849e84-eab9-4e36-bce0-18e01c273d40"
     }
   ],
   // Non-secret settings. Keys, tokens and the RPC URL (it may embed a key) are secrets, set with `wrangler secret put`:
