@@ -23,10 +23,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-dvh">
         <Providers>
         <header className="sticky top-0 z-10 border-b border-line bg-ink">
-          <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-8">
-            <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-lg font-bold tracking-tight sm:text-xl">
+          <nav className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-4 sm:px-8">
+            <Link href="/" aria-label="Cash Cow" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-lg font-bold tracking-tight sm:text-xl">
               <Cow size={30} />
-              Cash Cow
+              {/* The wordmark gives way on phones so the links and the wallet button fit. */}
+              <span className="hidden sm:inline">Cash Cow</span>
             </Link>
             <div className="ml-auto flex gap-2.5 whitespace-nowrap font-display text-[13px] font-medium text-muted sm:gap-6 sm:text-base">
               <Link href="/stake" className="hover:text-fg">Solo stake</Link>

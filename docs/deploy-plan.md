@@ -12,6 +12,12 @@ The chosen direction is **wallets first, then serverless**. Once users connect t
 
 Git: the branch `web-markets-bet` is already at `origin/main` (`7a91371`), so there is nothing to pull. The uncommitted work (`QuickBet.tsx`, the cohorts pages, `useLiveMarket.ts`, `docs/live-demo-2min.md`) gets committed first.
 
+## Status (2026-10-17)
+
+Code for phases 1–5 is done on the `deploy` branch and tested locally (unit tests, contract tests incl. a fork test on real AUSD, a keeper end-to-end test on anvil, the referee in local workerd + D1, the web build). Changes from the plan as written: the contracts gained direct `stake`/`bet`/`bond` functions (passkey wallets can't produce the v/r/s signatures the old functions need), so they get redeployed; the web reads the chain directly, so the referee did not need the relayer's read endpoints; and the keeper also pays winning bettors.
+
+Still to do, all needing accounts or keys: get a Gemini key and run a real compile and verdict; create keys and redeploy the contracts; deploy the Worker, the paymaster and the Vercel site; run the end-to-end check. Step by step: [`infra/README.md`](../infra/README.md).
+
 ## Phase 0: Housekeeping
 - Commit the current WIP on `web-markets-bet`, merge it to main, then start a branch `deploy` for this work.
 
