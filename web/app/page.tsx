@@ -2,10 +2,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getConfig } from "@/lib/api";
-import { addrUrl, txUrl } from "@/lib/env";
-import { countdown, short, useNow } from "@/lib/time";
-import type { Cohort, RelayerConfig } from "@/lib/types";
-import { fmtAmount, myGoals, tokenBalance, tokenDecimals, useWallet, type MyGoal } from "@/lib/wallet";
+import { countdown, useNow } from "@/lib/time";
+import type { Cohort, ChainConfig } from "@/lib/types";
+import { myGoals, tokenDecimals, type MyGoal } from "@/lib/wallet";
+import { FundsPanel } from "@/components/Wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
 import { Cow } from "@/components/Cow";
 import { useLiveMarket } from "@/components/useLiveMarket";
@@ -32,10 +32,8 @@ function OpenMarket({ c, dec, now }: { c: Cohort; dec: number; now: number }) {
 }
 
 export default function JoinPage() {
-  const { account, dripState, dripTx, retryDrip } = useWallet();
-  const [cfg, setCfg] = useState<RelayerConfig | null>(null);
+  const [cfg, setCfg] = useState<ChainConfig | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [bal, setBal] = useState<bigint | null>(null);
   const [dec, setDec] = useState(6);
   const [goals, setGoals] = useState<MyGoal[]>([]);
   const now = useNow();
@@ -46,13 +44,8 @@ export default function JoinPage() {
   }, []);
 
   useEffect(() => {
-    if (!cfg || !account) return;
-    tokenDecimals(cfg.token, cfg.decimals).then(setDec);
-    const load = () => tokenBalance(cfg.token, account.address).then(setBal);
-    load();
-    const t = setInterval(load, 8000);
-    return () => clearInterval(t);
-  }, [cfg, account, dripState]);
+    if (cfg) tokenDecimals(cfg.token, cfg.decimals).then(setDec);
+  }, [cfg]);
 
   const open = (cfg?.cohorts || []).filter((c) => c.stake_deadline * 1000 > now && kindOf(c) === "group");
 
@@ -114,44 +107,8 @@ export default function JoinPage() {
       {/* Right: a ruled ticket column, offset down on wide screens. */}
       <aside className="space-y-10 lg:col-span-5 lg:pt-28">
         <section>
-          <div className="label">Your wallet · made in this browser</div>
-          <div className="border-t border-line pt-3">
-            {account ? (
-              <a className="num break-all text-sm text-fg hover:text-nose-deep" href={addrUrl(account.address)} target="_blank" rel="noreferrer">
-                {account.address}
-              </a>
-            ) : (
-              <Spinner />
-            )}
-            <dl className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
-              <dt className="text-muted">Balance</dt>
-              <dd className="num text-right text-2xl font-semibold">
-                {bal === null ? "…" : fmtAmount(bal, dec)} <span className="text-sm text-muted">AUSD</span>
-              </dd>
-              <dt className="text-muted">Faucet</dt>
-              <dd className="text-right">
-                {dripState === "pending" && (
-                  <span className="text-muted">
-                    <Spinner /> sending 100
-                  </span>
-                )}
-                {dripState === "done" &&
-                  (dripTx ? (
-                    <a className="link" href={txUrl(dripTx)} target="_blank" rel="noreferrer">
-                      100 sent ↗
-                    </a>
-                  ) : (
-                    <span className="text-muted">received</span>
-                  ))}
-                {dripState === "error" && (
-                  <button type="button" className="link text-fail" onClick={retryDrip}>
-                    failed · try again
-                  </button>
-                )}
-              </dd>
-            </dl>
-            <p className="mt-4 text-xs text-muted">No install, no seed phrase. Clearing this browser&apos;s data loses the wallet.</p>
-          </div>
+          <div className="label">Your wallet</div>
+          <FundsPanel />
         </section>
 
         <ErrorBox msg={err} />

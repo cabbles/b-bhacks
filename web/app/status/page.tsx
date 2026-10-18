@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { baseSepolia } from "viem/chains";
-import { client, poolAbi } from "@/lib/chain";
-import { authNonce } from "@/lib/erc3009";
+import { authNonce, client, poolAbi } from "@/lib/chain";
 import { getConfig, TUNNEL_HEADERS } from "@/lib/api";
-import { addrUrl, MOCK_REFEREE, MOCK_RELAYER, REFEREE_URL, RELAYER_URL } from "@/lib/env";
-import type { RelayerConfig } from "@/lib/types";
+import { addrUrl, MOCK_CHAIN, MOCK_REFEREE, PAYMASTER_URL, REFEREE_URL, RPC_URL } from "@/lib/env";
+import type { ChainConfig } from "@/lib/types";
 import { fmtAmount, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 
 type Row = { name: string; ok: boolean | null; detail: React.ReactNode };
@@ -18,9 +17,9 @@ async function timed<T>(fn: () => Promise<T>): Promise<[T, number]> {
 
 /** Pre-flight page for CP3 and the live window: is every dependency reachable and consistent? */
 export default function StatusPage() {
-  const { account, dripState } = useWallet();
+  const { account } = useWallet();
   const [rows, setRows] = useState<Row[]>([]);
-  const [cfg, setCfg] = useState<RelayerConfig | null>(null);
+  const [cfg, setCfg] = useState<ChainConfig | null>(null);
   const [run, setRun] = useState(0);
 
   useEffect(() => {
@@ -31,7 +30,7 @@ export default function StatusPage() {
     };
     setRows([]);
     (async () => {
-      push({ name: "Relayer mode", ok: !MOCK_RELAYER, detail: MOCK_RELAYER ? "fixtures (no relayer_url in shared/deployments.json or NEXT_PUBLIC_RELAYER_URL)" : RELAYER_URL });
+      push({ name: "Contracts mode", ok: !MOCK_CHAIN, detail: MOCK_CHAIN ? "fixtures (no pool in shared/deployments.json)" : `read directly over ${RPC_URL}` });
       push({ name: "Referee mode", ok: !MOCK_REFEREE, detail: MOCK_REFEREE ? "fixtures (no referee_url in shared/deployments.json or NEXT_PUBLIC_REFEREE_URL)" : REFEREE_URL });
 
       if (!MOCK_REFEREE) {
@@ -43,23 +42,26 @@ export default function StatusPage() {
         }
       }
 
-      let c: RelayerConfig | null = null;
+      let c: ChainConfig | null = null;
       try {
         const [r, ms] = await timed(getConfig);
         c = r;
         setCfg(r);
-        push({ name: "Relayer /config", ok: true, detail: `${MOCK_RELAYER ? "fixture" : RELAYER_URL} · ${ms} ms · ${r.cohorts.length} cohort(s)` });
+        push({ name: "Cohorts read", ok: true, detail: `${MOCK_CHAIN ? "fixture" : "on-chain"} · ${ms} ms · ${r.cohorts.length} cohort(s)` });
       } catch (e) {
-        push({ name: "Relayer /config", ok: false, detail: (e as Error).message });
+        push({ name: "Cohorts read", ok: false, detail: (e as Error).message });
       }
       if (!c) return;
 
       push({ name: "Chain", ok: c.chainId === baseSepolia.id, detail: `chainId ${c.chainId} (expected ${baseSepolia.id})` });
 
-      if (!MOCK_RELAYER && !c.poolDeployed) push({ name: "Pool contract", ok: false, detail: "not deployed yet (pool is null in /config)" });
-      if (!MOCK_RELAYER) {
-        const contracts = c.poolDeployed ? ([["Pool contract", c.pool], ["Token contract", c.token]] as const) : ([["Token contract", c.token]] as const);
+      if (!MOCK_CHAIN) {
+        const contracts = [["Stake pool", c.pool], ["Betting pool", c.market_pool], ["Bond contract", c.bond_pool], ["Token contract", c.token]] as const;
         for (const [label, addr] of contracts) {
+          if (!addr) {
+            push({ name: label, ok: false, detail: "no address in shared/deployments.json" });
+            continue;
+          }
           try {
             const code = await client.getCode({ address: addr });
             push({ name: label, ok: !!code && code !== "0x", detail: <a className="link font-mono" href={addrUrl(addr)} target="_blank" rel="noreferrer">{addr}</a> });
@@ -68,7 +70,7 @@ export default function StatusPage() {
           }
         }
 
-        // The stake signature's nonce must equal the pool's authNonce, or every stake reverts with BadNonce.
+        // The web mirrors the pool's authNonce; a mismatch means the web and the pool were built from different code.
         if (c.poolDeployed) {
           const probe = "0x3e5c02e53300b935e6edb8c6962e480928f0a50736085a4044ce1b23ff2e145b" as const;
           try {
@@ -82,7 +84,8 @@ export default function StatusPage() {
       }
 
       const dec = await tokenDecimals(c.token, c.decimals);
-      push({ name: "Token", ok: true, detail: `EIP-712 domain "${c.tokenDomain.name}" v${c.tokenDomain.version} · ${dec} decimals` });
+      push({ name: "Token", ok: true, detail: `${dec} decimals` });
+      push({ name: "Gas sponsorship", ok: !!PAYMASTER_URL, detail: PAYMASTER_URL ? "paymaster set: passkey wallets pay no gas" : "no NEXT_PUBLIC_PAYMASTER_URL: every wallet pays its own test gas" });
 
       const now = Date.now() / 1000;
       const open = c.cohorts.filter((x) => x.stake_deadline > now);
@@ -100,7 +103,7 @@ export default function StatusPage() {
     if (!cfg || !account) return;
     tokenDecimals(cfg.token, cfg.decimals).then(setDec);
     tokenBalance(cfg.token, account.address).then(setBal);
-  }, [cfg, account, dripState, run]);
+  }, [cfg, account, run]);
 
   return (
     <div className="space-y-10">
@@ -121,11 +124,9 @@ export default function StatusPage() {
         ))}
       </ul>
       <div>
-        <div className="label">This browser&apos;s wallet</div>
-        <div className="num break-all border-t border-line pt-3 text-sm">{account?.address ?? "…"}</div>
-        <div className="num text-xs text-muted">
-          faucet {dripState} · balance {bal === null ? "…" : fmtAmount(bal, dec)} AUSD
-        </div>
+        <div className="label">Connected wallet</div>
+        <div className="num break-all border-t border-line pt-3 text-sm">{account?.address ?? "not connected"}</div>
+        <div className="num text-xs text-muted">balance {bal === null ? "…" : fmtAmount(bal, dec)} AUSD</div>
       </div>
     </div>
   );

@@ -1,14 +1,15 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { compileGoal, getCohort, getConfig, relayBond, relayStake, submitGoal } from "@/lib/api";
+import { compileGoal, getCohort, getConfig, submitGoal } from "@/lib/api";
 import { kindOf } from "@/lib/kinds";
 import { countdown, fmtTime, useNow } from "@/lib/time";
-import { type CompileResponse, type GoalType, type RelayerConfig } from "@/lib/types";
+import { type CompileResponse, type GoalType, type ChainConfig } from "@/lib/types";
 import { goalHashOf } from "@/lib/hashes";
-import { MOCK_REFEREE, MOCK_RELAYER } from "@/lib/env";
-import { fmtAmount, rememberGoal, signStakeAuthorization, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
-import { signBondAuthorization } from "@/lib/erc3009";
+import { MOCK_CHAIN, MOCK_REFEREE } from "@/lib/env";
+import { fmtAmount, rememberGoal, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
+import { calls, receiptFrom, send } from "@/lib/tx";
+import { ConnectOptions } from "@/components/Wallet";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Notice, Spinner } from "@/components/ui";
 
@@ -29,10 +30,10 @@ const EXAMPLES = [
 function StakeInner() {
   const params = useSearchParams();
   const router = useRouter();
-  const { account, dripState } = useWallet();
+  const { account } = useWallet();
   const now = useNow();
 
-  const [cfg, setCfg] = useState<RelayerConfig | null>(null);
+  const [cfg, setCfg] = useState<ChainConfig | null>(null);
   const [dec, setDec] = useState(6);
   const [bal, setBal] = useState<bigint | null>(null);
   const [cohortId, setCohortId] = useState<number | null>(null);
@@ -62,7 +63,7 @@ function StakeInner() {
 
   useEffect(() => {
     if (cfg && account) tokenBalance(cfg.token, account.address).then(setBal);
-  }, [cfg, account, dripState, busy]);
+  }, [cfg, account, busy]);
 
   const cohort = cfg?.cohorts.find((c) => c.id === cohortId) || null;
   const market = kindOf(cohort) === "group";
@@ -83,8 +84,8 @@ function StakeInner() {
   // A real stake needs a deployed pool, and both services live (or both mocked, for rehearsal).
   const blocked = !cfg
     ? null
-    : MOCK_RELAYER !== MOCK_REFEREE
-      ? `Staking opens when the ${MOCK_REFEREE ? "referee" : "relayer"} is online.`
+    : MOCK_CHAIN !== MOCK_REFEREE
+      ? `Staking opens when the ${MOCK_REFEREE ? "referee is online" : "contracts are deployed"}.`
       : !cfg.poolDeployed
         ? "Staking opens once the pool contract is deployed."
         : null;
@@ -116,32 +117,17 @@ function StakeInner() {
     if (!account || !cfg || !cohort || !compiled) return;
     setErr(null);
     try {
-      setBusy("Signing the stake authorization…");
-      const authorization = await signStakeAuthorization(account, cfg, {
-        cohortId: cohort.id,
-        goalHash: compiled.goal_hash,
-        value: stakeAmount,
-      });
-      setBusy("Sending stake on-chain…");
-      const { tx_hash } = await relayStake({
-        cohort_id: cohort.id,
-        staker: account.address,
-        goal_hash: compiled.goal_hash,
-        authorization,
-      });
+      // The stake and the owner's bond go out together: one confirmation on a passkey wallet.
+      const batch = calls.stake(cohort.id, compiled.goal_hash, stakeAmount);
+      if (bondRaw > 0n && cfg.bond_pool) batch.push(...calls.bond(cohort.id, bondRaw));
+      setBusy("Confirm in your wallet…");
+      const { hash, receipts } = await send(batch);
       setBusy("Registering with the referee…");
       const { goal_id } = await submitGoal({
         cohort_id: cohort.id,
         criteria: compiled.criteria,
-        stake_tx_hash: tx_hash,
+        stake_tx_hash: receiptFrom(receipts, cfg.pool)?.transactionHash ?? hash,
       });
-      if (bondAusd > 0 && cfg.bond_pool) {
-        setBusy("Signing your stake on the task…");
-        const value = BigInt(Math.round(bondAusd * 10 ** dec));
-        const bondAuth = await signBondAuthorization(account, cfg, { pool: cfg.bond_pool, cohortId: cohort.id, value });
-        setBusy("Posting your stake on-chain…");
-        await relayBond({ cohort_id: cohort.id, owner: account.address, amount: value.toString(), authorization: bondAuth });
-      }
       rememberGoal({ goal_id: String(goal_id), cohort_id: cohort.id, goal_text: compiled.criteria.goal_text, created_at: new Date().toISOString() });
       router.push(`/goals/${goal_id}?new=1`);
     } catch (e) {
@@ -167,7 +153,7 @@ function StakeInner() {
             <div className="label">Your market #{cohort?.id ?? "…"}{bondAusd > 0 ? ` · your stake ${bondAusd} AUSD` : ""}</div>
             <h1 className="display text-6xl sm:text-8xl">Confirm your task.</h1>
             <p className="mt-4 max-w-2xl text-lg text-fg/80">
-              The referee turns your task into exact criteria. Then you sign your stake: finish and you get exactly it back, miss it
+              The referee turns your task into exact criteria. Then you confirm your stake: finish and you get exactly it back, miss it
               and it goes to whoever bet NO. Once it is live, share the page so friends can bet YES or NO.
             </p>
           </>
@@ -210,6 +196,13 @@ function StakeInner() {
             ))}
           </select>
         </div>
+
+        {!account && (
+          <div className="max-w-sm">
+            <div className="label">Connect a wallet to stake</div>
+            <ConnectOptions />
+          </div>
+        )}
 
         {!compiled && (
           <button className="btn-primary w-full sm:w-auto" disabled={!account || !text.trim() || !!busy || closed} onClick={onCompile}>

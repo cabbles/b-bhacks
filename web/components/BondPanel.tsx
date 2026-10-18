@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { claimBond, getBond, getConfig } from "@/lib/api";
+import { getBond, getConfig } from "@/lib/api";
+import { calls, send } from "@/lib/tx";
 import { MOCK } from "@/lib/env";
 import { short, usePoll } from "@/lib/time";
 import { fmtAmount, useWallet } from "@/lib/wallet";
@@ -34,8 +35,8 @@ export function BondPanel({ cohortId, owner }: { cohortId: number; owner: `0x${s
     setBusy(true);
     setErr(null);
     try {
-      const r = await claimBond({ cohort_id: cohortId, owner, bettor: account.address });
-      setTx(r.tx_hash);
+      const { hash } = await send(calls.claimBond(cohortId, owner, account.address));
+      setTx(hash);
     } catch (e) {
       setErr((e as Error).message);
     } finally {

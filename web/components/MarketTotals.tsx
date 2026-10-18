@@ -3,8 +3,8 @@ import { getBond, getPredictionMarket } from "@/lib/api";
 import { usePoll } from "@/lib/time";
 import { fmtAmount } from "@/lib/wallet";
 
-/** Live YES/NO bet totals and the owner's stake for a one-task market, read from the chain via the relayer. */
-export function MarketTotals({ cohortId, owner, dec }: { cohortId: number; owner: string; dec: number }) {
+/** Live YES/NO bet totals and the owner's stake for a one-task market, read from the chain. */
+export function MarketTotals({ cohortId, owner, dec }: { cohortId: number; owner: `0x${string}`; dec: number }) {
   const { data: m } = usePoll(() => getPredictionMarket(cohortId, owner, owner), 5000, [cohortId, owner]);
   const { data: bond } = usePoll(() => getBond(cohortId, owner).catch(() => null), 10000, [cohortId, owner]);
   if (!m) return null;

@@ -75,7 +75,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
             <span className="label !mb-0">AUSD in the pot · no house, no fee</span>
           </div>
           ) : (
-            <MarketTotals cohortId={cohort.id} owner={goals[0].staker} dec={dec} />
+            <MarketTotals cohortId={cohort.id} owner={goals[0].staker as `0x${string}`} dec={dec} />
           )}
         </div>
         <aside className="lg:col-span-4">

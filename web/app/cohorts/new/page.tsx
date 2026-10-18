@@ -2,8 +2,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createMarket } from "@/lib/api";
+import { parseUnits } from "viem";
+import { calls, createdCohortId, send } from "@/lib/tx";
+import { GROUP_TAG } from "@/lib/kinds";
+import { tokenDecimals, useWallet } from "@/lib/wallet";
+import { ADDRESSES } from "@/lib/env";
 import { ErrorBox, Spinner } from "@/components/ui";
+import { ConnectOptions } from "@/components/Wallet";
 
 const JOIN = [
   { label: "15 minutes", min: 15 },
@@ -40,6 +45,7 @@ function Choice({ name, options, value, onChange }: { name: string; options: { l
 
 export default function StartMarket() {
   const router = useRouter();
+  const { account } = useWallet();
   const [task, setTask] = useState("");
   const [stake, setStake] = useState(10);
   const [join, setJoin] = useState(60);
@@ -53,8 +59,11 @@ export default function StartMarket() {
     setErr(null);
     try {
       // The round only holds you; its 1 AUSD entry is refunded. Your real stake is the bond posted next.
-      const m = await createMarket({ stake: 1, stake_minutes: join, goal_minutes: work });
-      router.push(`/stake?cohort=${m.id}&bond=${stake}&task=${encodeURIComponent(task.trim())}`);
+      const now = Math.floor(Date.now() / 1000);
+      const stakeDeadline = now + join * 60;
+      const { receipts } = await send(calls.createCohort(GROUP_TAG, stakeDeadline, stakeDeadline + work * 60, parseUnits("1", await tokenDecimals(ADDRESSES.token))));
+      const id = receipts.length ? createdCohortId(receipts) : 1;
+      router.push(`/stake?cohort=${id}&bond=${stake}&task=${encodeURIComponent(task.trim())}`);
     } catch (e) {
       setErr((e as Error).message);
       setBusy(false);
@@ -106,10 +115,19 @@ export default function StartMarket() {
       <ErrorBox msg={err} />
 
       <div className="flex flex-wrap items-center gap-4">
-        <button type="button" className="btn-primary" disabled={!stakeOk || !taskOk || busy} onClick={onCreate}>
-          {busy ? <><Spinner /> Creating on-chain…</> : "Next: check my task"}
-        </button>
-        <span className="text-sm text-muted">No gas needed. Next you confirm the exact criteria and sign your stake (plus a 1 AUSD entry, refunded).</span>
+        {account ? (
+          <>
+            <button type="button" className="btn-primary" disabled={!stakeOk || !taskOk || busy} onClick={onCreate}>
+              {busy ? <><Spinner /> Creating on-chain…</> : "Next: check my task"}
+            </button>
+            <span className="text-sm text-muted">Next you confirm the exact criteria and your stake (plus a 1 AUSD entry, refunded).</span>
+          </>
+        ) : (
+          <div className="w-full max-w-sm">
+            <div className="label">Connect a wallet to create a market</div>
+            <ConnectOptions />
+          </div>
+        )}
       </div>
     </div>
   );

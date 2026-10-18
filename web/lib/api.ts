@@ -1,16 +1,16 @@
-import { MOCK_REFEREE, MOCK_RELAYER, REFEREE_URL, RELAYER_URL } from "./env";
+import { ADDRESSES, MOCK_CHAIN, MOCK_REFEREE, REFEREE_URL } from "./env";
+import { bondAbi, client, erc20Abi, marketAbi, marketIdOf, poolAbi } from "./chain";
 import * as fx from "./fixtures";
 import type {
   Attack,
   AttackCategory,
-  Authorization,
+  ChainConfig,
   Cohort,
   CohortResponse,
   CompileResponse,
   Criteria,
   GoalResponse,
   GoalType,
-  RelayerConfig,
   PredictionMarket,
 } from "./types";
 
@@ -30,7 +30,6 @@ async function http<T>(base: string, path: string, init?: RequestInit): Promise<
   } catch {
     body = { error: text };
   }
-  if (res.status === 409 && (body as { tx_hash?: string })?.tx_hash) return body as T; // e.g. "already dripped"
   if (!res.ok) {
     const msg = (body as { error?: string; message?: string })?.error || (body as { message?: string })?.message || res.statusText;
     throw new Error(`${path}: ${msg}`);
@@ -41,7 +40,7 @@ async function http<T>(base: string, path: string, init?: RequestInit): Promise<
 const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// The relayer may send cohorts in camelCase (chain field names) or snake_case. Normalize once here.
+// The referee may send cohorts in camelCase (chain field names) or snake_case. Normalize once here.
 export function normalizeCohort(c: Record<string, unknown>): Cohort {
   const pick = (...keys: string[]) => keys.map((k) => c[k]).find((v) => v !== undefined && v !== null);
   return {
@@ -55,56 +54,42 @@ export function normalizeCohort(c: Record<string, unknown>): Cohort {
   };
 }
 
-import { GROUP_TAG } from "./kinds";
+// ---------- Chain reads (straight from the contracts; no server in between) ----------
 
-// ---------- Relayer ----------
+let decimalsCache: number | null = null;
+async function tokenDecimalsOnChain(): Promise<number> {
+  if (decimalsCache === null) decimalsCache = await client.readContract({ address: ADDRESSES.token, abi: erc20Abi, functionName: "decimals" });
+  return decimalsCache;
+}
 
-export async function getConfig(): Promise<RelayerConfig> {
-  if (MOCK_RELAYER) return fx.fxConfig;
-  const c = await http<Omit<RelayerConfig, "pool" | "poolDeployed"> & { pool: `0x${string}` | null; cohorts: Record<string, unknown>[] }>(
-    RELAYER_URL,
-    "/config",
-  );
-  const poolDeployed = !!c.pool && !/^0x0{40}$/i.test(c.pool);
+/** Contract addresses plus every cohort, read in one multicall. */
+export async function getConfig(): Promise<ChainConfig> {
+  if (MOCK_CHAIN) return fx.fxConfig;
+  const pool = ADDRESSES.pool!;
+  const [count, decimals] = await Promise.all([
+    client.readContract({ address: pool, abi: poolAbi, functionName: "cohortCount" }),
+    tokenDecimalsOnChain(),
+  ]);
+  const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
+  const rows = await Promise.all(ids.map((id) => client.readContract({ address: pool, abi: poolAbi, functionName: "cohorts", args: [id] })));
   return {
-    ...c,
-    pool: c.pool ?? "0x0000000000000000000000000000000000000000",
-    poolDeployed,
-    cohorts: (c.cohorts || []).map(normalizeCohort),
+    chainId: client.chain.id,
+    pool,
+    poolDeployed: true,
+    market_pool: ADDRESSES.market,
+    bond_pool: ADDRESSES.bond,
+    token: ADDRESSES.token,
+    decimals,
+    cohorts: rows.map((c, i) => ({
+      id: i + 1,
+      rule_hash: c[0],
+      stake_deadline: Number(c[1]),
+      goal_deadline: Number(c[2]),
+      stake_amount: c[3].toString(),
+      staker_count: Number(c[4]),
+      settled: c[7],
+    })),
   };
-}
-
-/** Start a new market (an on-chain cohort). The relayer pays the gas. */
-export async function createMarket(args: {
-  stake_minutes: number;
-  goal_minutes: number;
-  stake: number;
-}): Promise<{ id: number; cohort: Cohort | null; tx_hash: string }> {
-  if (MOCK_RELAYER) throw new Error("Starting a market requires the live relayer.");
-  const r = await http<{ group_id: number; cohort: Record<string, unknown> | null; tx_hash: string }>(
-    RELAYER_URL, "/groups", post({ ...args, rule_hash: GROUP_TAG }),
-  );
-  return { id: r.group_id, cohort: r.cohort ? normalizeCohort({ ...r.cohort, id: r.group_id }) : null, tx_hash: r.tx_hash };
-}
-
-export async function drip(address: string): Promise<{ tx_hash: string }> {
-  if (MOCK_RELAYER) return delay(300).then(() => ({ tx_hash: fx.FX_TX }));
-  return http(RELAYER_URL, "/drip", post({ address }));
-}
-
-export async function relayStake(args: {
-  cohort_id: number;
-  staker: string;
-  goal_hash: string;
-  authorization: Authorization;
-}): Promise<{ tx_hash: string }> {
-  if (MOCK_RELAYER) return delay(600).then(() => ({ tx_hash: fx.FX_TX }));
-  return http(RELAYER_URL, "/stake", post(args));
-}
-
-export async function relayClaim(cohort_id: number, staker: string): Promise<{ tx_hash: string }> {
-  if (MOCK_RELAYER) return delay(300).then(() => ({ tx_hash: fx.FX_TX }));
-  return http(RELAYER_URL, "/claim", post({ cohort_id, staker }));
 }
 
 // ---------- Referee ----------
@@ -212,12 +197,12 @@ export async function getCohort(id: number): Promise<CohortResponse> {
   }
   const r = await http<CohortResponse & { cohort: Record<string, unknown> }>(REFEREE_URL, `/cohorts/${id}`);
   let cohort = normalizeCohort(r.cohort);
-  // The referee returns just { id } when it cannot read the chain; fall back to the relayer's copy.
+  // The referee returns just { id } when it cannot read the chain; fall back to reading it here.
   if (!Number.isFinite(cohort.stake_deadline) || !Number.isFinite(cohort.goal_deadline)) {
-    const fromRelayer = await getConfig()
+    const fromChain = await getConfig()
       .then((c) => c.cohorts.find((x) => x.id === id))
       .catch(() => undefined);
-    if (fromRelayer) cohort = fromRelayer;
+    if (fromChain) cohort = fromChain;
   }
   const pot = r.stats?.pot && r.stats.pot !== "0" ? r.stats.pot : (BigInt(cohort.stake_amount) * BigInt(r.goals.length)).toString();
   return { ...r, cohort, stats: { ...r.stats, pot } };
@@ -242,36 +227,51 @@ export async function getAttacks(): Promise<Attack[]> {
   return http(REFEREE_URL, "/attacks");
 }
 
-// Separate YES/NO funds; these routes never call the commitment stake/claim routes.
-export async function getPredictionMarket(cohort: number, owner: string, bettor: string): Promise<PredictionMarket> {
-  if (MOCK_RELAYER) throw new Error("Betting requires the live relayer.");
-  return http(RELAYER_URL, `/markets/${cohort}/${owner}?bettor=${encodeURIComponent(bettor)}`);
-}
-export async function relayBet(args: { cohort_id: number; owner: string; bettor: string; yes: boolean; amount: string; authorization: Authorization }): Promise<{ tx_hash: string }> {
-  if (MOCK_RELAYER) throw new Error("Betting requires the live relayer.");
-  return http(RELAYER_URL, "/markets/bet", post(args));
-}
-export async function resolvePredictionMarket(cohort_id: number, owner: string): Promise<{ tx_hash: string }> {
-  if (MOCK_RELAYER) throw new Error("Betting requires the live relayer.");
-  return http(RELAYER_URL, "/markets/resolve", post({ cohort_id, owner }));
-}
-export async function claimPredictionMarket(cohort_id: number, owner: string, bettor: string): Promise<{ tx_hash: string }> {
-  if (MOCK_RELAYER) throw new Error("Betting requires the live relayer.");
-  return http(RELAYER_URL, "/markets/claim", post({ cohort_id, owner, bettor }));
+// Separate YES/NO funds; reads only. Bets, resolves and claims are sent from the wallet (lib/tx.ts).
+export async function getPredictionMarket(cohort: number, owner: `0x${string}`, bettor: `0x${string}`): Promise<PredictionMarket> {
+  const market = ADDRESSES.market;
+  if (MOCK_CHAIN || !market) throw new Error("Betting is not deployed yet.");
+  const id = BigInt(cohort);
+  const key = marketIdOf(id, owner);
+  // One block keeps totals, verdict and balances consistent with each other.
+  const blockNumber = await client.getBlockNumber({ cacheTime: 0 });
+  const [m, c, st, p, claimable] = await Promise.all([
+    client.readContract({ address: market, abi: marketAbi, functionName: "markets", args: [key], blockNumber }),
+    client.readContract({ address: ADDRESSES.pool!, abi: poolAbi, functionName: "cohorts", args: [id], blockNumber }),
+    client.readContract({ address: ADDRESSES.pool!, abi: poolAbi, functionName: "stakes", args: [id, owner], blockNumber }),
+    client.readContract({ address: market, abi: marketAbi, functionName: "positions", args: [key, bettor], blockNumber }),
+    client.readContract({ address: market, abi: marketAbi, functionName: "claimable", args: [id, owner, bettor], blockNumber }),
+  ]);
+  if (/^0x0{64}$/.test(st[0])) throw new Error("The task owner has no commitment in this market.");
+  return {
+    address: market,
+    market_id: key,
+    cohort_id: cohort,
+    owner,
+    yes_total: m[0].toString(),
+    no_total: m[1].toString(),
+    result: Number(m[2]),
+    betting_deadline: Number(c[1]),
+    goal_deadline: Number(c[2]),
+    settled: c[7],
+    outcome: Number(st[1]),
+    yes_amount: p[0].toString(),
+    no_amount: p[1].toString(),
+    claimed: p[2],
+    claimable: claimable.toString(),
+  };
 }
 
 // ---------- Commitment bond (the task owner's separate stake in a prediction market) ----------
 
-export async function relayBond(args: { cohort_id: number; owner: string; amount: string; authorization: Authorization }): Promise<{ tx_hash: string }> {
-  if (MOCK_RELAYER) throw new Error("Bonds require the live relayer.");
-  return http(RELAYER_URL, "/bond", post(args));
-}
+const BOND_RESULT = ["pending", "returned", "to_no", "burned"] as const;
 
-export async function getBond(cohortId: number, owner: string, bettor?: string): Promise<{ amount: string; result: "pending" | "returned" | "to_no" | "burned"; claimable: string }> {
-  if (MOCK_RELAYER) throw new Error("Bonds require the live relayer.");
-  return http(RELAYER_URL, `/bonds/${cohortId}/${owner}${bettor ? `?bettor=${bettor}` : ""}`);
-}
-
-export async function claimBond(args: { cohort_id: number; owner: string; bettor: string }): Promise<{ tx_hash: string }> {
-  return http(RELAYER_URL, "/bond/claim", post(args));
+export async function getBond(cohortId: number, owner: `0x${string}`, bettor?: `0x${string}`): Promise<{ amount: string; result: (typeof BOND_RESULT)[number]; claimable: string }> {
+  const bond = ADDRESSES.bond;
+  if (MOCK_CHAIN || !bond) throw new Error("Bonds are not deployed yet.");
+  const [b, claimable] = await Promise.all([
+    client.readContract({ address: bond, abi: bondAbi, functionName: "bonds", args: [marketIdOf(cohortId, owner)] }),
+    bettor ? client.readContract({ address: bond, abi: bondAbi, functionName: "claimable", args: [BigInt(cohortId), owner, bettor] }) : 0n,
+  ]);
+  return { amount: b[0].toString(), result: BOND_RESULT[b[1]] ?? "pending", claimable: claimable.toString() };
 }

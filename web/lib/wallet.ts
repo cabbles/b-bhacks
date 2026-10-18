@@ -1,15 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
-import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { formatUnits } from "viem";
+import { useConnection } from "wagmi";
 import { client, erc20Abi } from "./chain";
-import { drip } from "./api";
-import { MOCK_RELAYER, REFEREE_URL, RELAYER_URL } from "./env";
+import { MOCK_CHAIN, REFEREE_URL } from "./env";
 
-const KEY = "ref.pk";
-// Per relayer, so a mock-mode drip never stops the real faucet from running for this address.
-const DRIP_KEY = `ref.dripped:${RELAYER_URL || "mock"}`;
-const DRIP_FAIL_KEY = "ref.dripFailedAt";
 // Per referee, so goals staked against fixtures never show up (and 404) on the live site.
 const MY_GOALS_KEY = `ref.myGoals:${REFEREE_URL || "mock"}`;
 
@@ -26,81 +20,11 @@ function safeSet(k: string, v: string) {
   } catch {}
 }
 
-/** Load or create the in-browser burner key. Testnet only. */
-export function loadAccount(): PrivateKeyAccount {
-  let pk = safeGet(KEY) as `0x${string}` | null;
-  if (!pk || !/^0x[0-9a-fA-F]{64}$/.test(pk)) {
-    pk = generatePrivateKey();
-    safeSet(KEY, pk);
-  }
-  return privateKeyToAccount(pk);
-}
-
-export type DripState = "idle" | "pending" | "done" | "error";
-
-// One /drip request per address per page load (React StrictMode runs effects twice in dev).
-const inflight = new Map<string, Promise<{ tx_hash: string }>>();
-function dripOnce(address: string) {
-  let p = inflight.get(address);
-  if (!p) {
-    p = drip(address).finally(() => setTimeout(() => inflight.delete(address), 0));
-    inflight.set(address, p);
-  }
-  return p;
-}
-
-/** The wallet hook: creates the key on first visit and calls /drip once. */
+/** The connected wallet (Base Account or a browser wallet), or null. Connecting happens in components/Wallet.tsx. */
 export function useWallet() {
-  const [account, setAccount] = useState<PrivateKeyAccount | null>(null);
-  const [dripState, setDripState] = useState<DripState>("idle");
-  const [dripTx, setDripTx] = useState<string | null>(null);
-
-  const requestDrip = (acct: PrivateKeyAccount) => {
-    try {
-      sessionStorage.removeItem(DRIP_FAIL_KEY);
-    } catch {}
-    setDripState("pending");
-    dripOnce(acct.address)
-      .then((r) => {
-        // Only remember a drip the relayer confirmed with a tx; a bare "already dripped" may be a request still in flight.
-        if (r.tx_hash) safeSet(DRIP_KEY + ":" + acct.address, r.tx_hash);
-        setDripTx(r.tx_hash);
-        setDripState("done");
-      })
-      .catch((e: Error) => {
-        if (/already|once/i.test(e.message)) setDripState("done");
-        else {
-          try {
-            sessionStorage.setItem(DRIP_FAIL_KEY, String(Date.now()));
-          } catch {}
-          setDripState("error");
-        }
-      });
-  };
-
-  useEffect(() => {
-    const acct = loadAccount();
-    setAccount(acct);
-    const prior = safeGet(DRIP_KEY + ":" + acct.address);
-    if (prior?.startsWith("0x")) {
-      setDripState("done");
-      setDripTx(prior);
-      return;
-    }
-    // After a failure, wait a minute before auto-retrying on page loads; "Try again" skips the wait.
-    let failedAt = 0;
-    try {
-      failedAt = Number(sessionStorage.getItem(DRIP_FAIL_KEY) || 0);
-    } catch {}
-    if (Date.now() - failedAt < 60_000) {
-      setDripState("error");
-      return;
-    }
-    requestDrip(acct);
-  }, []);
-
-  const retryDrip = () => account && requestDrip(account);
-  return { account, dripState, dripTx, retryDrip };
+  const c = useConnection();
+  const address = c.status === "connected" ? c.address : undefined;
+  return { account: address ? { address } : null, status: c.status, connector: c.connector };
 }
 
 // ---------- my goals (local index so the join screen can link back) ----------
@@ -118,8 +42,6 @@ export function rememberGoal(g: MyGoal) {
   safeSet(MY_GOALS_KEY, JSON.stringify([g, ...myGoals().filter((x) => x.goal_id !== g.goal_id)]));
 }
 
-export { signStakeAuthorization } from "./erc3009";
-
 // ---------- token reads ----------
 
 const erc20 = erc20Abi;
@@ -128,7 +50,7 @@ let decimalsCache: number | null = null;
 export async function tokenDecimals(token: `0x${string}`, fromConfig?: number): Promise<number> {
   if (typeof fromConfig === "number") return (decimalsCache = fromConfig);
   if (decimalsCache !== null) return decimalsCache;
-  if (MOCK_RELAYER) return (decimalsCache = 6);
+  if (MOCK_CHAIN) return (decimalsCache = 6);
   try {
     decimalsCache = await client.readContract({ address: token, abi: erc20, functionName: "decimals" });
   } catch {
@@ -138,7 +60,7 @@ export async function tokenDecimals(token: `0x${string}`, fromConfig?: number): 
 }
 
 export async function tokenBalance(token: `0x${string}`, who: `0x${string}`): Promise<bigint | null> {
-  if (MOCK_RELAYER) return 100_000_000n;
+  if (MOCK_CHAIN) return 100_000_000n;
   try {
     return await client.readContract({ address: token, abi: erc20, functionName: "balanceOf", args: [who] });
   } catch {

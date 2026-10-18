@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { getConfig, getGoal, relayClaim } from "@/lib/api";
+import { getConfig, getGoal } from "@/lib/api";
+import { calls, send } from "@/lib/tx";
 import { MOCK } from "@/lib/env";
 const LIVE = !MOCK;
 import { payoutOf, verifyGoal, type Proof } from "@/lib/verify";
@@ -74,8 +75,8 @@ export default function GoalPage({ params }: { params: { id: string } }) {
     if (cohortId === undefined) return;
     setClaim({ busy: true });
     try {
-      const r = await relayClaim(cohortId, criteria.staker);
-      setClaim({ tx: r.tx_hash });
+      const { hash } = await send(calls.claimStake(cohortId, criteria.staker as `0x${string}`));
+      setClaim({ tx: hash });
     } catch (e) {
       setClaim({ err: (e as Error).message });
     }

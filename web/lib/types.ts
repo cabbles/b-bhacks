@@ -103,26 +103,17 @@ export type Attack = {
   decided_at: string | null;
 };
 
-export type RelayerConfig = {
+/** Contract addresses and cohorts, read from the chain (lib/api.ts getConfig). */
+export type ChainConfig = {
   market_pool?: `0x${string}` | null;
   bond_pool?: `0x${string}` | null;
   chainId: number;
-  /** Placeholder zero address until the pool is deployed (relayer sends null; getConfig normalizes). */
+  /** Placeholder zero address until the pool is deployed. */
   pool: `0x${string}`;
   poolDeployed: boolean;
   decimals?: number;
   token: `0x${string}`;
-  tokenDomain: { name: string; version: string };
   cohorts: Cohort[];
-};
-
-export type Authorization = {
-  validAfter: string;
-  validBefore: string;
-  nonce: `0x${string}`;
-  v: number;
-  r: `0x${string}`;
-  s: `0x${string}`;
 };
 
 // Must match referee/src/routes.ts ATTACK_CATEGORIES; anything else is guessed from the note.
@@ -181,5 +172,4 @@ export type PredictionMarket = {
   no_amount: string;
   claimed: boolean;
   claimable: string;
-  sequence: string;
 };

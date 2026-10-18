@@ -1,18 +1,19 @@
 "use client";
 import { useRef, useState } from "react";
 import { parseUnits } from "viem";
-import { getPredictionMarket, relayBet } from "@/lib/api";
-import { signBetAuthorization } from "@/lib/erc3009";
+import { getPredictionMarket } from "@/lib/api";
+import { calls, send } from "@/lib/tx";
 import { fmtAmount, tokenBalance, useWallet } from "@/lib/wallet";
 import { usePoll } from "@/lib/time";
-import type { RelayerConfig } from "@/lib/types";
+import type { ChainConfig } from "@/lib/types";
 import { ErrorBox, Spinner, TxLink } from "./ui";
+import { ConnectOptions } from "./Wallet";
 
-type Props = { cohortId: number; owner: `0x${string}`; title: string; cfg: RelayerConfig; onClose: () => void; bare?: boolean };
+type Props = { cohortId: number; owner: `0x${string}`; title: string; cfg: ChainConfig; onClose: () => void; bare?: boolean };
 
 /** Bet YES or NO on a market straight from the markets list, with a confirmation step. Same flow as the market page. */
 export function QuickBet({ cohortId, owner, title, cfg, onClose, bare }: Props) {
-  const { account, dripState, retryDrip } = useWallet();
+  const { account } = useWallet();
   const [side, setSide] = useState(true);
   const [amount, setAmount] = useState("10");
   const [confirming, setConfirming] = useState(false);
@@ -47,12 +48,8 @@ export function QuickBet({ cohortId, owner, title, cfg, onClose, bare }: Props) 
     locked.current = true; setBusy(true); setError(null);
     try {
       if (!canBet) throw new Error("Check the amount, balance and betting deadline.");
-      const authorization = await signBetAuthorization(account, cfg, {
-        pool: cfg.market_pool!, cohortId, owner, yes, value: raw,
-        sequence: BigInt(m.sequence), deadline: m.betting_deadline,
-      });
-      const result = await relayBet({ cohort_id: cohortId, owner, bettor: account.address, yes, amount: String(raw), authorization });
-      setTx(result.tx_hash);
+      const { hash } = await send(calls.bet(cohortId, owner, yes, raw));
+      setTx(hash);
     } catch (e) {
       setError((e as Error).message);
     } finally { locked.current = false; setBusy(false); }
@@ -61,7 +58,7 @@ export function QuickBet({ cohortId, owner, title, cfg, onClose, bare }: Props) 
   return (
     <div className={bare ? "w-full space-y-4" : "w-full space-y-4 border-l-2 border-fg/20 pl-4"}>
       <ErrorBox msg={error || readError} />
-      {!m ? <Spinner /> : tx ? (
+      {!account ? <ConnectOptions /> : !m ? <Spinner /> : tx ? (
         <div className="space-y-2 text-sm">
           <p className="text-pass">Bet placed: {amount} AUSD on {yes ? "YES" : "NO"}.</p>
           <TxLink hash={tx} label="Betting transaction" />
@@ -87,7 +84,6 @@ export function QuickBet({ cohortId, owner, title, cfg, onClose, bare }: Props) 
           </p>
           {ownerWallet && <p className="text-xs text-muted">This is your task. Your wallet can only bet YES.</p>}
           {insufficient && <p className="text-sm text-fail">Not enough test AUSD for this bet.</p>}
-          {dripState === "error" && <button type="button" className="btn-ghost" onClick={retryDrip}>Retry test AUSD faucet</button>}
         </form>
       )}
       {confirming && m && (
@@ -114,7 +110,7 @@ export function QuickBet({ cohortId, owner, title, cfg, onClose, bare }: Props) 
   );
 }
 
-/** The controls, disabled, when there is nothing to bet on yet (no confirmed task, or the relayer is unreachable). */
+/** The controls, disabled, when there is nothing to bet on yet (no confirmed task, or the chain is unreachable). */
 export function QuickBetPending({ reason }: { reason: string }) {
   return (
     <div className="space-y-3">

@@ -7,7 +7,7 @@ import { fmtAmount } from "@/lib/wallet";
 export function useLiveMarket(cohortId: number, dec: number) {
   const { data: board, error } = usePoll(() => getCohort(cohortId), 12_000, [cohortId]);
   const goal = board?.goals?.[0];
-  const owner = goal?.staker ?? "";
+  const owner = (goal?.staker ?? "") as `0x${string}` | "";
   const { data: market } = usePoll(
     () => (owner ? getPredictionMarket(cohortId, owner, owner).catch(() => null) : Promise.resolve(null)),
     8_000,

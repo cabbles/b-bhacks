@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getConfig } from "@/lib/api";
 import { countdown, useNow, usePoll } from "@/lib/time";
-import type { Cohort, RelayerConfig } from "@/lib/types";
+import type { Cohort, ChainConfig } from "@/lib/types";
 import { tokenDecimals } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
 import { useLiveMarket } from "@/components/useLiveMarket";
@@ -17,7 +17,7 @@ function phase(c: Cohort, now: number) {
   return c.settled ? "paid out" : "judging";
 }
 
-function MarketRow({ c, dec, now, open, cfg }: { c: Cohort; dec: number; now: number; open: boolean; cfg?: RelayerConfig }) {
+function MarketRow({ c, dec, now, open, cfg }: { c: Cohort; dec: number; now: number; open: boolean; cfg?: ChainConfig }) {
   const live = useLiveMarket(c.id, dec);
   const [betting, setBetting] = useState(false);
   const canQuickBet = !MOCK && !!cfg?.market_pool && !!live.owner;

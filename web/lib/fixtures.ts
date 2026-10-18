@@ -18,7 +18,7 @@ import type {
   Criteria,
   GoalResponse,
   GoalType,
-  RelayerConfig,
+  ChainConfig,
   Verdict,
 } from "./types";
 
@@ -33,8 +33,8 @@ const COHORT: Cohort = {
 };
 const WINDOW = { start: iso(COHORT.stake_deadline - 30 * 60), deadline: iso(COHORT.goal_deadline) };
 
-export const fxConfig: RelayerConfig = {
-  ...(cfgJson as unknown as RelayerConfig),
+export const fxConfig: ChainConfig = {
+  ...(cfgJson as unknown as ChainConfig),
   pool: "0x000000000000000000000000000000000000dEaD",
   poolDeployed: true,
   token: "0x000000000000000000000000000000000000bEEF",

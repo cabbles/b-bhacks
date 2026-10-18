@@ -1,28 +1,29 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { parseUnits } from "viem";
-import { getConfig, getPredictionMarket, relayBet, resolvePredictionMarket, claimPredictionMarket } from "@/lib/api";
-import { signBetAuthorization } from "@/lib/erc3009";
+import { getConfig, getPredictionMarket } from "@/lib/api";
+import { calls, send } from "@/lib/tx";
 import { MOCK, addrUrl } from "@/lib/env";
 import { fmtAmount, tokenBalance, useWallet } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
-import type { RelayerConfig } from "@/lib/types";
+import type { ChainConfig } from "@/lib/types";
 import { ErrorBox, Spinner, TxLink } from "./ui";
 import { BetCelebration } from "./BetCelebration";
+import { ConnectOptions } from "./Wallet";
 import { kindOf } from "@/lib/kinds";
 
 type Props = { cohortId: number; owner: `0x${string}` };
 export function PredictionMarket(props: Props) {
   const { data: cfg } = usePoll(getConfig, 30_000);
-  // Old relayers and fixture mode remain usable until MarketPool is actually deployed.
+  // Fixture mode has no betting contract to read.
   if (MOCK || !cfg?.market_pool) return null;
   // Betting belongs to group markets; solo stakes are just you against your own deadline.
   if (kindOf(cfg.cohorts.find((c) => c.id === props.cohortId)) === "solo") return null;
   return <LiveMarket key={`${props.cohortId}:${props.owner}:${cfg.market_pool}`} {...props} cfg={cfg} />;
 }
 
-function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
-  const { account, dripState, retryDrip } = useWallet();
+function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: ChainConfig }) {
+  const { account } = useWallet();
   const now = useNow();
   const [version, refresh] = useState(0);
   const [side, setSide] = useState(true);
@@ -63,17 +64,13 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
     locked.current = true; setBusy(true); setError(null); setTx(null);
     if (action === "bet") setCelebrate("spinning");
     try {
-      let result;
-      if (action === "bet") {
-        if (!canBet) throw new Error("Check the amount, balance and betting deadline.");
-        const authorization = await signBetAuthorization(account, cfg, {
-          pool: cfg.market_pool!, cohortId, owner, yes: selectedYes, value: raw,
-          sequence: BigInt(m.sequence), deadline: m.betting_deadline,
-        });
-        result = await relayBet({ cohort_id: cohortId, owner, bettor: account.address, yes: selectedYes, amount: String(raw), authorization });
-      } else if (action === "resolve") result = await resolvePredictionMarket(cohortId, owner);
-      else result = await claimPredictionMarket(cohortId, owner, account.address);
-      setTx(result.tx_hash);
+      if (action === "bet" && !canBet) throw new Error("Check the amount, balance and betting deadline.");
+      const { hash } = await send(
+        action === "bet" ? calls.bet(cohortId, owner, selectedYes, raw)
+        : action === "resolve" ? calls.resolveMarket(cohortId, owner)
+        : calls.claimMarket(cohortId, owner, account.address),
+      );
+      setTx(hash);
       if (action === "bet") setCelebrate("done");
     } catch (e) {
       if (action === "bet") setCelebrate(null);
@@ -90,7 +87,7 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
         <p className="mt-2 text-sm text-muted">A separate pot of test AUSD. The owner’s commitment stake stays untouched.</p>
       </div>
       <ErrorBox msg={error || readError} />
-      {!m ? <Spinner /> : <>
+      {!account ? <div className="max-w-sm"><div className="label">Connect a wallet to bet</div><ConnectOptions /></div> : !m ? <Spinner /> : <>
         <dl className="grid grid-cols-2 gap-4 border-y border-line py-4">
           <div><dt className="label text-pass">YES</dt><dd className="num text-2xl">{fmtAmount(m.yes_total, dec)} <span className="text-xs text-muted">AUSD</span></dd></div>
           <div><dt className="label text-fail">NO</dt><dd className="num text-2xl">{fmtAmount(m.no_total, dec)} <span className="text-xs text-muted">AUSD</span></dd></div>
@@ -107,9 +104,8 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: RelayerConfig }) {
           {ownerWallet && <p className="text-xs text-muted">This is your task. Your wallet can only bet YES.</p>}
           <label className="block text-sm" htmlFor={`bet-${cohortId}-${owner}`}>Bet amount (test AUSD)</label>
           <input id={`bet-${cohortId}-${owner}`} className="input" inputMode="decimal" value={amount} disabled={busy} onChange={(e) => setAmount(e.target.value)} />
-          <p className="num text-xs text-muted">Wallet {account ? short(account.address) : "loading"} · Balance {data?.balance == null ? "unavailable" : `${fmtAmount(data.balance, dec)} AUSD`}</p>
+          <p className="num text-xs text-muted">Wallet {account ? short(account.address) : "not connected"} · Balance {data?.balance == null ? "unavailable" : `${fmtAmount(data.balance, dec)} AUSD`}</p>
           {insufficient && <p className="text-sm text-fail">Not enough test AUSD for this bet.</p>}
-          {dripState === "error" && <button type="button" className="btn-ghost" onClick={retryDrip}>Retry test AUSD faucet</button>}
           <button type="submit" className="btn-primary w-full" disabled={!canBet}>{busy ? "Confirming…" : `Place ${selectedYes ? "YES" : "NO"} bet`}</button>
         </form>}
         <div className="space-y-2 text-sm">
