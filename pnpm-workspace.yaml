@@ -1,6 +1,5 @@
 packages:
   - shared
   - referee
-  - relayer
   - redteam
   - web

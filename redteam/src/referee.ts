@@ -1,5 +1,5 @@
 // Referee red team: scripted cheats run against the live referee, end to end through the real
-// relayer and chain. Each attack gets a fresh wallet, a real stake, and a throwaway public repo
+// chain. Each attack gets a fresh wallet, a real stake, and a throwaway public repo
 // under the gh-authenticated account (cabbles/ref-rt-*). Results -> results/referee.json.
 //   pnpm --filter redteam referee            (creates its own short cohort)
 //   COHORT=3 pnpm --filter redteam referee   (use an existing cohort)
@@ -8,15 +8,14 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as loadEnv } from 'dotenv';
-import { encodeAbiParameters, keccak256, parseSignature, type Address, type Hex } from 'viem';
+import { parseUnits, type Hex } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import { createCohort, fund, readCohorts, signStake, submitStake, type Cohort } from './chain.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: resolve(here, '../../.env') });
 const dep = JSON.parse(readFileSync(resolve(here, '../../shared/deployments.json'), 'utf8'));
-const RELAYER: string = process.env.RELAYER_URL ?? dep.relayer_url;
 const REFEREE: string = process.env.REFEREE_URL ?? dep.referee_url;
-const ADMIN_KEY = process.env.ADMIN_KEY!;
 const GH_TOKEN = process.env.GITHUB_TOKEN || execSync('gh auth token').toString().trim();
 const OWNER = execSync('gh api user --jq .login').toString().trim();
 const RUN = Date.now().toString(36);
@@ -40,7 +39,6 @@ async function http(base: string, path: string, body?: unknown, headers: Record<
     if (!res.ok) throw new Error(`${path} ${res.status} ${JSON.stringify(json).slice(0, 300)}`);
     return json;
 }
-const relayer = (p: string, b?: unknown, h?: Record<string, string>) => http(RELAYER, p, b, h);
 const referee = (p: string, b?: unknown) => http(REFEREE, p, b);
 
 async function gh(method: string, path: string, body?: unknown) {
@@ -77,42 +75,17 @@ async function commitFile(repo: string, path: string, content: string, message: 
 }
 
 // ---------- staking ----------
-async function stakeGoal(cfg: any, cohort: any, text: string, attack: { is_attack: boolean; category?: string; note?: string }) {
+async function stakeGoal(cohort: Cohort, text: string, attack: { is_attack: boolean; category?: string; note?: string }) {
     const user = privateKeyToAccount(generatePrivateKey());
     const compiled = await referee('/goals/compile', { text, staker: user.address, cohort_id: cohort.id });
     const goalHash = compiled.goal_hash as Hex;
-    const nonce = keccak256(encodeAbiParameters([{ type: 'uint256' }, { type: 'bytes32' }], [BigInt(cohort.id), goalHash]));
-    const validBefore = BigInt(cohort.stake_deadline) + 3600n;
-    await relayer('/drip', { address: user.address });
-    await sleep(3000);
-    const sig = parseSignature(
-        await user.signTypedData({
-            domain: { ...cfg.tokenDomain, chainId: cfg.chainId, verifyingContract: cfg.token },
-            types: {
-                ReceiveWithAuthorization: [
-                    { name: 'from', type: 'address' },
-                    { name: 'to', type: 'address' },
-                    { name: 'value', type: 'uint256' },
-                    { name: 'validAfter', type: 'uint256' },
-                    { name: 'validBefore', type: 'uint256' },
-                    { name: 'nonce', type: 'bytes32' },
-                ],
-            },
-            primaryType: 'ReceiveWithAuthorization',
-            message: { from: user.address, to: cfg.pool as Address, value: BigInt(cohort.stake_amount), validAfter: 0n, validBefore, nonce },
-        }),
-    );
-    const stake = await relayer('/stake', {
-        cohort_id: cohort.id,
-        staker: user.address,
-        goal_hash: goalHash,
-        authorization: { validAfter: '0', validBefore: validBefore.toString(), nonce, v: Number(sig.v), r: sig.r, s: sig.s },
-    });
+    await fund(user.address);
+    const stakeTx = await submitStake(user.address, cohort, goalHash, await signStake(user, cohort, goalHash));
     await sleep(3000);
     const goal = await referee('/goals', {
         cohort_id: cohort.id,
         criteria: compiled.criteria,
-        stake_tx_hash: stake.tx_hash,
+        stake_tx_hash: stakeTx,
         is_attack: attack.is_attack,
         ...(attack.is_attack ? { attack_category: attack.category, attack_note: `[${attack.category}] ${attack.note}` } : {}),
     });
@@ -228,13 +201,11 @@ const ATTACKS: Attack[] = [
 ];
 
 // ---------- run ----------
-const cfg = await relayer('/config');
-let cohort: any;
+let cohort: Cohort | undefined;
 if (process.env.COHORT) {
-    cohort = cfg.cohorts.find((c: any) => String(c.id) === process.env.COHORT);
+    cohort = (await readCohorts()).find((c) => String(c.id) === process.env.COHORT);
 } else {
-    const created = await relayer('/admin/cohorts', { stake_minutes: 10, goal_minutes: 5, stake: '10' }, { 'x-admin-key': ADMIN_KEY });
-    cohort = created.cohort;
+    cohort = await createCohort(10, 5, parseUnits('10', 6));
 }
 if (!cohort) throw new Error('no cohort');
 log(`cohort ${cohort.id}: stake until ${new Date(cohort.stake_deadline * 1000).toISOString()}, deadline ${new Date(cohort.goal_deadline * 1000).toISOString()}`);
@@ -243,7 +214,7 @@ const runs: any[] = [];
 for (const a of ATTACKS) {
     try {
         const { text, ctx } = await a.setup();
-        const g = await stakeGoal(cfg, cohort, text, a);
+        const g = await stakeGoal(cohort, text, a);
         log(`staked ${a.category} -> goal ${g.goalId} (${g.criteria.type})`);
         runs.push({ ...a, ctx, ...g, text });
     } catch (err) {
