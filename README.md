@@ -6,7 +6,7 @@ Put testnet AUSD behind any task with a deadline. An AI referee gathers the evid
 
 Today the referee checks two kinds of evidence: commits pushed to a public GitHub repo, and a public page going live with the promised content. (A Canvas check exists for the team's own account only.)
 
-Live app: [Cash Cow](https://lion-browsing-princess-legends.trycloudflare.com). This laptop tunnel must stay running during the demo.
+Deployment (Vercel + Cloudflare Workers, free plans, no laptop): see [`infra/README.md`](infra/README.md).
 
 Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 
@@ -20,7 +20,7 @@ Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 ## Two core features
 
 - **Individual: bet on yourself (live).** Stake AUSD on your own task. Deliver and you get your stake back plus an equal share of the stakes of everyone in the same round who missed theirs; miss it and you lose it. No house, no fee.
-- **Market: bet on whether someone finishes (contract deployed on Base Sepolia at `0x64425c4480B7516725BB30a2CFAa9334b557eDE8`).** Anyone can bet YES or NO on any task. A separate `MarketPool` takes signed AUSD bets and resolves from the final verdict on `StakePool`. The owner’s wallet cannot bet NO. Winners share the betting pot; missing verdicts or an empty winning side mean refunds. Contract tests, relayer routes, and goal-page betting/claim controls are included. See [deployment and rules](docs/market-pool.md).
+- **Market: bet on whether someone finishes (`MarketPool` on Base Sepolia; addresses in `shared/deployments.json`).** Anyone can bet YES or NO on any task. A separate `MarketPool` takes AUSD bets and resolves from the final verdict on `StakePool`. The owner’s wallet cannot bet NO. Winners share the betting pot; missing verdicts or an empty winning side mean refunds. Contract tests and goal-page betting/claim controls are included; payouts happen automatically. See [deployment and rules](docs/market-pool.md).
 
 ## Sponsor tracks
 
@@ -34,28 +34,25 @@ Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 
 ```mermaid
 flowchart LR
-  U[Phone browser<br/>burner key in localStorage] -->|compile goal| R[Referee<br/>Fastify + SQLite]
-  U -->|signed ERC-3009 auth| L[Relayer<br/>pays gas]
-  L -->|stakeWithAuthorization| P[(StakePool<br/>Base Sepolia)]
-  U -->|register goal| R
-  R -->|polls| G[GitHub / URL / Canvas]
+  U[Browser + user's own wallet<br/>passkey or MetaMask] -->|compile, register goal| R[Referee<br/>Cloudflare Worker + D1]
+  U -->|stake, bet, create market| P[(StakePool / MarketPool / CommitmentBond<br/>Base Sepolia)]
+  R -->|polls| G[GitHub / URL]
   R -->|postVerdict + evidenceHash| P
-  L -->|settle, claimFor| P
+  R -->|keeper: settle, pay everyone| P
   P -->|AUSD| U
 ```
 
-1. **Join.** Open the site. The web app creates a key in your browser and the relayer sends you 100 test AUSD. You don't need to install anything or save a seed phrase.
-2. **Stake.** Type a goal in plain words. The referee compiles it into frozen criteria JSON and shows a one-sentence summary plus a control proof: a nonce file to add to your repo, or a nonce to put on your page. You sign an ERC-3009 `ReceiveWithAuthorization` and the relayer submits it, so you never need ETH.
+1. **Join.** Open the site and connect a wallet: sign in with a passkey (a Base Account, nothing to install, gas paid for you when a paymaster is configured) or use a browser wallet like MetaMask. **Get test AUSD** pulls free test tokens from Agora's faucet.
+2. **Stake.** Type a goal in plain words. The referee compiles it into frozen criteria JSON and shows a one-sentence summary plus a control proof: a nonce file to add to your repo, or a nonce to put on your page. Your wallet approves exactly the stake and calls `stake`; a passkey wallet does both in one confirmation.
 3. **Watch.** The referee polls your repo or URL and records when it first saw each piece of evidence.
 4. **Verdict.** Deterministic checks run first. A `substance` check asks two independent model calls whether the work actually delivers the goal; if they disagree, the goal goes to a human and the override is counted publicly. The verdict JSON is hashed (`keccak256(canonical(verdict))`) and posted on-chain.
-5. **Settle.** Ten minutes after the deadline anyone can call `settle`. Passers get their stake back plus an equal share of the forfeits. If nobody passed, or no verdict was posted, everyone is refunded.
+5. **Settle.** Ten minutes after the deadline anyone can call `settle`; the referee's keeper does it automatically and then pays every staker and winning bettor. Passers get their stake back plus an equal share of the forfeits. If nobody passed, or no verdict was posted, everyone is refunded.
 
 ## Repo layout
 
 | Path         | What                                                         |
 | ------------ | ------------------------------------------------------------ |
 | `contracts/` | `StakePool.sol`, Foundry tests, deploy script                |
-| `relayer/`   | Gas relayer, AUSD drip, claim trigger                        |
 | `referee/`   | Referee API, evidence collectors, verdict engine             |
 | `web/`       | Next.js app (join, stake, verdict, market, integrity)  |
 | `redteam/`   | Scripted cheats and results table                            |
@@ -71,7 +68,7 @@ cp .env.example .env.local   # optional: override URLs or set NEXT_PUBLIC_MOCK=1
 pnpm dev
 ```
 
-Service URLs come from `shared/deployments.json` (`relayer_url`, `referee_url`); `NEXT_PUBLIC_RELAYER_URL` / `NEXT_PUBLIC_REFEREE_URL` override them. A service with no URL is served from fixtures (**mock mode**), each one independently; `NEXT_PUBLIC_MOCK=1` forces fixtures for both, for rehearsals and screenshots. Staking stays disabled until the pool is deployed and both services are live.
+Contract addresses and the referee URL come from `shared/deployments.json`; `NEXT_PUBLIC_REFEREE_URL` overrides the URL. The contracts fall back to fixtures (**mock mode**) until a pool is deployed, and the referee until it has a URL, each independently; `NEXT_PUBLIC_MOCK=1` forces fixtures for both, for rehearsals and screenshots. Staking stays disabled until both are live.
 
 | Screen        | Route            |
 | ------------- | ---------------- |
@@ -84,14 +81,9 @@ Service URLs come from `shared/deployments.json` (`relayer_url`, `referee_url`);
 
 In mock mode, a goal you stake is judged 20 seconds later, so you can rehearse the whole flow without a backend.
 
-`pnpm test:sig` checks that the ERC-3009 `ReceiveWithAuthorization` signatures the app produces recover to the staker.
+### Deploying
 
-### Deploying the web app
-
-Either way, set `NEXT_PUBLIC_REFEREE_URL` (and `NEXT_PUBLIC_RELAYER_URL`) if they are not yet in `shared/deployments.json`, and set `NEXT_PUBLIC_WEB_URL` to the public URL.
-
-- **Vercel (recommended, stable URL, no laptop):** import the repo, set Root Directory to `web`, keep the Next.js preset, add the env vars above. The app imports `../shared` and Vercel includes files outside the root directory by default.
-- **Team laptop:** `nohup web/scripts/run-live.sh > /dev/null 2>&1 &` builds and serves on port 3000 with auto-restart. Add `WEB_TUNNEL=cloudflared` (or `WEB_TUNNEL=ngrok NGROK_URL=...`) for a public URL. Logs are in `web/logs/`.
+See [`infra/README.md`](infra/README.md): Vercel for the web app, Cloudflare Workers for the referee, Base Sepolia for the contracts, all on free plans.
 
 ## Screenshots
 
@@ -141,6 +133,6 @@ The settled-cohort double-claim test reverted with `AlreadyClaimed`.
 ## Safety
 
 - Testnet only. No mainnet deployment exists.
-- No function in `StakePool` sends funds to the owner, the referee, or the relayer.
+- No function in `StakePool` sends funds to the owner, the referee, or the keeper.
 - Content the referee gathers is passed to models as quoted data. Model output must validate against a schema, or the check fails closed.
 - Red-team goals are flagged as tests so the results can be counted honestly; the verdict engine never sees that flag.

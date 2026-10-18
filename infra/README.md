@@ -1,38 +1,113 @@
-# infra (Agent A)
+# Deploying Cash Cow
 
-How the three services run for the event. Everything is on Base Sepolia (chain 84532); addresses and public URLs are in `shared/deployments.json`.
+Everything runs on free plans, with nothing on a laptop:
 
-| Service | Where | Public URL | Start |
-|---|---|---|---|
-| Relayer (`relayer/`) | A's laptop, port 8788 | `relayer_url` (Cloudflare quick tunnel) | `bash infra/run-relayer.sh` |
-| Web (`web/`) | A's laptop, port 3000 | `web_url` (Cloudflare quick tunnel) | `bash infra/run-web.sh` (macOS: `web/scripts/run-live.sh`) |
-| Referee (`referee/`) | B's laptop, port 8787 (needs a logged-in `claude` CLI) | `referee_url` (ngrok) | `referee/scripts/run-live.sh` |
+| Piece | Where | What it does |
+|---|---|---|
+| Web app (`web/`) | **Vercel** (Hobby) | The site. Users connect their own wallet and send their own transactions. Reads the contracts directly. |
+| Referee (`referee/`) | **Cloudflare Workers** + **D1**, cron every minute | Compiles goals, watches evidence, posts verdicts (referee key), and pays everyone out (keeper key). |
+| Models | **Gemini API**, free key | Goal compiling and the two substance judges. |
+| Contracts (`contracts/`) | **Base Sepolia** | `StakePool`, `MarketPool`, `CommitmentBond`. Test AUSD from Agora's faucet. |
+| Gas sponsorship (optional) | **Coinbase Developer Platform** paymaster | Passkey (Base Account) users pay no gas. |
 
-The `run-*.sh` scripts restart their service if it exits. Tunnels run separately, so a service restart keeps the same URL:
+Testnet only. Nothing here holds real value, and the free Gemini tier may use prompts to improve Google's products (the referee only sends public evidence).
 
+## 0. Accounts
+
+Create these, and turn on two-factor auth (an authenticator app or passkey, not SMS) for each one. Taking over any of them means taking over a key or the site.
+
+- GitHub (already have), Cloudflare, Vercel, Google AI Studio, Coinbase Developer Platform, and optionally Alchemy (a keyed RPC; the public `sepolia.base.org` is rate-limited).
+- Install Foundry (`forge`, `cast`) and pnpm.
+
+## 1. Keys
+
+Three wallets, each with one job. Each is an **encrypted keystore** (password prompt), so no private key is ever printed or written in plain text:
+
+```bash
+cast wallet new cashcow-deployer -p   # deploys the contracts; no special rights afterwards
+cast wallet new cashcow-referee -p    # posts verdicts; becomes the referee baked into StakePool
+cast wallet new cashcow-keeper -p     # pays gas for settle and payouts (anyone may call those)
+openssl rand -hex 32                  # ADMIN_KEY: store it in your password manager
 ```
-cloudflared tunnel --no-autoupdate --url http://localhost:8788   # relayer
-cloudflared tunnel --no-autoupdate --url http://localhost:3000   # web
+
+Keep each keystore's password in a password manager. Fund all three with a little Base Sepolia ETH from a faucet (e.g. the Coinbase Developer Platform faucet); `cast wallet address --account cashcow-keeper` prints an address.
+
+Why a fresh referee key: the hackathon one lived on a laptop behind tunnels, and the contracts are being redeployed anyway, so rotating it costs nothing now. It can't be rotated later without another redeploy.
+
+## 2. Contracts
+
+```bash
+cd contracts
+REFEREE_ADDRESS=$(cast wallet address --account cashcow-referee) \
+  forge script script/Deploy.s.sol --rpc-url https://sepolia.base.org --broadcast --account cashcow-deployer
+node scripts/export.mjs     # writes the three addresses + ABIs into shared/
 ```
 
-A quick-tunnel URL changes only when the tunnel itself restarts. If that happens, update `shared/deployments.json`, rebuild the web app, and tell the team.
+Commit `shared/deployments.json` and `shared/abi/`. Optional sanity check against real AUSD: `FORK_RPC_URL=https://sepolia.base.org forge test --match-contract Fork`.
 
-## Secrets (`.env` at the repo root, never committed)
+## 3. Referee on Cloudflare Workers
 
-`RPC_URL`, `TREASURY_PRIVATE_KEY` (relayer: pays gas, holds the AUSD for `/drip`), `ADMIN_KEY` (relayer admin routes). The referee keeps its own keys in `referee/.env`.
+```bash
+cd referee
+pnpm exec wrangler login
+pnpm exec wrangler d1 create cashcow-referee     # put the printed database_id into wrangler.jsonc
+pnpm cf:deploy                                    # prints https://cashcow-referee.<you>.workers.dev
+```
 
-## Contract
+Secrets, piped in so they never show on screen (each prompts for the keystore password):
 
-`StakePool` `0x1470af4526f820DC7Ca5bE70cA77bBf2400e76f9`, deployed with `contracts/script/Deploy.s.sol`, then `node contracts/scripts/export.mjs` writes the ABI and addresses to `shared/`. Referee (immutable): `0x57CB6D4f98979403D89A6c2d6A7c17ef4D54eD3B`. Token: testnet AUSD `0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC`, EIP-712 domain `Agora Dollar` / `1`.
+```bash
+cast wallet decrypt-keystore cashcow-referee | grep -oE '0x[0-9a-fA-F]{64}' | pnpm exec wrangler secret put REFEREE_PRIVATE_KEY
+cast wallet decrypt-keystore cashcow-keeper  | grep -oE '0x[0-9a-fA-F]{64}' | pnpm exec wrangler secret put KEEPER_PRIVATE_KEY
+pnpm exec wrangler secret put GEMINI_API_KEY      # from aistudio.google.com; give it its own Google Cloud project with a quota cap
+pnpm exec wrangler secret put GITHUB_TOKEN        # fine-grained token, public repositories read-only, no other scopes
+pnpm exec wrangler secret put ADMIN_KEY
+pnpm exec wrangler secret put RPC_URL             # e.g. your Alchemy Base Sepolia URL (it embeds a key, so it's a secret)
+```
 
-## Operations
+Check: `curl https://cashcow-referee.<you>.workers.dev/health` shows `chain`, `signer`, `models`, `keeper` and `github` all `true`.
 
-- **Treasury top-up:** `pnpm --filter relayer fund` mints 10,000 AUSD from the Agora faucet (needs a little Base Sepolia ETH).
-- **Create a cohort:** `POST /admin/cohorts` with header `x-admin-key` and body `{ stake_minutes, goal_minutes, stake }` or `{ stake_deadline, goal_deadline, stake }` (unix seconds). Anyone can start a group with the public `POST /groups` and body `{ stake_minutes, goal_minutes, stake }`.
-- **Settle and pay out:** automatic. The relayer's keeper settles each cohort 11 minutes after its goal deadline (the contract allows it at 10), then calls `claimFor` for every staker. Manual fallback: `POST /admin/settle`, `POST /admin/claim-all`.
-- **Red team:** `pnpm --filter redteam onchain`, `pnpm --filter redteam referee`, `pnpm --filter redteam report`, which writes `redteam/results.md`.
+Canvas stays off in production (its token is a real university account): don't set `CANVAS_TOKEN`.
 
-## Known limits
+## 4. Gas sponsorship (optional, recommended)
 
-- The public RPC `sepolia.base.org` caps `eth_getLogs` at 200 blocks and lags a few seconds behind receipts. The relayer scans logs in chunks and retries simulations.
-- Quick tunnels are for the event only. A real deployment would put the relayer and referee on long-running hosts with stable domains.
+In the Coinbase Developer Platform, create a project and open **Paymaster** on **Base Sepolia**. Its URL (`https://api.developer.coinbase.com/rpc/v1/base-sepolia/...`) is visible to every visitor, so the policy is what protects it:
+
+- **Allowlist only these contracts and functions:** StakePool (`stake`, `createCohort`, `claimFor`), MarketPool (`bet`, `resolve`, `claimFor`), CommitmentBond (`bond`, `resolve`, `claimFor`), AUSD (`approve`), and the Agora faucet `0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C` (`requestFunds`).
+- **Set per-user limits** (operations and gas per user per day).
+
+Without it, everything still works; every wallet just pays its own (free, test) gas.
+
+## 5. Web app on Vercel
+
+Import the GitHub repo. **Root Directory** `web` (leave "Include files outside the root directory" on, the app imports `../shared`). Environment variables:
+
+| Name | Value |
+|---|---|
+| `NEXT_PUBLIC_REFEREE_URL` | the `workers.dev` URL from step 3 |
+| `NEXT_PUBLIC_RPC_URL` | a Base Sepolia RPC for the browser. A keyed URL is public: in Alchemy, restrict the key to your Vercel domain. |
+| `NEXT_PUBLIC_PAYMASTER_URL` | from step 4 (optional) |
+| `NEXT_PUBLIC_WEB_URL` | your Vercel URL, for invite links |
+
+Then lock the referee to the site: set `"CORS_ORIGINS": "https://<your-app>.vercel.app"` in `referee/wrangler.jsonc` and run `pnpm cf:deploy` again. Put both URLs into `shared/deployments.json` (`referee_url`, `web_url`) and commit.
+
+Vercel Hobby is for non-commercial use. If this becomes a business, move to Vercel Pro or host the web app elsewhere.
+
+## 6. Check it end to end
+
+1. Open `/status` on the site: every row green.
+2. Connect a wallet, **Get test AUSD**, create a market with the shortest times, stake on a real task, and bet from a second browser.
+3. After the deadline: the verdict posts within a few minutes, and about 11 minutes after the deadline the keeper settles and pays everyone automatically (`pnpm exec wrangler tail` shows `[keeper] ...` lines).
+4. Red team, against the live system: `REDTEAM_PRIVATE_KEY=...` (a funded throwaway) `pnpm --filter redteam onchain` and `pnpm --filter redteam referee`, then `pnpm --filter redteam report`.
+
+## Running it
+
+- **Logs:** `cd referee && pnpm exec wrangler tail`.
+- **CPU limits:** the free plan gives each request and each cron run 10 ms of CPU and 50 outbound requests. Each run does bounded work (`KEEPER_MAX_SENDS`, `KEEPER_MAX_CHUNKS`, and caps on polls and decisions) and leaves the rest for the next minute. If the Workers dashboard shows CPU-limit errors, lower those, or move the referee to Vercel + Turso + an external cron: the code is runtime-neutral (`src/app.ts`), so only the entry point and the database backend change.
+- **Gas:** keep a few days of Base Sepolia ETH on the referee and keeper wallets.
+- **Admin:** `REFEREE_URL=https://cashcow-referee.<you>.workers.dev ADMIN_KEY=... pnpm --filter referee admin` lists goals needing a human; `admin pass|fail <id> "note"` overrides (counted publicly).
+- **Before each deploy:** `pnpm -r typecheck`, `pnpm --filter referee test`, `cd contracts && forge test`, `pnpm audit`, and a look at `git log -p` for anything that looks like a key.
+
+## Mainnet is a different project
+
+Going to mainnet changes what's at stake, not just a setting: real AUSD and real gas, contracts that hold real money (get them audited), the referee key moved to a hardware or KMS signer (ideally with verdicts signed off-chain so it never holds ETH), a paid model key with two different vendors, and legal advice first, because betting on whether people finish tasks is likely regulated as gambling or a prediction market. See `docs/deploy-plan.md`, Phase 6.

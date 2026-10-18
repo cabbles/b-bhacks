@@ -26,7 +26,7 @@ const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 
 async function http(base: string, path: string, body?: unknown, headers: Record<string, string> = {}) {
     const res = await fetch(`${base}${path}`, {
         method: body ? 'POST' : 'GET',
-        headers: { 'content-type': 'application/json', 'ngrok-skip-browser-warning': '1', ...headers },
+        headers: { 'content-type': 'application/json', ...headers },
         body: body ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();

@@ -1,16 +1,18 @@
 // x402 client demo: an agent pays the referee 0.10 AUSD per ruling, gaslessly (ERC-3009).
 //   pnpm x402-demo [referee_url]
-// Uses a fresh wallet funded by the relayer's /drip (100 AUSD). Prints each step of the 402 flow.
+// Uses a fresh wallet with test AUSD from the Agora faucet; KEEPER_PRIVATE_KEY (from .env) pays the faucet call's gas.
+// The agent itself never needs ETH. Prints each step of the 402 flow.
+import 'dotenv/config';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { createPublicClient, http, parseAbi, verifyMessage } from 'viem';
+import { createPublicClient, createWalletClient, http, parseAbi, verifyMessage, type Hex } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia } from 'viem/chains';
 import { hashJson } from '../src/types.ts';
 
 const dep = JSON.parse(readFileSync(new URL('../../shared/deployments.json', import.meta.url), 'utf8'));
 const base = (process.argv[2] ?? `http://localhost:${process.env.PORT ?? 8787}`).replace(/\/$/, '');
-const headers = { 'content-type': 'application/json', 'ngrok-skip-browser-warning': '1' };
+const headers = { 'content-type': 'application/json' };
 const body = JSON.stringify({
     goal_text: 'Add a temperature converter CLI with C/F conversion',
     evidence: { type: 'github', repo: 'alaramartin/referee-smoke', shas: process.env.SHAS?.split(',') ?? ['fbf13a991157b10b5f7296ed6ecac0d38d6bb4ba', '0345e08e337103fef125588265aa2d816f4e204b'] },
@@ -19,10 +21,16 @@ const pub = createPublicClient({ chain: baseSepolia, transport: http(process.env
 const bal = (a: `0x${string}`) => pub.readContract({ address: dep.token, abi: parseAbi(['function balanceOf(address) view returns (uint256)']), functionName: 'balanceOf', args: [a] });
 
 const payer = privateKeyToAccount(generatePrivateKey());
-console.log(`1. agent wallet ${payer.address}; asking the relayer faucet for AUSD`);
-const drip = await fetch(`${dep.relayer_url}/drip`, { method: 'POST', headers, body: JSON.stringify({ address: payer.address }) });
-if (!drip.ok) throw new Error(`drip failed: ${drip.status} ${await drip.text()}`);
-await pub.waitForTransactionReceipt({ hash: ((await drip.json()) as any).tx_hash });
+console.log(`1. agent wallet ${payer.address}; asking the Agora faucet for AUSD`);
+if (!process.env.KEEPER_PRIVATE_KEY) throw new Error('KEEPER_PRIVATE_KEY is required to pay the faucet call gas');
+const funder = createWalletClient({ chain: baseSepolia, transport: http(process.env.RPC_URL || 'https://sepolia.base.org'), account: privateKeyToAccount(process.env.KEEPER_PRIVATE_KEY as Hex) });
+const faucetTx = await funder.writeContract({
+    address: '0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C',
+    abi: parseAbi(['function requestFunds(address to)']),
+    functionName: 'requestFunds',
+    args: [payer.address],
+});
+await pub.waitForTransactionReceipt({ hash: faucetTx });
 while ((await bal(payer.address)) === 0n) await new Promise((r) => setTimeout(r, 2000)); // load-balanced RPC lag
 console.log(`   balance ${Number(await bal(payer.address)) / 1e6} AUSD, 0 ETH`);
 

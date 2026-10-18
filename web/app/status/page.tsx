@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { baseSepolia } from "viem/chains";
 import { authNonce, client, poolAbi } from "@/lib/chain";
-import { getConfig, TUNNEL_HEADERS } from "@/lib/api";
+import { getConfig } from "@/lib/api";
 import { addrUrl, MOCK_CHAIN, MOCK_REFEREE, PAYMASTER_URL, REFEREE_URL, RPC_URL } from "@/lib/env";
 import type { ChainConfig } from "@/lib/types";
 import { fmtAmount, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
@@ -35,7 +35,7 @@ export default function StatusPage() {
 
       if (!MOCK_REFEREE) {
         try {
-          const [r, ms] = await timed(() => fetch(REFEREE_URL + "/health", { cache: "no-store", headers: TUNNEL_HEADERS }).then((x) => x.json()));
+          const [r, ms] = await timed(() => fetch(REFEREE_URL + "/health", { cache: "no-store" }).then((x) => x.json()));
           push({ name: "Referee /health", ok: r?.ok === true, detail: `${REFEREE_URL} · ${ms} ms` });
         } catch (e) {
           push({ name: "Referee /health", ok: false, detail: `${REFEREE_URL} · ${(e as Error).message}` });
