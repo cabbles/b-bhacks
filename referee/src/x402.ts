@@ -2,7 +2,7 @@
 // HTTP 402 Payment Required + an ERC-3009 TransferWithAuthorization in the X-PAYMENT header
 // ("exact" scheme). Groups never pay this; it is how the referee would fund itself without
 // taking a cut of anyone's pot.
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { Context, Hono } from 'hono';
 import { getAddress, isAddress, verifyTypedData, type Hex } from 'viem';
 import { config, signerReady } from './config.ts';
 import { settlePayment, signAttestation, simulatePayment, type Authorization } from './chain.ts';
@@ -21,19 +21,20 @@ const token = () => (process.env.X402_ASSET || config.token) as Hex;
 const payTo = () => (process.env.X402_PAY_TO || config.refereeAddress) as Hex;
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64');
 
-function resourceUrl(req: FastifyRequest, path: string) {
-    // Behind the ngrok tunnel the public scheme and host arrive in forwarded headers.
-    const proto = String(req.headers['x-forwarded-proto'] ?? req.protocol).split(',')[0];
-    const host = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? req.hostname).split(',')[0];
+function resourceUrl(c: Context, path: string) {
+    // Behind a proxy or tunnel the public scheme and host arrive in forwarded headers.
+    const u = new URL(c.req.url);
+    const proto = (c.req.header('x-forwarded-proto') ?? u.protocol.replace(':', '')).split(',')[0];
+    const host = (c.req.header('x-forwarded-host') ?? u.host).split(',')[0];
     return `${proto}://${host}${path}`;
 }
 
-function requirements(req: FastifyRequest) {
+function requirements(c: Context) {
     return {
         scheme: 'exact',
         network: NETWORK,
         maxAmountRequired: PRICE.toString(),
-        resource: resourceUrl(req, '/x402/verify'),
+        resource: resourceUrl(c, '/x402/verify'),
         description: 'AI referee ruling: does this evidence plausibly deliver the stated goal? Two independent models, injection-hardened, signed result.',
         mimeType: 'application/json',
         payTo: payTo(),
@@ -43,8 +44,7 @@ function requirements(req: FastifyRequest) {
     };
 }
 
-const paymentRequired = (req: FastifyRequest, reply: FastifyReply, error: string) =>
-    reply.code(402).send({ x402Version: 1, error, accepts: [requirements(req)] });
+const paymentRequired = (c: Context, error: string) => c.json({ x402Version: 1, error, accepts: [requirements(c)] }, 402);
 
 const TRANSFER_TYPES = {
     TransferWithAuthorization: [
@@ -141,26 +141,26 @@ async function gather(e: any): Promise<{ evidence: unknown } | string> {
     return 'evidence.type must be "url" or "github"';
 }
 
-export async function x402Routes(app: FastifyInstance) {
-    app.post('/x402/verify', async (req, reply) => {
-        if (!signerReady() || !token()) return reply.code(503).send({ error: 'payments not configured' });
-        const b = (req.body ?? {}) as any;
+export function x402Routes(app: Hono) {
+    app.post('/x402/verify', async (c) => {
+        if (!signerReady() || !token()) return c.json({ error: 'payments not configured' }, 503);
+        const b = (await c.req.json().catch(() => ({}))) as any;
         if (typeof b.goal_text !== 'string' || !b.goal_text.trim() || b.goal_text.length > 2000)
-            return reply.code(400).send({ error: 'goal_text required (1-2000 chars)' });
+            return c.json({ error: 'goal_text required (1-2000 chars)' }, 400);
 
-        const header = req.headers['x-payment'];
-        if (typeof header !== 'string') return paymentRequired(req, reply, 'X-PAYMENT header is required');
+        const header = c.req.header('x-payment');
+        if (typeof header !== 'string') return paymentRequired(c, 'X-PAYMENT header is required');
         const pay = await checkPayment(header);
-        if (typeof pay === 'string') return paymentRequired(req, reply, pay);
+        if (typeof pay === 'string') return paymentRequired(c, pay);
 
         // Do the work first; only settle (take the money) if the ruling is delivered.
         const g = await gather(b.evidence);
-        if (typeof g === 'string') return reply.code(400).send({ error: g, charged: false });
+        if (typeof g === 'string') return c.json({ error: g, charged: false }, 400);
         const whitespace = (g.evidence as any).whitespace_only === true;
         const s = whitespace
             ? { check: { name: 'substance', passed: false, detail: 'Every commit changes whitespace only.' }, votes: [], split: false }
             : await judgeEvidence(b.goal_text, g.evidence);
-        if (!s.check) return reply.code(503).send({ error: 'model judges not configured', charged: false });
+        if (!s.check) return c.json({ error: 'model judges not configured', charged: false }, 503);
 
         const ruling = {
             version: 1,
@@ -177,13 +177,13 @@ export async function x402Routes(app: FastifyInstance) {
         try {
             tx = await settlePayment(token(), pay.auth, pay.signature);
         } catch (err) {
-            return paymentRequired(req, reply, `settlement failed: ${(err as Error).message.slice(0, 160)}`);
+            return paymentRequired(c, `settlement failed: ${(err as Error).message.slice(0, 160)}`);
         }
         const attestation = await signAttestation(evidenceHash);
-        reply.header('X-PAYMENT-RESPONSE', b64({ success: true, transaction: tx, network: NETWORK, payer: pay.auth.from }));
-        return { ruling, evidence_hash: evidenceHash, attestation, payment: { transaction: tx, payer: pay.auth.from, amount: pay.auth.value.toString() } };
+        c.header('X-PAYMENT-RESPONSE', b64({ success: true, transaction: tx, network: NETWORK, payer: pay.auth.from }));
+        return c.json({ ruling, evidence_hash: evidenceHash, attestation, payment: { transaction: tx, payer: pay.auth.from, amount: pay.auth.value.toString() } });
     });
 
     // Free, machine-readable price list for agents discovering the API.
-    app.get('/x402', async (req) => ({ x402Version: 1, endpoints: { 'POST /x402/verify': requirements(req) } }));
+    app.get('/x402', (c) => c.json({ x402Version: 1, endpoints: { 'POST /x402/verify': requirements(c) } }));
 }

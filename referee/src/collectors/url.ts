@@ -22,7 +22,16 @@ function privateAddress(ip: string): boolean {
 
 async function assertPublic(url: URL) {
     if (url.protocol !== 'https:') throw new Error('only https is fetched');
-    const addrs = await lookup(url.hostname, { all: true });
+    const host = url.hostname.replace(/^\[|\]$/g, '');
+    if (host === 'localhost' || host.endsWith('.localhost') || (isIP(host) && privateAddress(host))) throw new Error('host is a private address');
+    let addrs: { address: string }[];
+    try {
+        addrs = await lookup(host, { all: true });
+    } catch (err) {
+        // Workers has no general DNS lookup, but its fetch can only reach the public internet anyway.
+        if (/not implemented|unsupported|ENOTSUP/i.test(String((err as Error)?.message ?? err))) return;
+        throw err;
+    }
     if (!addrs.length || addrs.some((a) => privateAddress(a.address))) throw new Error('host resolves to a private address');
 }
 

@@ -1,11 +1,11 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { Context, Hono } from 'hono';
 import type { Hex } from 'viem';
 import { config } from './config.ts';
-import { db, getGoal, nowIso, type GoalRow } from './db.ts';
+import { db, getGoal, nowIso, rateAllowed, type GoalRow } from './db.ts';
 import { getCohort, verifyStake } from './chain.ts';
 import { CompileError, compileGoal } from './compile.ts';
-import { decide, override, takeSnapshot } from './engine.ts';
-import { postIfReady } from './worker.ts';
+import { override, takeSnapshot } from './engine.ts';
+import { decideAndPost, postIfReady } from './worker.ts';
 import { hashJson, type Criteria } from './types.ts';
 
 export const ATTACK_CATEGORIES = [
@@ -27,32 +27,34 @@ function guessCategory(note: string): string {
     return 'other';
 }
 
-const bad = (reply: FastifyReply, code: number, error: string) => reply.code(code).send({ error });
+const bad = (c: Context, code: number, error: string) => c.json({ error }, code as any);
+const body = (c: Context) => c.req.json().catch(() => ({})) as Promise<any>;
 
-// Compile runs a model call on the team's Claude subscription, so cap it. Keyed by staker, not IP:
-// the whole room shares one Wi-Fi IP.
+// Compile spends model quota (the free Gemini tier is small), so cap it. Keyed by staker, not IP: many users can
+// share one IP. Counted in the database so the cap holds across Worker instances.
 const COMPILE_PER_STAKER_PER_HOUR = Number(process.env.COMPILE_PER_STAKER_PER_HOUR ?? 15);
 const COMPILE_TOTAL_PER_HOUR = Number(process.env.COMPILE_TOTAL_PER_HOUR ?? 400);
-const compileLog = new Map<string, number[]>();
-function compileAllowed(staker: string): string | null {
-    const hourAgo = Date.now() - 3_600_000;
-    let total = 0;
-    for (const [k, ts] of compileLog) {
-        const recent = ts.filter((t) => t > hourAgo);
-        if (recent.length) compileLog.set(k, recent);
-        else compileLog.delete(k);
-        total += recent.length;
-    }
-    const mine = compileLog.get(staker) ?? [];
-    if (mine.length >= COMPILE_PER_STAKER_PER_HOUR) return 'Too many goal checks from this wallet. Try again in a few minutes.';
-    if (total >= COMPILE_TOTAL_PER_HOUR) return 'The referee is busy. Try again in a few minutes.';
-    compileLog.set(staker, [...mine, Date.now()]);
+async function compileAllowed(staker: string): Promise<string | null> {
+    if (!(await rateAllowed(`compile:${staker}`, COMPILE_PER_STAKER_PER_HOUR, 3_600_000)))
+        return 'Too many goal checks from this wallet. Try again in a few minutes.';
+    if (!(await rateAllowed('compile:*', COMPILE_TOTAL_PER_HOUR, 3_600_000))) return 'The referee is busy. Try again in a few minutes.';
     return null;
 }
 
-function isAdmin(req: FastifyRequest) {
-    const key = req.headers['x-admin-key'] ?? (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
-    return Boolean(config.adminKey) && key === config.adminKey;
+/** Constant-time comparison: hash both sides so length and content leak nothing through timing. */
+async function safeEqual(a: string, b: string): Promise<boolean> {
+    const enc = new TextEncoder();
+    const [x, y] = await Promise.all([crypto.subtle.digest('SHA-256', enc.encode(a)), crypto.subtle.digest('SHA-256', enc.encode(b))]);
+    const xa = new Uint8Array(x);
+    const ya = new Uint8Array(y);
+    let diff = 0;
+    for (let i = 0; i < xa.length; i++) diff |= xa[i] ^ ya[i];
+    return diff === 0;
+}
+
+async function isAdmin(c: Context) {
+    const key = c.req.header('x-admin-key') ?? (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '');
+    return Boolean(config.adminKey) && key.length > 0 && (await safeEqual(key, config.adminKey));
 }
 
 function validCriteria(c: any): c is Criteria {
@@ -90,50 +92,49 @@ function attackOutcome(g: GoalRow) {
     return null;
 }
 
-export async function routes(app: FastifyInstance) {
-    app.get('/health', async () => ({ ok: true }));
+export function routes(app: Hono) {
+    app.get('/health', (c) => c.json({ ok: true }));
 
-    app.post('/goals/compile', async (req, reply) => {
-        const b = (req.body ?? {}) as any;
-        if (typeof b.staker === 'string') {
-            const limited = compileAllowed(b.staker.toLowerCase());
-            if (limited) return bad(reply, 429, limited);
-        }
+    app.post('/goals/compile', async (c) => {
+        const b = await body(c);
+        if (typeof b.staker !== 'string') return bad(c, 400, 'staker must be an address');
+        const limited = await compileAllowed(b.staker.toLowerCase());
+        if (limited) return bad(c, 429, limited);
         try {
-            return await compileGoal({ text: b.text, staker: b.staker, type_hint: b.type_hint, cohort_id: b.cohort_id, deadline: b.deadline });
+            return c.json(await compileGoal({ text: b.text, staker: b.staker, type_hint: b.type_hint, cohort_id: b.cohort_id, deadline: b.deadline }));
         } catch (err) {
-            if (err instanceof CompileError) return bad(reply, 400, err.message);
+            if (err instanceof CompileError) return bad(c, 400, err.message);
             throw err;
         }
     });
 
-    app.post('/goals', async (req, reply) => {
-        const b = (req.body ?? {}) as any;
+    app.post('/goals', async (c) => {
+        const b = await body(c);
         const cohortId = Number(b.cohort_id);
-        if (!Number.isInteger(cohortId) || cohortId < 0) return bad(reply, 400, 'cohort_id required');
-        if (!validCriteria(b.criteria)) return bad(reply, 400, 'criteria does not match the schema');
-        if (!/^0x[0-9a-fA-F]{64}$/.test(b.stake_tx_hash ?? '')) return bad(reply, 400, 'stake_tx_hash required');
+        if (!Number.isInteger(cohortId) || cohortId < 0) return bad(c, 400, 'cohort_id required');
+        if (!validCriteria(b.criteria)) return bad(c, 400, 'criteria does not match the schema');
+        if (!/^0x[0-9a-fA-F]{64}$/.test(b.stake_tx_hash ?? '')) return bad(c, 400, 'stake_tx_hash required');
         const criteria = b.criteria as Criteria;
         const goalHash = hashJson(criteria);
 
-        const existing = db.prepare('SELECT * FROM goals WHERE cohort_id = ? AND lower(staker) = lower(?)').get(cohortId, criteria.staker) as GoalRow | undefined;
+        const existing = await db().get<GoalRow>('SELECT * FROM goals WHERE cohort_id = ? AND lower(staker) = lower(?)', cohortId, criteria.staker);
         if (existing) {
-            if (existing.goal_hash === goalHash) return { goal_id: existing.id };
-            return bad(reply, 409, 'staker already has a goal in this cohort');
+            if (existing.goal_hash === goalHash) return c.json({ goal_id: existing.id });
+            return bad(c, 409, 'staker already has a goal in this cohort');
         }
-        const count = (db.prepare('SELECT COUNT(*) n FROM goals WHERE cohort_id = ?').get(cohortId) as any).n;
-        if (count >= config.maxGoalsPerCohort) return bad(reply, 429, 'cohort is full');
+        const count = (await db().get<{ n: number }>('SELECT COUNT(*) AS n FROM goals WHERE cohort_id = ?', cohortId))?.n ?? 0;
+        if (count >= config.maxGoalsPerCohort) return bad(c, 429, 'cohort is full');
 
         const cohort = await getCohort(cohortId).catch(() => null);
         if (!config.skipStakeCheck) {
             const err = await verifyStake(b.stake_tx_hash as Hex, cohortId, criteria.staker, goalHash);
-            if (err) return bad(reply, 400, err);
-            if (!cohort) return bad(reply, 400, 'unknown cohort');
+            if (err) return bad(c, 400, err);
+            if (!cohort) return bad(c, 400, 'unknown cohort');
             if (Date.parse(criteria.window.deadline) > cohort.goal_deadline * 1000)
-                return bad(reply, 400, 'criteria deadline is after the cohort goal deadline');
+                return bad(c, 400, 'criteria deadline is after the cohort goal deadline');
         }
         if (criteria.type === 'canvas_submission' && !config.canvasAllowed.includes(criteria.staker.toLowerCase()))
-            return bad(reply, 400, 'Canvas goals are limited to the team demo account');
+            return bad(c, 400, 'Canvas goals are limited to the team demo account');
 
         const isAttack = Boolean(b.is_attack);
         // Web sends the category as a "[category] note" prefix; an explicit attack_category also works.
@@ -144,34 +145,35 @@ export async function routes(app: FastifyInstance) {
         const category = isAttack
             ? ATTACK_CATEGORIES.includes(declared) ? declared : guessCategory(note ?? '')
             : null;
-        const info = db.prepare(
+        const info = await db().run(
             `INSERT INTO goals (cohort_id, staker, goal_hash, type, criteria_json, stake_tx_hash, cohort_goal_deadline,
                 is_attack, attack_category, attack_note, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-        ).run(cohortId, criteria.staker, goalHash, criteria.type, JSON.stringify(criteria), b.stake_tx_hash,
-            cohort?.goal_deadline ?? null, isAttack ? 1 : 0, category, note, nowIso());
-        const goalId = Number(info.lastInsertRowid);
+            cohortId, criteria.staker, goalHash, criteria.type, JSON.stringify(criteria), b.stake_tx_hash,
+            cohort?.goal_deadline ?? null, isAttack ? 1 : 0, category, note, nowIso(),
+        );
+        const goalId = info.lastId;
         try {
             await takeSnapshot(goalId);
         } catch (err) {
-            req.log.error({ err, goalId }, 'snapshot failed');
-            db.prepare('UPDATE goals SET last_error = ? WHERE id = ?').run(`snapshot: ${(err as Error).message}`, goalId);
+            console.error(`[routes] goal ${goalId}: snapshot failed: ${(err as Error).message}`);
+            await db().run('UPDATE goals SET last_error = ? WHERE id = ?', `snapshot: ${(err as Error).message}`, goalId);
         }
-        return { goal_id: goalId };
+        return c.json({ goal_id: goalId });
     });
 
-    app.get('/goals/:id', async (req, reply) => {
-        const g = getGoal(Number((req.params as any).id));
-        if (!g) return bad(reply, 404, 'not found');
-        return publicGoal(g);
+    app.get('/goals/:id', async (c) => {
+        const g = await getGoal(Number(c.req.param('id')));
+        if (!g) return bad(c, 404, 'not found');
+        return c.json(publicGoal(g));
     });
 
-    app.get('/cohorts/:id', async (req) => {
-        const id = Number((req.params as any).id);
+    app.get('/cohorts/:id', async (c) => {
+        const id = Number(c.req.param('id'));
         const cohort = await getCohort(id).catch(() => null);
-        const rows = db.prepare('SELECT * FROM goals WHERE cohort_id = ? ORDER BY id').all(id) as GoalRow[];
+        const rows = await db().all<GoalRow>('SELECT * FROM goals WHERE cohort_id = ? ORDER BY id', id);
         const by = (s: string) => rows.filter((r) => r.status === s).length;
         const stakeAmount = cohort ? BigInt(cohort.stake_amount) : 0n;
-        return {
+        return c.json({
             cohort: cohort ?? { id },
             goals: rows.map((g) => ({
                 goal_id: g.id,
@@ -196,51 +198,53 @@ export async function routes(app: FastifyInstance) {
                 verdicts_pending: rows.filter((r) => !r.verdict_tx_hash).length,
                 pot: (stakeAmount * BigInt(rows.length)).toString(),
             },
-        };
+        });
     });
 
-    app.post('/goals/:id/verify', async (req, reply) => {
-        if (!isAdmin(req)) return bad(reply, 401, 'admin key required');
-        const id = Number((req.params as any).id);
-        if (!getGoal(id)) return bad(reply, 404, 'not found');
-        const verdict = await decide(id);
-        postIfReady(getGoal(id)!).catch((e) => req.log.error(e, 'post failed'));
-        return { verdict };
+    app.post('/goals/:id/verify', async (c) => {
+        if (!(await isAdmin(c))) return bad(c, 401, 'admin key required');
+        const id = Number(c.req.param('id'));
+        if (!(await getGoal(id))) return bad(c, 404, 'not found');
+        return c.json({ verdict: await decideAndPost(id) });
     });
 
     // Human override for needs_human (or any unposted verdict). Counted and shown publicly.
-    app.post('/goals/:id/override', async (req, reply) => {
-        if (!isAdmin(req)) return bad(reply, 401, 'admin key required');
-        const id = Number((req.params as any).id);
-        const b = (req.body ?? {}) as any;
-        if (typeof b.passed !== 'boolean') return bad(reply, 400, 'passed (boolean) required');
-        if (!getGoal(id)) return bad(reply, 404, 'not found');
+    app.post('/goals/:id/override', async (c) => {
+        if (!(await isAdmin(c))) return bad(c, 401, 'admin key required');
+        const id = Number(c.req.param('id'));
+        const b = await body(c);
+        if (typeof b.passed !== 'boolean') return bad(c, 400, 'passed (boolean) required');
+        if (!(await getGoal(id))) return bad(c, 404, 'not found');
+        let verdict;
         try {
-            const verdict = override(id, b.passed, String(b.note ?? ''));
-            postIfReady(getGoal(id)!).catch((e) => req.log.error(e, 'post failed'));
-            return { verdict };
+            verdict = await override(id, b.passed, String(b.note ?? ''));
         } catch (err) {
-            return bad(reply, 409, (err as Error).message);
+            return bad(c, 409, (err as Error).message);
         }
+        const g = await getGoal(id);
+        if (g) await postIfReady(g).catch((e) => console.error(`[routes] goal ${id}: post failed: ${(e as Error).message}`));
+        return c.json({ verdict });
     });
 
-    app.get('/attacks', async () => {
-        const rows = db.prepare('SELECT * FROM goals WHERE is_attack = 1 ORDER BY id DESC').all() as GoalRow[];
-        return rows
-            .filter((g) => attackOutcome(g))
-            .map((g) => ({
-                goal_id: g.id,
-                category: g.attack_category ?? 'other',
-                note: g.attack_note ?? '',
-                outcome: attackOutcome(g),
-                decided_at: g.decided_at,
-            }));
+    app.get('/attacks', async (c) => {
+        const rows = await db().all<GoalRow>('SELECT * FROM goals WHERE is_attack = 1 ORDER BY id DESC');
+        return c.json(
+            rows
+                .filter((g) => attackOutcome(g))
+                .map((g) => ({
+                    goal_id: g.id,
+                    category: g.attack_category ?? 'other',
+                    note: g.attack_note ?? '',
+                    outcome: attackOutcome(g),
+                    decided_at: g.decided_at,
+                })),
+        );
     });
 
     // Not in the frozen API; for the admin queue and the README numbers.
-    app.get('/admin/queue', async (req, reply) => {
-        if (!isAdmin(req)) return bad(reply, 401, 'admin key required');
-        const rows = db.prepare("SELECT * FROM goals WHERE status = 'needs_human' OR last_error IS NOT NULL ORDER BY id").all() as GoalRow[];
-        return rows.map((g) => ({ ...publicGoal(g), last_error: g.last_error }));
+    app.get('/admin/queue', async (c) => {
+        if (!(await isAdmin(c))) return bad(c, 401, 'admin key required');
+        const rows = await db().all<GoalRow>("SELECT * FROM goals WHERE status = 'needs_human' OR last_error IS NOT NULL ORDER BY id");
+        return c.json(rows.map((g) => ({ ...publicGoal(g), last_error: g.last_error })));
     });
 }

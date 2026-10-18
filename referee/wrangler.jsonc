@@ -1,0 +1,29 @@
+// Cloudflare Workers config for the referee.
+//   Local:  pnpm cf:dev            (secrets from referee/.dev.vars, never committed)
+//   Deploy: pnpm cf:deploy         (secrets via `wrangler secret put NAME`, never in this file)
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cashcow-referee",
+  "main": "src/cf.ts",
+  "compatibility_date": "2026-09-25",
+  // Node APIs (Buffer, process.env populated from vars and secrets).
+  "compatibility_flags": ["nodejs_compat"],
+  // The judging loop and the payout keeper, once a minute.
+  "triggers": { "crons": ["* * * * *"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cashcow-referee",
+      // From `wrangler d1 create cashcow-referee`.
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  // Non-secret settings. Keys, tokens and the RPC URL (it may embed a key) are secrets, set with `wrangler secret put`:
+  // REFEREE_PRIVATE_KEY, KEEPER_PRIVATE_KEY, GEMINI_API_KEY, GITHUB_TOKEN, ADMIN_KEY, RPC_URL
+  "vars": {
+    "MODEL_PROVIDER": "gemini",
+    // The site's origin(s), comma-separated, e.g. "https://cashcow.vercel.app". Empty allows any origin.
+    "CORS_ORIGINS": ""
+  },
+  "observability": { "enabled": true }
+}

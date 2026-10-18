@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { config } from './config.ts';
-import { db, getGoal, nowIso, observations, observe, type GoalRow } from './db.ts';
+import { db, getGoal, nowIso, observations, observe, observeMany, type GoalRow } from './db.ts';
 import { aheadOfParent, commitDetail, fileExists, foundElsewhere, isWhitespaceOnly, listBranches, listBranchShas, repoInfo, type CommitDetail } from './collectors/github.ts';
 import { fetchText, visibleText, wellKnownUrl } from './collectors/url.ts';
 import { ownSubmission } from './collectors/canvas.ts';
@@ -26,7 +26,7 @@ const includesCI = (hay: string, needle: string) => hay.toLowerCase().includes(n
 /* ---------------------------------------------------------------- snapshot */
 
 export async function takeSnapshot(goalId: number) {
-    const g = getGoal(goalId)!;
+    const g = (await getGoal(goalId))!;
     const c = criteriaOf(g);
     let snap: Record<string, unknown> = { taken_at: iso() };
     if (c.type === 'github_commits') {
@@ -37,25 +37,25 @@ export async function takeSnapshot(goalId: number) {
         const branches = info.exists ? [p.branch, ...(await listBranches(p.repo)).filter((b) => b !== p.branch)].slice(0, 30) : [];
         const shas = new Set<string>();
         for (const b of branches) for (const sha of (await listBranchShas(p.repo, b)) ?? []) shas.add(sha);
-        for (const sha of shas) observe(goalId, 'github_commit', sha, null, true);
+        await observeMany(goalId, 'github_commit', shas, true);
         snap = { ...snap, repo: info, branches_snapshotted: branches.length, preexisting_commits: shas.size };
     } else if (c.type === 'url_live') {
         const p = c.params as UrlParams;
         const page = await fetchText(p.url);
         const live = page.ok && includesCI(visibleText(page.text), p.must_contain);
-        observe(goalId, 'url_fetch', 'stake', { status: page.status, error: page.error, contains_text: live });
+        await observe(goalId, 'url_fetch', 'stake', { status: page.status, error: page.error, contains_text: live });
         snap = { ...snap, status: page.status, contains_text: live };
     } else if (c.type === 'canvas_submission') {
         const p = c.params as CanvasParams;
         try {
             const sub = await ownSubmission(p.course_id, p.assignment_id);
-            observe(goalId, 'canvas_submission', 'stake', sub);
+            await observe(goalId, 'canvas_submission', 'stake', sub);
             snap = { ...snap, submission: sub };
         } catch (err) {
             snap = { ...snap, error: (err as Error).message };
         }
     }
-    db.prepare('UPDATE goals SET snapshot_json = ? WHERE id = ?').run(JSON.stringify(snap), goalId);
+    await db().run('UPDATE goals SET snapshot_json = ? WHERE id = ?', JSON.stringify(snap), goalId);
 }
 
 /* ----------------------------------------------------------------- polling */
@@ -64,7 +64,7 @@ export async function pollGithub(g: GoalRow) {
     const c = criteriaOf(g);
     const p = c.params as GithubParams;
     const shas = await listBranchShas(p.repo, p.branch);
-    for (const sha of shas ?? []) observe(g.id, 'github_commit', sha, null, false);
+    await observeMany(g.id, 'github_commit', shas ?? [], false);
 }
 
 /* --------------------------------------------------------------- substance */
@@ -151,7 +151,7 @@ async function judgeGithub(g: GoalRow, c: Criteria): Promise<Outcome> {
     const tip = new Set((await listBranchShas(p.repo, p.branch)) ?? []);
     const start = Date.parse(c.window.start);
     const deadline = Date.parse(c.window.deadline);
-    const seen = observations(g.id, 'github_commit');
+    const seen = await observations(g.id, 'github_commit');
     const inWindow = seen.filter((o) => {
         const t = Date.parse(o.first_seen);
         return !o.pre_window && t >= start && t <= deadline && tip.has(o.ref);
@@ -229,7 +229,7 @@ async function judgeUrl(g: GoalRow, c: Criteria): Promise<Outcome> {
     const checks: Check[] = [];
     const evidence: Evidence[] = [];
 
-    const stake = observations(g.id, 'url_fetch').find((o) => o.ref === 'stake');
+    const stake = (await observations(g.id, 'url_fetch')).find((o) => o.ref === 'stake');
     const stakeData = stake?.data_json ? JSON.parse(stake.data_json) : null;
     checks.push({
         name: 'not_live_at_stake',
@@ -246,8 +246,8 @@ async function judgeUrl(g: GoalRow, c: Criteria): Promise<Outcome> {
     const text = page.ok ? visibleText(page.text) : '';
     const live = page.ok && includesCI(text, p.must_contain);
     const control = (page.ok && page.text.includes(c.nonce)) || (wk.ok && wk.text.includes(c.nonce));
-    observe(g.id, 'url_fetch', 'deadline', { status: page.status, error: page.error, contains_text: live, control });
-    const fetchedAt = observations(g.id, 'url_fetch').find((o) => o.ref === 'deadline')!.first_seen;
+    await observe(g.id, 'url_fetch', 'deadline', { status: page.status, error: page.error, contains_text: live, control });
+    const fetchedAt = (await observations(g.id, 'url_fetch')).find((o) => o.ref === 'deadline')!.first_seen;
     evidence.push({ kind: 'url_fetch', ref: `${p.url}#deadline`, first_seen: iso(Date.parse(fetchedAt)) });
 
     checks.push({
@@ -287,7 +287,7 @@ async function judgeCanvas(g: GoalRow, c: Criteria): Promise<Outcome> {
         };
     }
     const sub = await ownSubmission(p.course_id, p.assignment_id);
-    observe(g.id, 'canvas_submission', 'deadline', sub);
+    await observe(g.id, 'canvas_submission', 'deadline', sub);
     const at = sub.submitted_at ? Date.parse(sub.submitted_at) : NaN;
     const inWindow = at >= Date.parse(c.window.start) && at <= Date.parse(c.window.deadline);
     const submitted = ['submitted', 'graded', 'pending_review'].includes(sub.workflow_state) && inWindow;
@@ -319,7 +319,7 @@ function reasonsFor(passed: boolean, split: boolean, checks: Check[]): string {
 
 /** Decide one goal. Throws on transient collector errors so the caller retries later. Idempotent. */
 export async function decide(goalId: number): Promise<Verdict> {
-    const g = getGoal(goalId)!;
+    const g = (await getGoal(goalId))!;
     if (g.verdict_json) return JSON.parse(g.verdict_json);
     const c = criteriaOf(g);
     const out =
@@ -342,15 +342,16 @@ export async function decide(goalId: number): Promise<Verdict> {
     };
     const status = out.split ? 'needs_human' : passed ? 'passed' : 'failed';
     // Guard against a concurrent decide (tick + admin verify).
-    const res = db
-        .prepare('UPDATE goals SET verdict_json = ?, evidence_hash = ?, status = ?, decided_at = ?, last_error = NULL WHERE id = ? AND verdict_json IS NULL')
-        .run(JSON.stringify(verdict), hashJson(verdict), status, verdict.decided_at, goalId);
-    if (res.changes === 0) return JSON.parse(getGoal(goalId)!.verdict_json!);
+    const res = await db().run(
+        'UPDATE goals SET verdict_json = ?, evidence_hash = ?, status = ?, decided_at = ?, last_error = NULL WHERE id = ? AND verdict_json IS NULL',
+        JSON.stringify(verdict), hashJson(verdict), status, verdict.decided_at, goalId,
+    );
+    if (res.changes === 0) return JSON.parse((await getGoal(goalId))!.verdict_json!);
     return verdict;
 }
 
-export function override(goalId: number, passed: boolean, note: string): Verdict {
-    const g = getGoal(goalId)!;
+export async function override(goalId: number, passed: boolean, note: string): Promise<Verdict> {
+    const g = (await getGoal(goalId))!;
     if (!g.verdict_json) throw new Error('goal has no verdict yet');
     if (g.verdict_tx_hash) throw new Error('verdict already posted on chain');
     const v: Verdict = JSON.parse(g.verdict_json);
@@ -366,9 +367,10 @@ export function override(goalId: number, passed: boolean, note: string): Verdict
         human_override: true,
         decided_at: iso(),
     };
-    db.prepare(
+    await db().run(
         'UPDATE goals SET verdict_json = ?, evidence_hash = ?, status = ?, decided_at = ?, human_override = 1, override_note = ? WHERE id = ?',
-    ).run(JSON.stringify(next), hashJson(next), passed ? 'passed' : 'failed', next.decided_at, note, goalId);
+        JSON.stringify(next), hashJson(next), passed ? 'passed' : 'failed', next.decided_at, note, goalId,
+    );
     return next;
 }
 

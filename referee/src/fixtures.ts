@@ -1,9 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import type { FastifyInstance } from 'fastify';
-import { SHARED_DIR } from './config.ts';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { Hono } from 'hono';
 
-// REFEREE_FIXTURES=1: serve every route from shared/fixtures so web can integrate before the engine is live.
+const SHARED_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../shared');
+
+// REFEREE_FIXTURES=1 (local Node only): serve every route from shared/fixtures, for rehearsals and web work.
 
 function load(): Record<string, any> {
     const dir = resolve(SHARED_DIR, 'fixtures');
@@ -27,7 +29,7 @@ function load(): Record<string, any> {
 const pick = (fx: Record<string, any>, ...words: string[]) =>
     Object.entries(fx).find(([k]) => words.every((w) => k.toLowerCase().includes(w)))?.[1];
 
-export async function fixtureRoutes(app: FastifyInstance) {
+export function fixtureRoutes(app: Hono) {
     const fx = load();
     const criteria = pick(fx, 'criteria', 'github') ?? pick(fx, 'criteria') ?? {
         version: 1, type: 'github_commits', staker: '0x0000000000000000000000000000000000000001',
@@ -36,27 +38,27 @@ export async function fixtureRoutes(app: FastifyInstance) {
     };
     const verdict = pick(fx, 'verdict', 'github') ?? pick(fx, 'verdict') ?? null;
 
-    app.get('/health', async () => ({ ok: true, fixtures: true }));
-    app.post('/goals/compile', async () =>
-        pick(fx, 'compile') ?? {
+    app.get('/health', (c) => c.json({ ok: true, fixtures: true }));
+    app.post('/goals/compile', (c) =>
+        c.json(pick(fx, 'compile') ?? {
             criteria,
             goal_hash: '0x' + '11'.repeat(32),
             summary: 'Push at least 2 new commits to octocat/hello (main) before the deadline.',
             control_proof: `Commit an empty file at .referee/${criteria.nonce}.`,
-        });
-    app.post('/goals', async () => pick(fx, 'goals', 'post') ?? { goal_id: 1 });
-    app.get('/goals/:id', async () =>
-        pick(fx, 'goal', 'get') ?? {
+        }));
+    app.post('/goals', (c) => c.json(pick(fx, 'goals', 'post') ?? { goal_id: 1 }));
+    app.get('/goals/:id', (c) =>
+        c.json(pick(fx, 'goal', 'get') ?? {
             goal_id: 1, status: verdict ? (verdict.passed ? 'passed' : 'failed') : 'watching', criteria,
             verdict: verdict ?? undefined, verdict_tx_hash: verdict ? '0x' + '22'.repeat(32) : undefined,
-        });
-    app.get('/cohorts/:id', async (req) =>
-        pick(fx, 'cohort') ?? {
-            cohort: { id: Number((req.params as any).id), stake_deadline: 0, goal_deadline: 0, stake_amount: '10000000' },
+        }));
+    app.get('/cohorts/:id', (c) =>
+        c.json(pick(fx, 'cohort') ?? {
+            cohort: { id: Number(c.req.param('id')), stake_deadline: 0, goal_deadline: 0, stake_amount: '10000000' },
             goals: [{ goal_id: 1, staker: criteria.staker, type: criteria.type, goal_text: criteria.goal_text, status: 'watching', is_attack: false, human_override: false }],
             stats: { stakers: 1, watching: 1, passed: 0, failed: 0, needs_human: 0, attacks: 0, human_overrides: 0, pot: '10000000' },
-        });
-    app.post('/goals/:id/verify', async () => ({ verdict }));
-    app.get('/attacks', async () =>
-        pick(fx, 'attacks') ?? [{ goal_id: 2, category: 'backdated_commits', note: 'git commit --date 2020', outcome: 'caught', decided_at: '2026-10-11T23:01:00Z' }]);
+        }));
+    app.post('/goals/:id/verify', (c) => c.json({ verdict }));
+    app.get('/attacks', (c) =>
+        c.json(pick(fx, 'attacks') ?? [{ goal_id: 2, category: 'backdated_commits', note: 'git commit --date 2020', outcome: 'caught', decided_at: '2026-10-11T23:01:00Z' }]));
 }

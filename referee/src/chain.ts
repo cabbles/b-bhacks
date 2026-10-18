@@ -16,7 +16,8 @@ export const poolAbi = parseAbi([
 ]);
 
 export const chain = config.chainId === 11155111 ? sepolia : baseSepolia;
-export const transport = http(config.rpcUrl || undefined);
+// JSON-RPC batching: concurrent reads share one HTTP request (Workers caps outbound requests per run).
+export const transport = http(config.rpcUrl || undefined, { batch: true });
 export const publicClient = createPublicClient({ chain, transport });
 const wallet = signerReady()
     ? createWalletClient({ chain, transport, account: privateKeyToAccount(config.refereeKey as Hex, { nonceManager }) })
@@ -89,12 +90,12 @@ export async function postVerdictOnChain(
     staker: string,
     passed: boolean,
     evidenceHash: Hex,
-    onSent: (hash: Hex) => void,
+    onSent: (hash: Hex) => unknown,
 ): Promise<Hex> {
     const send = sendQueue.then(() => sendVerdict(cohortId, staker, passed, evidenceHash));
     sendQueue = send.catch(() => {});
     const hash = await send;
-    onSent(hash); // record before waiting, so a crash here never loses the tx hash
+    await onSent(hash); // record before waiting, so a crash here never loses the tx hash
     const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
     if (receipt.status !== 'success') throw new Error(`postVerdict reverted in ${hash}`);
     return hash;

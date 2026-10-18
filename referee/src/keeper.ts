@@ -2,7 +2,7 @@ import { createWalletClient, nonceManager, parseAbi, type Abi, type Address, typ
 import { privateKeyToAccount } from 'viem/accounts';
 import { chain, publicClient, transport } from './chain.ts';
 import { config } from './config.ts';
-import { db, nowIso } from './db.ts';
+import { db, nowIso, type Statement } from './db.ts';
 
 // The keeper settles each round once the contract allows it, then pays everyone: stakers, the task
 // owner's bond, and winning bettors. Every call it makes can be made by anyone, and funds only ever go
@@ -34,8 +34,6 @@ const bondAbi = parseAbi([
 
 const SETTLE_DELAY_S = 600; // StakePool.SETTLE_DELAY
 const GRACE_S = 60; // let late verdicts land before settling
-const MAX_CHUNKS_PER_TICK = 25;
-const MAX_SENDS_PER_TICK = 20;
 
 const POOL = config.pool.toLowerCase();
 
@@ -47,17 +45,20 @@ export const keeperAddress = () => keeper?.account.address ?? null;
 
 /* ------------------------------------------------------------ event scan */
 
-const getState = (key: string) => (db.prepare('SELECT value FROM keeper_state WHERE key = ?').get(key) as { value: string } | undefined)?.value;
-const setState = (key: string, value: string) =>
-    db.prepare('INSERT INTO keeper_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
+const getState = async (key: string) => (await db().get<{ value: string }>('SELECT value FROM keeper_state WHERE key = ?', key))?.value;
+const setState = (key: string, value: string): Statement => [
+    'INSERT INTO keeper_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    key,
+    value,
+];
 
 /** Record every staker and bettor from contract events. Returns true once the scan has reached the chain head. */
 async function syncEvents(): Promise<boolean> {
     // Tied to the pool address, so a redeploy starts a fresh scan instead of resuming the old one.
     const key = `scanned_to:${POOL}`;
-    let scannedTo = BigInt(getState(key) ?? Math.max(config.deployBlock - 1, 0));
+    let scannedTo = BigInt((await getState(key)) ?? Math.max(config.deployBlock - 1, 0));
     const head = await publicClient.getBlockNumber({ cacheTime: 0 });
-    for (let i = 0; i < MAX_CHUNKS_PER_TICK && scannedTo < head; i++) {
+    for (let i = 0; i < config.keeperMaxChunks && scannedTo < head; i++) {
         const fromBlock = scannedTo + 1n;
         const toBlock = fromBlock + config.logChunk - 1n < head ? fromBlock + config.logChunk - 1n : head;
         const [staked, bets] = await Promise.all([
@@ -66,18 +67,23 @@ async function syncEvents(): Promise<boolean> {
                 ? publicClient.getContractEvents({ address: config.marketPool as Address, abi: marketAbi, eventName: 'Bet', fromBlock, toBlock })
                 : Promise.resolve([]),
         ]);
-        db.transaction(() => {
-            for (const l of staked)
-                db.prepare('INSERT OR IGNORE INTO keeper_stakers (pool, cohort_id, staker) VALUES (?, ?, ?)').run(POOL, Number(l.args.cohortId), l.args.staker!.toLowerCase());
-            for (const l of bets)
-                db.prepare('INSERT OR IGNORE INTO keeper_bettors (pool, cohort_id, owner, bettor) VALUES (?, ?, ?, ?)').run(
-                    POOL,
-                    Number(l.args.cohortId),
-                    l.args.owner!.toLowerCase(),
-                    l.args.bettor!.toLowerCase(),
-                );
-            setState(key, toBlock.toString());
-        })();
+        // The scan position moves only together with what was found, so a crash never skips events.
+        await db().batch([
+            ...staked.map((l): Statement => [
+                'INSERT OR IGNORE INTO keeper_stakers (pool, cohort_id, staker) VALUES (?, ?, ?)',
+                POOL,
+                Number(l.args.cohortId),
+                l.args.staker!.toLowerCase(),
+            ]),
+            ...bets.map((l): Statement => [
+                'INSERT OR IGNORE INTO keeper_bettors (pool, cohort_id, owner, bettor) VALUES (?, ?, ?, ?)',
+                POOL,
+                Number(l.args.cohortId),
+                l.args.owner!.toLowerCase(),
+                l.args.bettor!.toLowerCase(),
+            ]),
+            setState(key, toBlock.toString()),
+        ]);
         scannedTo = toBlock;
     }
     return scannedTo >= head;
@@ -88,7 +94,7 @@ async function syncEvents(): Promise<boolean> {
 let sends = 0;
 
 async function send(address: Address, abi: Abi, functionName: string, args: readonly unknown[]): Promise<Hex> {
-    if (sends >= MAX_SENDS_PER_TICK) throw new Error('send budget for this tick used up');
+    if (sends >= config.keeperMaxSends) throw new Error('send budget for this run used up');
     sends++;
     const { request } = await publicClient.simulateContract({ account: keeper!.account, address, abi, functionName, args } as any);
     const hash = await keeper!.writeContract(request as any);
@@ -118,7 +124,7 @@ async function payOut(cohortId: number): Promise<boolean> {
         }
     };
 
-    const stakers = (db.prepare('SELECT staker FROM keeper_stakers WHERE pool = ? AND cohort_id = ?').all(POOL, cohortId) as { staker: Address }[]).map((r) => r.staker);
+    const stakers = (await db().all<{ staker: Address }>('SELECT staker FROM keeper_stakers WHERE pool = ? AND cohort_id = ?', POOL, cohortId)).map((r) => r.staker);
     // The contract counts its stakers; knowing fewer means the event scan missed some, so never call this round done.
     if (stakers.length < c[4]) {
         console.error(`[keeper] cohort ${cohortId}: contract has ${c[4]} stakers but the event scan found ${stakers.length}; check DEPLOY_BLOCK`);
@@ -148,7 +154,7 @@ async function payOut(cohortId: number): Promise<boolean> {
             });
         }
         const bettors = (
-            db.prepare('SELECT bettor FROM keeper_bettors WHERE pool = ? AND cohort_id = ? AND owner = ?').all(POOL, cohortId, staker) as { bettor: Address }[]
+            await db().all<{ bettor: Address }>('SELECT bettor FROM keeper_bettors WHERE pool = ? AND cohort_id = ? AND owner = ?', POOL, cohortId, staker)
         ).map((r) => r.bettor);
         for (const bettor of bettors) {
             if (market)
@@ -172,7 +178,7 @@ export async function keeperTick(): Promise<void> {
     // Pay out only with a complete list of stakers and bettors.
     if (!(await syncEvents())) return;
     const count = Number(await publicClient.readContract({ address: config.pool as Address, abi: poolAbi, functionName: 'cohortCount' }));
-    const done = new Set((db.prepare('SELECT cohort_id FROM keeper_done WHERE pool = ?').all(POOL) as { cohort_id: number }[]).map((r) => r.cohort_id));
+    const done = new Set((await db().all<{ cohort_id: number }>('SELECT cohort_id FROM keeper_done WHERE pool = ?', POOL)).map((r) => r.cohort_id));
     // The contract checks block time, so the keeper does too.
     const now = Number((await publicClient.getBlock({ blockTag: 'latest' })).timestamp);
     for (let cohortId = 1; cohortId <= count; cohortId++) {
@@ -180,30 +186,10 @@ export async function keeperTick(): Promise<void> {
         const c = await publicClient.readContract({ address: config.pool as Address, abi: poolAbi, functionName: 'cohorts', args: [BigInt(cohortId)] });
         if (now < Number(c[2]) + SETTLE_DELAY_S + GRACE_S) continue;
         try {
-            if (await payOut(cohortId)) db.prepare('INSERT OR IGNORE INTO keeper_done (pool, cohort_id, done_at) VALUES (?, ?, ?)').run(POOL, cohortId, nowIso());
+            if (await payOut(cohortId)) await db().run('INSERT OR IGNORE INTO keeper_done (pool, cohort_id, done_at) VALUES (?, ?, ?)', POOL, cohortId, nowIso());
         } catch (err) {
             console.error(`[keeper] cohort ${cohortId}: ${(err as Error).message.split('\n')[0]}`);
         }
-        if (sends >= MAX_SENDS_PER_TICK) break; // the rest waits for the next tick
+        if (sends >= config.keeperMaxSends) break; // the rest waits for the next run
     }
-}
-
-export function startKeeper() {
-    if (!keeperReady()) {
-        console.log('[keeper] off (set KEEPER_PRIVATE_KEY to settle rounds and pay out automatically)');
-        return;
-    }
-    console.log(`[keeper] on as ${keeperAddress()}`);
-    let running = false;
-    setInterval(async () => {
-        if (running) return;
-        running = true;
-        try {
-            await keeperTick();
-        } catch (e) {
-            console.error('[keeper] tick failed', (e as Error).message);
-        } finally {
-            running = false;
-        }
-    }, config.keeperMs);
 }

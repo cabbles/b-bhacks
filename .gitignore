@@ -13,3 +13,8 @@ contracts/cache/
 contracts/broadcast/*/31337/
 *.log
 web/web.log
+
+# Cloudflare Workers local secrets and state
+.dev.vars
+.dev.vars.*
+.wrangler/

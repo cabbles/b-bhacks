@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { config } from './config.ts';
 import { getCohort, getOpenCohort } from './chain.ts';
@@ -77,7 +76,7 @@ export async function compileGoal(input: CompileInput) {
 
     let params: Record<string, unknown>;
     let controlProof: string;
-    const nonce = `ref-${randomBytes(4).toString('hex')}`;
+    const nonce = `ref-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
 
     if (type === 'github_commits') {
         const repo = (out.repo ?? '').replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/, '');

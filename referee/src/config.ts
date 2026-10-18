@@ -1,33 +1,19 @@
-import 'dotenv/config';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+// Runs on Node (env from .env via node.ts) and on Workers (env from vars/secrets via nodejs_compat's process.env).
+import deployments from '../../shared/deployments.json' with { type: 'json' };
 
-const here = dirname(fileURLToPath(import.meta.url));
-export const SHARED_DIR = resolve(here, '../../shared');
+const dep = deployments as Record<string, any>;
 
-function readDeployments(): Record<string, any> {
-    const p = resolve(SHARED_DIR, 'deployments.json');
-    if (!existsSync(p)) return {};
-    try {
-        return JSON.parse(readFileSync(p, 'utf8'));
-    } catch {
-        return {};
-    }
-}
-
-const dep = readDeployments();
 const env = process.env;
 
 function defaultModels() {
     if (env.MODEL_PROVIDER === 'gemini' || (!env.MODEL_PROVIDER && env.GEMINI_API_KEY)) return { a: 'gemini-3.8-flash', b: 'gemini-3.5-flash-lite' };
-    if (env.MODEL_API_KEY) return { a: 'claude-opus-5-5', b: 'claude-sonnet-5-5' };
-    return { a: 'opus', b: 'sonnet' };
+    return { a: 'claude-opus-5-5', b: 'claude-sonnet-5-5' };
 }
 
 export const config = {
     port: Number(env.PORT ?? 8787),
-    dbPath: env.REFEREE_DB ?? resolve(here, '../referee.db'),
+    // Local only; on Workers the database is the D1 binding.
+    dbPath: env.REFEREE_DB ?? 'referee.db',
     // Serve every route from shared/fixtures instead of the real engine.
     fixtures: env.REFEREE_FIXTURES === '1',
 
@@ -45,14 +31,16 @@ export const config = {
     // it can't post verdicts, so a leak costs only its small ETH balance. Unset = keeper off.
     keeperKey: (env.KEEPER_PRIVATE_KEY ?? '') as `0x${string}` | '',
     keeperMs: Number(env.KEEPER_MS ?? 30_000),
+    // Per-run caps. Each send signs a transaction (CPU) and each log chunk is an RPC request, and a free Worker
+    // run gets 10 ms of CPU and 50 outbound requests. Whatever is left waits for the next run.
+    keeperMaxSends: Number(env.KEEPER_MAX_SENDS ?? 4),
+    keeperMaxChunks: Number(env.KEEPER_MAX_CHUNKS ?? 10),
     // Max block range per eth_getLogs call; sepolia.base.org allows 200, keyed RPCs often more.
     logChunk: BigInt(env.LOG_CHUNK ?? 200),
 
     // gemini: Gemini API with GEMINI_API_KEY (free tier works). api: Anthropic API with MODEL_API_KEY.
-    // claude-cli: shell out to `claude -p` on a logged-in Claude subscription. off: deterministic checks only.
-    modelProvider: (env.MODEL_PROVIDER ||
-        (env.GEMINI_API_KEY ? 'gemini' : env.MODEL_API_KEY ? 'api' : 'claude-cli')) as 'gemini' | 'claude-cli' | 'api' | 'off',
-    claudeBin: env.CLAUDE_BIN ?? 'claude',
+    // off: deterministic checks only.
+    modelProvider: (env.MODEL_PROVIDER || (env.GEMINI_API_KEY ? 'gemini' : env.MODEL_API_KEY ? 'api' : 'off')) as 'gemini' | 'api' | 'off',
     modelApiKey: env.MODEL_API_KEY ?? '',
     geminiApiKey: env.GEMINI_API_KEY ?? '',
     // Two different models, so the substance check gets two independent votes.
@@ -61,6 +49,9 @@ export const config = {
 
     githubToken: env.GITHUB_TOKEN ?? '',
     adminKey: env.ADMIN_KEY ?? '',
+    // Browser origins allowed to call the referee, comma-separated (e.g. https://cashcow.vercel.app).
+    // Empty allows any origin (local dev). /x402 is a public API and always allows any origin.
+    corsOrigins: (env.CORS_ORIGINS ?? '').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean),
 
     canvasToken: env.CANVAS_TOKEN ?? '',
     canvasBase: env.CANVAS_BASE_URL ?? 'https://bcourses.berkeley.edu',
