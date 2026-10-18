@@ -6,6 +6,6 @@
   "referee_url": "https://cashcow-referee.cashcow-app.workers.dev",
   "web_url": "https://cashcow-beryl-five.vercel.app",
   "deployBlock": 48269940,
-  "market_pool": "0xeb5781f90bf852b34d1f05fced4c01291476f2ae",
-  "bond_pool": "0xccbc587267df0940c467ae2441a7db0864cb9087"
+  "market_pool": "0x096f62f8bc6b80a1635dc1fabbce43017cab3197",
+  "bond_pool": "0x327b28e3143b48a50cd55208f615363646e5edfd"
 }

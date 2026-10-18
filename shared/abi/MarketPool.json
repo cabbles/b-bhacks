@@ -491,7 +491,7 @@
   },
   {
     "type": "error",
-    "name": "OwnerCannotBetNo",
+    "name": "OwnerCannotBet",
     "inputs": []
   },
   {
