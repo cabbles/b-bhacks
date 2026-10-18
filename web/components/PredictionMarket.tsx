@@ -7,7 +7,7 @@ import { MOCK, addrUrl } from "@/lib/env";
 import { fmtAmount, tokenBalance, useWallet } from "@/lib/wallet";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { ChainConfig } from "@/lib/types";
-import { ErrorBox, Spinner, TxLink } from "./ui";
+import { ErrorBox, OwnMarketNote, Spinner, TxLink } from "./ui";
 import { BetCelebration } from "./BetCelebration";
 import { ConnectOptions } from "./Wallet";
 import { kindOf } from "@/lib/kinds";
@@ -50,14 +50,14 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: ChainConfig }) {
   }, 5000, [account?.address, cohortId, owner, version]);
   const m = data?.market;
   const ownerWallet = account?.address.toLowerCase() === owner.toLowerCase();
-  const selectedYes = ownerWallet || side;
+  const selectedYes = side;
   let raw = 0n;
   if (new RegExp(`^\\d+(?:\\.\\d{1,${dec}})?$`).test(amount)) {
     try { raw = parseUnits(amount, dec); } catch {}
   }
   const open = !!m && m.result === 0 && !m.settled && now < m.betting_deadline * 1000;
   const insufficient = data?.balance !== null && data?.balance !== undefined && raw > data.balance;
-  const canBet = open && !!account && !readError && raw > 0n && data?.balance != null && !insufficient && !busy;
+  const canBet = open && !ownerWallet && !!account && !readError && raw > 0n && data?.balance != null && !insufficient && !busy;
 
   async function transact(action: "bet" | "resolve" | "claim") {
     if (!account || !m || locked.current) return;
@@ -84,7 +84,7 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: ChainConfig }) {
       <div>
         <div className="label">Public YES / NO market</div>
         <h2 className="font-display text-2xl font-bold">Will this task pass?</h2>
-        <p className="mt-2 text-sm text-muted">A separate pot of test AUSD. The owner’s commitment stake stays untouched.</p>
+        <p className="mt-2 text-sm text-muted">A separate pot of test AUSD. Anyone but the creator can bet; the creator&apos;s own stake is kept apart.</p>
       </div>
       <ErrorBox msg={error || readError} />
       {!account ? <div className="max-w-sm"><div className="label">Connect a wallet to bet</div><ConnectOptions /></div> : !m ? <Spinner /> : <>
@@ -93,15 +93,15 @@ function LiveMarket({ cohortId, owner, cfg }: Props & { cfg: ChainConfig }) {
           <div><dt className="label text-fail">NO</dt><dd className="num text-2xl">{fmtAmount(m.no_total, dec)} <span className="text-xs text-muted">AUSD</span></dd></div>
         </dl>
         <p className="text-sm">{open ? `Betting closes in ${countdown(m.betting_deadline, now)}` : m.result === 1 ? "Resolved: YES wins" : m.result === 2 ? "Resolved: NO wins" : m.result === 3 ? "Resolved: bets refunded" : "Betting closed. Waiting for settlement."}</p>
-        {open && <form onSubmit={(e) => { e.preventDefault(); if (canBet) setConfirming(true); }} className="space-y-4">
+        {open && ownerWallet && <OwnMarketNote />}
+        {open && !ownerWallet && <form onSubmit={(e) => { e.preventDefault(); if (canBet) setConfirming(true); }} className="space-y-4">
           <fieldset disabled={busy}>
             <legend className="label">Choose a side</legend>
             <div className="flex gap-3">
               <button type="button" aria-pressed={selectedYes} onClick={() => setSide(true)} className={selectedYes ? "btn-primary flex-1" : "btn-ghost flex-1"}>YES</button>
-              <button type="button" aria-pressed={!selectedYes} disabled={ownerWallet} onClick={() => setSide(false)} className={!selectedYes ? "btn-primary flex-1" : "btn-ghost flex-1"}>NO</button>
+              <button type="button" aria-pressed={!selectedYes} onClick={() => setSide(false)} className={!selectedYes ? "btn-primary flex-1" : "btn-ghost flex-1"}>NO</button>
             </div>
           </fieldset>
-          {ownerWallet && <p className="text-xs text-muted">This is your task. Your wallet can only bet YES.</p>}
           <label className="block text-sm" htmlFor={`bet-${cohortId}-${owner}`}>Bet amount (test AUSD)</label>
           <input id={`bet-${cohortId}-${owner}`} className="input" inputMode="decimal" value={amount} disabled={busy} onChange={(e) => setAmount(e.target.value)} />
           <p className="num text-xs text-muted">Wallet {account ? short(account.address) : "not connected"} · Balance {data?.balance == null ? "unavailable" : `${fmtAmount(data.balance, dec)} AUSD`}</p>

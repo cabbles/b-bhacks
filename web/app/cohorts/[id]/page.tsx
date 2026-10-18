@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { getCohort, getConfig } from "@/lib/api";
 import { countdown, fmtTime, short, useNow, usePoll } from "@/lib/time";
 import type { CohortResponse, GoalStatus } from "@/lib/types";
-import { fmtAmount, tokenDecimals } from "@/lib/wallet";
-import { ErrorBox, Spinner, Stat, StatusPill } from "@/components/ui";
+import { fmtAmount, tokenDecimals, useWallet } from "@/lib/wallet";
+import { ErrorBox, OwnMarketNote, Spinner, Stat, StatusPill } from "@/components/ui";
 import { InviteLink } from "@/components/InviteLink";
 import { MarketTotals } from "@/components/MarketTotals";
 import { kindOf } from "@/lib/kinds";
@@ -22,6 +22,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
   const [created, setCreated] = useState(false);
   const { data: cfg } = usePoll(getConfig, 10_000);
   const [betRound, setBetRound] = useState(0);
+  const { account } = useWallet();
   useEffect(() => {
     setCreated(new URLSearchParams(window.location.search).has("created"));
   }, []);
@@ -41,6 +42,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
   const target = stakingOpen ? cohort.stake_deadline : cohort.goal_deadline;
   const ticking = stakingOpen || working;
   const sorted = [...goals].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
+  const mine = !!goals[0] && account?.address.toLowerCase() === goals[0].staker.toLowerCase();
 
   return (
     <div className="space-y-12">
@@ -81,8 +83,12 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
         <aside className="lg:col-span-4">
           <div className="label">Terms</div>
           <dl className="grid grid-cols-2 border-t border-line text-sm [&>*]:border-b [&>*]:border-line [&>*]:py-3">
-            <dt className="text-muted">{solo ? "Stake per task" : "Entry (refunded)"}</dt>
-            <dd className="num text-right">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
+            {solo && (
+              <>
+                <dt className="text-muted">Stake per task</dt>
+                <dd className="num text-right">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
+              </>
+            )}
             <dt className="text-muted">{solo ? "Staking closes" : "Betting closes"}</dt>
             <dd className="num text-right">{fmtTime(cohort.stake_deadline)}</dd>
             <dt className="text-muted">Deadline</dt>
@@ -91,7 +97,9 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
           {stakingOpen && !solo && !MOCK && (
             <div className="mt-5">
               <div className="label">Place a bet</div>
-              {goals[0] && cfg?.market_pool ? (
+              {mine ? (
+                <OwnMarketNote />
+              ) : goals[0] && cfg?.market_pool ? (
                 <QuickBet
                   key={betRound}
                   bare
@@ -130,7 +138,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
         <div className="label">How this market works</div>
         <ol className="grid grid-cols-1 gap-6 border-t border-line pt-4 sm:grid-cols-3">
           <li><span className="num text-sm text-muted">01</span><div className="font-display text-lg font-semibold">One task</div><p className="text-sm text-fg/75">One person puts up a task and their own stake. Finish: they get exactly it back. Miss: it goes to the NO bettors.</p></li>
-          <li><span className="num text-sm text-muted">02</span><div className="font-display text-lg font-semibold">Bet</div><p className="text-sm text-fg/75">Anyone can bet YES or NO on whether they finish, until betting closes, right on this page.</p></li>
+          <li><span className="num text-sm text-muted">02</span><div className="font-display text-lg font-semibold">Bet</div><p className="text-sm text-fg/75">Anyone except the creator can bet YES or NO on whether they finish, until betting closes, right on this page.</p></li>
           <li><span className="num text-sm text-muted">03</span><div className="font-display text-lg font-semibold">Get paid</div><p className="text-sm text-fg/75">At the deadline the referee rules. The side that called it right splits the other side's bets.</p></li>
         </ol>
       </section>

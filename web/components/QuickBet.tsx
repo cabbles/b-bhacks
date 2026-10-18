@@ -6,7 +6,7 @@ import { calls, send } from "@/lib/tx";
 import { fmtAmount, tokenBalance, useWallet } from "@/lib/wallet";
 import { usePoll } from "@/lib/time";
 import type { ChainConfig } from "@/lib/types";
-import { ErrorBox, Spinner, TxLink } from "./ui";
+import { ErrorBox, OwnMarketNote, Spinner, TxLink } from "./ui";
 import { ConnectOptions } from "./Wallet";
 
 type Props = { cohortId: number; owner: `0x${string}`; title: string; cfg: ChainConfig; onClose: () => void; bare?: boolean };
@@ -34,14 +34,14 @@ export function QuickBet({ cohortId, owner, title, cfg, onClose, bare }: Props) 
 
   const m = data?.market;
   const ownerWallet = account?.address.toLowerCase() === owner.toLowerCase();
-  const yes = ownerWallet || side;
+  const yes = side;
   let raw = 0n;
   if (new RegExp(`^\\d+(?:\\.\\d{1,${dec}})?$`).test(amount)) {
     try { raw = parseUnits(amount, dec); } catch {}
   }
   const open = !!m && m.result === 0 && !m.settled && Date.now() < m.betting_deadline * 1000;
   const insufficient = data?.balance != null && raw > data.balance;
-  const canBet = open && !!account && !readError && raw > 0n && data?.balance != null && !insufficient && !busy;
+  const canBet = open && !ownerWallet && !!account && !readError && raw > 0n && data?.balance != null && !insufficient && !busy;
 
   async function placeBet() {
     if (!account || !m || locked.current) return;
@@ -58,7 +58,7 @@ export function QuickBet({ cohortId, owner, title, cfg, onClose, bare }: Props) 
   return (
     <div className={bare ? "w-full space-y-4" : "w-full space-y-4 border-l-2 border-fg/20 pl-4"}>
       <ErrorBox msg={error || readError} />
-      {!account ? <ConnectOptions /> : !m ? <Spinner /> : tx ? (
+      {!account ? <ConnectOptions /> : ownerWallet ? <OwnMarketNote /> : !m ? <Spinner /> : tx ? (
         <div className="space-y-2 text-sm">
           <p className="text-pass">Bet placed: {amount} AUSD on {yes ? "YES" : "NO"}.</p>
           <TxLink hash={tx} label="Betting transaction" />
@@ -71,7 +71,7 @@ export function QuickBet({ cohortId, owner, title, cfg, onClose, bare }: Props) 
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex gap-2">
               <button type="button" aria-pressed={yes} disabled={busy} onClick={() => setSide(true)} className={yes ? "btn-primary" : "btn-ghost"}>YES</button>
-              <button type="button" aria-pressed={!yes} disabled={busy || ownerWallet} onClick={() => setSide(false)} className={!yes ? "btn-primary" : "btn-ghost"}>NO</button>
+              <button type="button" aria-pressed={!yes} disabled={busy} onClick={() => setSide(false)} className={!yes ? "btn-primary" : "btn-ghost"}>NO</button>
             </div>
             <label className="min-w-[8rem] flex-1 text-sm">
               <span className="label">Stake (test AUSD)</span>
@@ -82,7 +82,6 @@ export function QuickBet({ cohortId, owner, title, cfg, onClose, bare }: Props) 
           <p className="num text-xs text-muted">
             YES {fmtAmount(m.yes_total, dec)} · NO {fmtAmount(m.no_total, dec)} AUSD · Your balance {data?.balance == null ? "unavailable" : `${fmtAmount(data.balance, dec)} AUSD`}
           </p>
-          {ownerWallet && <p className="text-xs text-muted">This is your task. Your wallet can only bet YES.</p>}
           {insufficient && <p className="text-sm text-fail">Not enough test AUSD for this bet.</p>}
         </form>
       )}

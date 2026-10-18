@@ -56,7 +56,7 @@ contract MarketPool {
     error BadParams();
     error NoCommitment();
     error BettingClosed();
-    error OwnerCannotBetNo();
+    error OwnerCannotBet();
     error BadNonce();
     error NotSettled();
     error AlreadyResolved();
@@ -131,7 +131,8 @@ contract MarketPool {
         id = marketId(cohortId, owner);
         Market storage m = markets[id];
         if (m.result != Result.Pending) revert BettingClosed();
-        if (!yes && bettor == owner) revert OwnerCannotBetNo();
+        // The task's creator has their own stake in CommitmentBond; they may not bet on their own market at all.
+        if (bettor == owner) revert OwnerCannotBet();
         if (bettor == address(0) || amount == 0 || amount > MAX_POOL - m.yesTotal - m.noTotal) revert BadParams();
     }
 

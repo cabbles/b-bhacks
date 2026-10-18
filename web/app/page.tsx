@@ -9,7 +9,7 @@ import { FundsPanel } from "@/components/Wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
 import { Cow } from "@/components/Cow";
 import { useLiveMarket } from "@/components/useLiveMarket";
-import { kindOf } from "@/lib/kinds";
+import { isMarket } from "@/lib/kinds";
 
 function OpenMarket({ c, dec, now }: { c: Cohort; dec: number; now: number }) {
   const live = useLiveMarket(c.id, dec);
@@ -47,7 +47,7 @@ export default function JoinPage() {
     if (cfg) tokenDecimals(cfg.token, cfg.decimals).then(setDec);
   }, [cfg]);
 
-  const open = (cfg?.cohorts || []).filter((c) => c.stake_deadline * 1000 > now && kindOf(c) === "group");
+  const open = (cfg?.cohorts || []).filter((c) => c.stake_deadline * 1000 > now && isMarket(c));
 
   return (
     <div className="grid grid-cols-1 gap-y-14 lg:grid-cols-12 lg:gap-x-12">
@@ -71,17 +71,17 @@ export default function JoinPage() {
           <div className="card flex flex-col">
             <div className="label">Solo stake</div>
             <div className="font-display text-3xl font-semibold">Bet on yourself.</div>
-            <p className="mt-2 flex-1 text-fg/75">Put AUSD behind your own task. Finish by the deadline and you get it back. Miss it and you lose it.</p>
-            <Link href="/stake" className="btn-primary mt-5">Make a solo stake</Link>
+            <p className="mt-2 flex-1 text-fg/75">Put AUSD behind your own task. Finish by the deadline and you get it back. Miss it and it goes to whoever bet against you.</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link href="/cohorts/new" className="btn-primary">Create a market</Link>
+              <Link href="/stake" className="btn-ghost">Your markets</Link>
+            </div>
           </div>
           <div className="card flex flex-col">
             <div className="label">Prediction market</div>
             <div className="font-display text-3xl font-semibold">Bet on someone.</div>
-            <p className="mt-2 flex-1 text-fg/75">Put a task up with your own stake, or bet YES or NO on whether someone else finishes theirs.</p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/cohorts/new" className="btn-primary">Create a market</Link>
-              <Link href="/cohorts" className="btn-ghost">Browse</Link>
-            </div>
+            <p className="mt-2 flex-1 text-fg/75">Every task is a public market. Bet YES or NO on whether someone else finishes theirs.</p>
+            <Link href="/cohorts" className="btn-primary mt-5">Browse markets</Link>
           </div>
         </div>
 

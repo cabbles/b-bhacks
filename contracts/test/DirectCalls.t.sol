@@ -163,8 +163,9 @@ contract DirectCallsTest is Test {
 
         ownerStake();
         ownerCall(address(token), abi.encodeCall(token.approve, (address(market), 10e6)));
-        vm.expectRevert(MarketPool.OwnerCannotBetNo.selector);
+        vm.expectRevert(MarketPool.OwnerCannotBet.selector);
         ownerCall(address(market), abi.encodeCall(market.bet, (cohort, address(owner), false, 10e6)));
+        vm.expectRevert(MarketPool.OwnerCannotBet.selector);
         ownerCall(address(market), abi.encodeCall(market.bet, (cohort, address(owner), true, 10e6)));
 
         vm.startPrank(alice);

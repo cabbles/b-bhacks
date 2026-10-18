@@ -12,3 +12,6 @@ export type Kind = "solo" | "group";
 /** Solo rounds are tagged; everything else (group markets and older untagged rounds) is a group market. */
 export const kindOf = (c?: Pick<Cohort, "rule_hash"> | null): Kind =>
   c?.rule_hash?.toLowerCase() === SOLO_TAG ? "solo" : "group";
+
+/** A market's StakePool entry: the smallest token unit, refunded. The creator's real stake is their CommitmentBond. */
+export const MARKET_ENTRY = 1n;

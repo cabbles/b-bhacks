@@ -7,7 +7,8 @@ import {MarketPool} from "../src/MarketPool.sol";
 import {CommitmentBond} from "../src/CommitmentBond.sol";
 
 /// Deploys all three contracts, wired together. The deployer gets no special rights in any of them.
-///   forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast --private-key $DEPLOYER_PRIVATE_KEY
+///   forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast --account <deployer>
+/// STAKE_POOL=<address> keeps an existing StakePool (and its referee) and redeploys only MarketPool + CommitmentBond.
 /// Then: node scripts/export.mjs
 contract Deploy is Script {
     // Testnet AUSD, same address on every Agora EVM testnet (docs.agora.finance/developer/contract-deployments).
@@ -17,8 +18,9 @@ contract Deploy is Script {
     function run() external returns (StakePool pool, MarketPool market, CommitmentBond bond) {
         address token = vm.envOr("AUSD_ADDRESS", AUSD_TESTNET);
         address referee = vm.envOr("REFEREE_ADDRESS", REFEREE);
+        address existing = vm.envOr("STAKE_POOL", address(0));
         vm.startBroadcast();
-        pool = new StakePool(token, referee);
+        pool = existing != address(0) ? StakePool(existing) : new StakePool(token, referee);
         market = new MarketPool(address(pool));
         bond = new CommitmentBond(address(market));
         vm.stopBroadcast();
@@ -26,6 +28,6 @@ contract Deploy is Script {
         console.log("MarketPool", address(market));
         console.log("CommitmentBond", address(bond));
         console.log("token", token);
-        console.log("referee", referee);
+        console.log("referee", pool.referee());
     }
 }

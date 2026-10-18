@@ -10,6 +10,7 @@ import { MOCK_CHAIN, MOCK_REFEREE } from "@/lib/env";
 import { fmtAmount, rememberGoal, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 import { calls, receiptFrom, send } from "@/lib/tx";
 import { ConnectOptions } from "@/components/Wallet";
+import { MyMarkets } from "@/components/MyMarkets";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Notice, Spinner } from "@/components/ui";
 
@@ -53,9 +54,7 @@ function StakeInner() {
       .then((c) => {
         setCfg(c);
         const q = Number(params.get("cohort"));
-        // No market in the link means a solo stake: use the newest open solo round.
-        const solo = c.cohorts.filter((x) => kindOf(x) === "solo" && x.stake_deadline * 1000 > Date.now()).sort((a, b) => b.id - a.id);
-        setCohortId(c.cohorts.some((x) => x.id === q) ? q : (solo[0]?.id ?? null));
+        setCohortId(c.cohorts.some((x) => x.id === q) ? q : null);
         tokenDecimals(c.token, c.decimals).then(setDec);
       })
       .catch((e: Error) => setErr(e.message));
@@ -238,7 +237,7 @@ function StakeInner() {
               <span>
                 {market && bondRaw > 0n ? (
                   <>
-                    This is my task. I put {fmtAmount(bondRaw, dec)} AUSD behind it. Finish and I get exactly that back. Miss it and it goes to the people who bet NO. The {cohort ? fmtAmount(cohort.stake_amount, dec) : "?"} AUSD entry is refunded.
+                    This is my task. I put {fmtAmount(bondRaw, dec)} AUSD behind it. Finish and I get exactly that back. Miss it and it goes to the people who bet NO. I can't bet on my own market.
                   </>
                 ) : (
                   <>
@@ -269,8 +268,6 @@ function StakeInner() {
               <>
                 <dt className="text-muted">Your stake</dt>
                 <dd className="num text-right text-lg font-semibold">{fmtAmount(bondRaw, dec)} AUSD</dd>
-                <dt className="text-muted">Entry (refunded)</dt>
-                <dd className="num text-right">{fmtAmount(cohort.stake_amount, dec)} AUSD</dd>
               </>
             ) : (
               <>
@@ -298,10 +295,16 @@ function StakeInner() {
   );
 }
 
+/** /stake lists your markets; /stake?cohort=… confirms the task for a market you just created. */
+function StakeRoute() {
+  const params = useSearchParams();
+  return params.get("cohort") ? <StakeInner /> : <MyMarkets />;
+}
+
 export default function StakePage() {
   return (
     <Suspense fallback={<Spinner />}>
-      <StakeInner />
+      <StakeRoute />
     </Suspense>
   );
 }

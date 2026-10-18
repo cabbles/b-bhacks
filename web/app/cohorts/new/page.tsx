@@ -2,11 +2,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { parseUnits } from "viem";
 import { calls, createdCohortId, send } from "@/lib/tx";
 import { GROUP_TAG } from "@/lib/kinds";
-import { tokenDecimals, useWallet } from "@/lib/wallet";
-import { ADDRESSES } from "@/lib/env";
+import { useWallet } from "@/lib/wallet";
+import { MARKET_ENTRY } from "@/lib/kinds";
 import { ErrorBox, Spinner } from "@/components/ui";
 import { ConnectOptions } from "@/components/Wallet";
 
@@ -58,10 +57,11 @@ export default function StartMarket() {
     setBusy(true);
     setErr(null);
     try {
-      // The round only holds you; its 1 AUSD entry is refunded. Your real stake is the bond posted next.
+      // The on-chain round only records your task for the referee. Its entry is the smallest token unit (refunded);
+      // your real stake is the bond posted on the next step, kept apart from the bets.
       const now = Math.floor(Date.now() / 1000);
       const stakeDeadline = now + join * 60;
-      const { receipts } = await send(calls.createCohort(GROUP_TAG, stakeDeadline, stakeDeadline + work * 60, parseUnits("1", await tokenDecimals(ADDRESSES.token))));
+      const { receipts } = await send(calls.createCohort(GROUP_TAG, stakeDeadline, stakeDeadline + work * 60, MARKET_ENTRY));
       const id = receipts.length ? createdCohortId(receipts) : 1;
       router.push(`/stake?cohort=${id}&bond=${stake}&task=${encodeURIComponent(task.trim())}`);
     } catch (e) {
@@ -120,7 +120,7 @@ export default function StartMarket() {
             <button type="button" className="btn-primary" disabled={!stakeOk || !taskOk || busy} onClick={onCreate}>
               {busy ? <><Spinner /> Creating on-chain…</> : "Next: check my task"}
             </button>
-            <span className="text-sm text-muted">Next you confirm the exact criteria and your stake (plus a 1 AUSD entry, refunded).</span>
+            <span className="text-sm text-muted">Next you confirm the exact criteria and your stake. You can't bet on your own market.</span>
           </>
         ) : (
           <div className="w-full max-w-sm">

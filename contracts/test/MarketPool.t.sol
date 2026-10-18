@@ -124,11 +124,13 @@ contract MarketPoolTest is Test {
         assertEq(market.claimable(cohort, owner, vm.addr(ALICE)), 10e6);
     }
 
-    function test_ownerCanOnlyBetYes() public {
-        bet(OWNER, true, 10e6);
-        MarketPool.Authorization memory a = auth(OWNER, false, 10e6);
-        vm.expectRevert(MarketPool.OwnerCannotBetNo.selector);
-        market.betWithAuthorization(cohort, owner, owner, false, 10e6, a);
+    function test_ownerCannotBetEitherSide() public {
+        for (uint256 i = 0; i < 2; i++) {
+            bool yes = i == 0;
+            MarketPool.Authorization memory a = auth(OWNER, yes, 10e6);
+            vm.expectRevert(MarketPool.OwnerCannotBet.selector);
+            market.betWithAuthorization(cohort, owner, owner, yes, 10e6, a);
+        }
     }
 
     function test_closeAtStakeDeadline() public {

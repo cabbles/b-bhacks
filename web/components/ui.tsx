@@ -53,3 +53,16 @@ export function Stat({ label, value, tone }: { label: string; value: number | Re
     </div>
   );
 }
+
+/** Shown instead of bet controls on the creator's own market. The contract refuses these bets too. */
+export function OwnMarketNote() {
+  return (
+    <div className="rounded-xl bg-panel p-4 text-sm">
+      <div className="font-display text-base font-semibold">This is your market.</div>
+      <p className="mt-1 text-fg/80">
+        Creators can't bet on their own task, YES or NO; the betting contract refuses it. Your stake is separate: finish and you get it
+        back, miss and it goes to the people who bet NO.
+      </p>
+    </div>
+  );
+}

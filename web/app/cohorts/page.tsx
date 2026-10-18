@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { getConfig } from "@/lib/api";
 import { countdown, useNow, usePoll } from "@/lib/time";
 import type { Cohort, ChainConfig } from "@/lib/types";
-import { tokenDecimals } from "@/lib/wallet";
+import { tokenDecimals, useWallet } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
 import { useLiveMarket } from "@/components/useLiveMarket";
-import { kindOf } from "@/lib/kinds";
+import { isMarket } from "@/lib/kinds";
 import { QuickBet } from "@/components/QuickBet";
 import { MOCK } from "@/lib/env";
 
@@ -19,15 +19,18 @@ function phase(c: Cohort, now: number) {
 
 function MarketRow({ c, dec, now, open, cfg }: { c: Cohort; dec: number; now: number; open: boolean; cfg?: ChainConfig }) {
   const live = useLiveMarket(c.id, dec);
+  const { account } = useWallet();
   const [betting, setBetting] = useState(false);
-  const canQuickBet = !MOCK && !!cfg?.market_pool && !!live.owner;
+  // Creators can't bet on their own market (the contract refuses it), so their rows show "Yours" instead.
+  const mine = !!live.owner && account?.address.toLowerCase() === live.owner.toLowerCase();
+  const canQuickBet = !MOCK && !!cfg?.market_pool && !!live.owner && !mine;
   if (!open) {
     return (
       <li>
         <Link href={live.href} className="flex items-center gap-6 py-4 hover:text-nose-deep">
           <span className="display w-20 shrink-0 text-3xl">#{c.id}</span>
           <span className="min-w-0 flex-1 text-sm">
-            <span className="block truncate font-display text-lg font-semibold">{live.title}</span>
+            <span className="block truncate font-display text-lg font-semibold">{mine && <YoursTag />}{live.title}</span>
             {live.bets && <span className="num text-muted">{live.bets}</span>}
           </span>
           <span className="label !mb-0">{phase(c, now)}</span>
@@ -39,7 +42,7 @@ function MarketRow({ c, dec, now, open, cfg }: { c: Cohort; dec: number; now: nu
     <li className="flex flex-wrap items-center gap-x-6 gap-y-3 py-5">
       <span className="display w-20 text-4xl">#{c.id}</span>
       <div className="min-w-0 flex-1 text-sm">
-        <div className="truncate font-display text-lg font-semibold">{live.title}</div>
+        <div className="truncate font-display text-lg font-semibold">{mine && <YoursTag />}{live.title}</div>
         <div className="num text-muted">
           {live.bets ? `${live.bets} · ` : ""}
           betting closes in {countdown(c.stake_deadline, now)} · deadline in {countdown(c.goal_deadline, now)}
@@ -60,6 +63,10 @@ function MarketRow({ c, dec, now, open, cfg }: { c: Cohort; dec: number; now: nu
   );
 }
 
+function YoursTag() {
+  return <span className="mr-2 rounded-full bg-fg px-2 py-0.5 align-middle font-mono text-[10px] uppercase tracking-wider text-ink" title="You created this market, so you can't bet on it">Yours</span>;
+}
+
 /** Every market, open ones first, with the way to start a new one. */
 export default function Markets() {
   const now = useNow();
@@ -69,7 +76,7 @@ export default function Markets() {
     if (cfg) tokenDecimals(cfg.token, cfg.decimals).then(setDec);
   }, [cfg]);
 
-  const all = [...(cfg?.cohorts ?? [])].filter((c) => kindOf(c) === "group").sort((a, b) => b.id - a.id);
+  const all = [...(cfg?.cohorts ?? [])].filter((c) => isMarket(c)).sort((a, b) => b.id - a.id);
   const open = all.filter((c) => c.stake_deadline * 1000 > now);
   const rest = all.filter((c) => c.stake_deadline * 1000 <= now);
 
@@ -81,7 +88,7 @@ export default function Markets() {
           <h1 className="display text-6xl sm:text-8xl">Markets.</h1>
           <p className="mt-4 max-w-xl text-lg text-fg/80">
             Each market is one person's task, backed by their own stake. Bet YES or NO on whether they finish, or create one on
-            yourself and share it. Just want to stake on yourself, no betting? <a className="link" href="/stake">Make a solo stake</a>.
+            yourself and share it. You can bet on anyone's market except your own. <Link className="link" href="/stake">See your markets</Link>.
           </p>
         </div>
         <Link href="/cohorts/new" className="btn-primary">Create a market</Link>

@@ -26,20 +26,25 @@ const created = (name) => {
     if (!tx || !receipt || BigInt(receipt.status) !== 1n) throw new Error(`no successful ${name} deployment in ${run}`);
     return { tx, receipt };
 };
-const pool = created('StakePool');
 const market = created('MarketPool');
-const bond = created('CommitmentBond');
 const depPath = resolve(shared, 'deployments.json');
 const dep = JSON.parse(readFileSync(depPath, 'utf8'));
-const [token, referee] = pool.tx.arguments;
+// STAKE_POOL redeploys reuse the pool already in deployments.json; MarketPool must point at it.
+const hasPool = b.transactions.some((t) => t.contractName === 'StakePool' && t.transactionType === 'CREATE');
+const pool = hasPool ? created('StakePool') : null;
+const poolAddress = pool ? pool.tx.contractAddress : dep.pool;
+if (market.tx.arguments[0].toLowerCase() !== poolAddress.toLowerCase()) throw new Error('MarketPool points at a different StakePool than deployments.json');
+const bond = created('CommitmentBond');
 Object.assign(dep, {
     chainId: 84532,
-    pool: pool.tx.contractAddress,
     market_pool: market.tx.contractAddress,
     bond_pool: bond.tx.contractAddress,
-    token,
-    referee,
-    deployBlock: Number(BigInt(pool.receipt.blockNumber)),
+    ...(pool && {
+        pool: pool.tx.contractAddress,
+        token: pool.tx.arguments[0],
+        referee: pool.tx.arguments[1],
+        deployBlock: Number(BigInt(pool.receipt.blockNumber)),
+    }),
 });
 writeFileSync(depPath, JSON.stringify(dep, null, 2) + '\n');
 console.log('wrote shared/deployments.json', dep);

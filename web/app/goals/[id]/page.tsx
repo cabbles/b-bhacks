@@ -214,7 +214,8 @@ export default function GoalPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        {verdict && cohortId !== undefined && (
+        {/* Markets hold only a token entry, refunded automatically; their money is the creator's stake and the bets below. */}
+        {verdict && cohortId !== undefined && !round?.market && (
           <div>
             <div className="label">{round?.market ? "Entry" : "Payout"}</div>
             <div className="space-y-2 border-t border-line pt-3 text-sm">

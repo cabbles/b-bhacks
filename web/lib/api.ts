@@ -1,6 +1,7 @@
 import { ADDRESSES, MOCK_CHAIN, MOCK_REFEREE, REFEREE_URL } from "./env";
 import { bondAbi, client, erc20Abi, marketAbi, marketIdOf, poolAbi } from "./chain";
 import * as fx from "./fixtures";
+import { isMarket } from "./kinds";
 import type {
   Attack,
   AttackCategory,
@@ -258,6 +259,25 @@ export async function getPredictionMarket(cohort: number, owner: `0x${string}`, 
     claimed: p[2],
     claimable: claimable.toString(),
   };
+}
+
+// ---------- Markets I created ----------
+
+export type MyMarket = { cohort: Cohort; stake: string; stakeResult: "pending" | "returned" | "to_no" | "burned" };
+
+/** Every market where this wallet is the creator (it holds the market's commitment), newest first. */
+export async function getMyMarkets(me: `0x${string}`): Promise<MyMarket[]> {
+  if (MOCK_CHAIN) return [];
+  const cfg = await getConfig();
+  const markets = cfg.cohorts.filter((c) => isMarket(c));
+  const mine = await Promise.all(
+    markets.map((c) => client.readContract({ address: ADDRESSES.pool!, abi: poolAbi, functionName: "stakes", args: [BigInt(c.id), me] })),
+  );
+  const owned = markets.filter((_, i) => !/^0x0{64}$/.test(mine[i][0]));
+  const bonds = await Promise.all(owned.map((c) => (ADDRESSES.bond ? getBond(c.id, me).catch(() => null) : null)));
+  return owned
+    .map((cohort, i) => ({ cohort, stake: bonds[i]?.amount ?? "0", stakeResult: bonds[i]?.result ?? "pending" }))
+    .sort((a, b) => b.cohort.id - a.cohort.id);
 }
 
 // ---------- Commitment bond (the task owner's separate stake in a prediction market) ----------
