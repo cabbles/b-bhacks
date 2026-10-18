@@ -8,7 +8,7 @@ The service that decides whether a staker did what they committed to. It gathers
 2. **Register.** `POST /goals` checks that `stake_tx_hash` emitted `Staked(cohortId, staker, goalHash)` where `goalHash = keccak256(canonical(criteria))`. Criteria that don't match the on-chain stake are rejected.
 3. **Snapshot.** At registration the referee records what already exists: every commit on every branch of the repo, or whether the page already shows the promised text.
 4. **Watch.** GitHub branches are polled every 30 seconds. Each commit is stored with the time the referee first saw it. Git author and committer dates are never used.
-5. **Decide.** Shortly after the deadline, deterministic checks run first. Only if all of them pass do two independent model judges (Opus and Sonnet via `claude -p`) rule on `substance`: is this real work toward the goal, or filler?
+5. **Decide.** Shortly after the deadline, deterministic checks run first. Only if all of them pass do two independent model judges (two different Gemini models by default) rule on `substance`: is this real work toward the goal, or filler?
 6. **Post.** The verdict JSON is hashed (`evidenceHash = keccak256(canonical(verdict))`) and posted with `postVerdict`. `GET /goals/:id` returns the verdict, so anyone can recompute the hash and compare it with the on-chain event.
 
 ### Checks
@@ -71,7 +71,7 @@ pnpm install
 pnpm dev               # http://localhost:8787
 ```
 
-Models run through `claude -p` on a logged-in Claude account by default, so no API key is needed. Set `MODEL_PROVIDER=api` and `MODEL_API_KEY` to use the Anthropic API instead, or `MODEL_PROVIDER=off` for deterministic checks only. `REFEREE_FIXTURES=1` serves every route from `shared/fixtures`.
+Models run on the Gemini API: set `GEMINI_API_KEY` (a free key from Google AI Studio works) and optionally `MODEL_NAME_A` / `MODEL_NAME_B`. Alternatives: `MODEL_PROVIDER=api` with `MODEL_API_KEY` for the Anthropic API, `MODEL_PROVIDER=claude-cli` for `claude -p` on a logged-in Claude account, or `MODEL_PROVIDER=off` for deterministic checks only. `REFEREE_FIXTURES=1` serves every route from `shared/fixtures`.
 
 **Live event:**
 

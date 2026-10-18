@@ -19,6 +19,12 @@ function readDeployments(): Record<string, any> {
 const dep = readDeployments();
 const env = process.env;
 
+function defaultModels() {
+    if (env.MODEL_PROVIDER === 'gemini' || (!env.MODEL_PROVIDER && env.GEMINI_API_KEY)) return { a: 'gemini-3.8-flash', b: 'gemini-3.5-flash-lite' };
+    if (env.MODEL_API_KEY) return { a: 'claude-opus-5-5', b: 'claude-sonnet-5-5' };
+    return { a: 'opus', b: 'sonnet' };
+}
+
 export const config = {
     port: Number(env.PORT ?? 8787),
     dbPath: env.REFEREE_DB ?? resolve(here, '../referee.db'),
@@ -32,13 +38,16 @@ export const config = {
     refereeAddress: (dep.referee || '') as `0x${string}` | '',
     refereeKey: (env.REFEREE_PRIVATE_KEY ?? '') as `0x${string}` | '',
 
-    // claude-cli: shell out to `claude -p` on the logged-in Claude subscription (default, no API bill).
-    // api: Anthropic API with MODEL_API_KEY. off: deterministic checks only.
-    modelProvider: (env.MODEL_PROVIDER ?? (env.MODEL_API_KEY ? 'api' : 'claude-cli')) as 'claude-cli' | 'api' | 'off',
+    // gemini: Gemini API with GEMINI_API_KEY (free tier works). api: Anthropic API with MODEL_API_KEY.
+    // claude-cli: shell out to `claude -p` on a logged-in Claude subscription. off: deterministic checks only.
+    modelProvider: (env.MODEL_PROVIDER ||
+        (env.GEMINI_API_KEY ? 'gemini' : env.MODEL_API_KEY ? 'api' : 'claude-cli')) as 'gemini' | 'claude-cli' | 'api' | 'off',
     claudeBin: env.CLAUDE_BIN ?? 'claude',
     modelApiKey: env.MODEL_API_KEY ?? '',
-    modelA: env.MODEL_NAME_A ?? (env.MODEL_API_KEY ? 'claude-opus-5-5' : 'opus'),
-    modelB: env.MODEL_NAME_B ?? (env.MODEL_API_KEY ? 'claude-sonnet-5-5' : 'sonnet'),
+    geminiApiKey: env.GEMINI_API_KEY ?? '',
+    // Two different models, so the substance check gets two independent votes.
+    modelA: env.MODEL_NAME_A || defaultModels().a,
+    modelB: env.MODEL_NAME_B || defaultModels().b,
 
     githubToken: env.GITHUB_TOKEN ?? '',
     adminKey: env.ADMIN_KEY ?? '',
