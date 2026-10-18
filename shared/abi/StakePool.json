@@ -256,6 +256,24 @@
   },
   {
     "type": "function",
+    "name": "stake",
+    "inputs": [
+      {
+        "name": "cohortId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "goalHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "stakeWithAuthorization",
     "inputs": [
       {
