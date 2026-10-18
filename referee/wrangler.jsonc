@@ -23,7 +23,7 @@
   "vars": {
     "MODEL_PROVIDER": "gemini",
     // The site's origin(s), comma-separated, e.g. "https://cashcow.vercel.app". Empty allows any origin.
-    "CORS_ORIGINS": ""
+    "CORS_ORIGINS": "https://cashcow-beryl-five.vercel.app"
   },
   "observability": { "enabled": true }
 }

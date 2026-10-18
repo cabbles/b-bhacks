@@ -4,7 +4,7 @@
   "token": "0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC",
   "referee": "0xDE284483a14bf92681e4e4Bcc88D6D3B9C3e1fad",
   "referee_url": "https://cashcow-referee.cashcow-app.workers.dev",
-  "web_url": "",
+  "web_url": "https://cashcow-beryl-five.vercel.app",
   "deployBlock": 48269940,
   "market_pool": "0xeb5781f90bf852b34d1f05fced4c01291476f2ae",
   "bond_pool": "0xccbc587267df0940c467ae2441a7db0864cb9087"

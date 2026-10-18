@@ -1,0 +1,26 @@
+# Vercel uploads only the web app and what it builds from. Everything else stays local:
+# referee/.env and other secrets, contract build output, databases, logs.
+/*
+!/web
+!/shared
+!/package.json
+!/pnpm-lock.yaml
+!/pnpm-workspace.yaml
+# Workspace manifests only, so pnpm's lockfile matches; their code is never uploaded.
+!/referee
+/referee/*
+!/referee/package.json
+!/redteam
+/redteam/*
+!/redteam/package.json
+# The Integrity page shows the red-team results (data only).
+!/redteam/results
+# Never upload these, even inside the allowed folders.
+**/node_modules
+**/.next
+**/.env
+**/.env.*
+!**/.env.example
+**/*.db
+**/*.db-*
+**/*.log

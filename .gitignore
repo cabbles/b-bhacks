@@ -18,3 +18,5 @@ web/web.log
 .dev.vars
 .dev.vars.*
 .wrangler/
+.vercel
+.env*
