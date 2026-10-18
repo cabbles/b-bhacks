@@ -34,7 +34,7 @@ Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 
 ```mermaid
 flowchart LR
-  U[Browser + user's own wallet<br/>passkey or MetaMask] -->|compile, register goal| R[Referee<br/>Cloudflare Worker + D1]
+  U[Browser + user's own wallet<br/>MetaMask or another browser wallet] -->|compile, register goal| R[Referee<br/>Cloudflare Worker + D1]
   U -->|stake, bet, create market| P[(StakePool / MarketPool / CommitmentBond<br/>Base Sepolia)]
   R -->|polls| G[GitHub / URL]
   R -->|postVerdict + evidenceHash| P
@@ -42,8 +42,8 @@ flowchart LR
   P -->|AUSD| U
 ```
 
-1. **Join.** Open the site and connect a wallet: sign in with a passkey (a Base Account, nothing to install, gas paid for you when a paymaster is configured) or use a browser wallet like MetaMask. **Get test AUSD** pulls free test tokens from Agora's faucet.
-2. **Stake.** Type a goal in plain words. The referee compiles it into frozen criteria JSON and shows a one-sentence summary plus a control proof: a nonce file to add to your repo, or a nonce to put on your page. Your wallet approves exactly the stake and calls `stake`; a passkey wallet does both in one confirmation.
+1. **Join.** Open the site and connect a browser wallet (MetaMask first; Rabby and others work too). **Get test AUSD** pulls free test tokens from Agora's faucet; gas is a little free Base Sepolia test ETH, which MetaMask sometimes covers itself.
+2. **Stake.** Type a goal in plain words. The referee compiles it into frozen criteria JSON and shows a one-sentence summary plus a control proof: a nonce file to add to your repo, or a nonce to put on your page. Your wallet approves exactly the stake and calls `stake`, in one confirmation on wallets that batch.
 3. **Watch.** The referee polls your repo or URL and records when it first saw each piece of evidence.
 4. **Verdict.** Deterministic checks run first. A `substance` check asks two independent model calls whether the work actually delivers the goal; if they disagree, the goal goes to a human and the override is counted publicly. The verdict JSON is hashed (`keccak256(canonical(verdict))`) and posted on-chain.
 5. **Settle.** Ten minutes after the deadline anyone can call `settle`; the referee's keeper does it automatically and then pays every staker and winning bettor. Passers get their stake back plus an equal share of the forfeits. If nobody passed, or no verdict was posted, everyone is refunded.

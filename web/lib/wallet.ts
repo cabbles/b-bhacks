@@ -20,7 +20,7 @@ function safeSet(k: string, v: string) {
   } catch {}
 }
 
-/** The connected wallet (Base Account or a browser wallet), or null. Connecting happens in components/Wallet.tsx. */
+/** The connected browser wallet, or null. Connecting happens in components/Wallet.tsx. */
 export function useWallet() {
   const c = useConnection();
   const address = c.status === "connected" ? c.address : undefined;

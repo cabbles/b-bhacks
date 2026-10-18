@@ -1,23 +1,26 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { formatEther } from "viem";
 import { useConnect, useConnectors, useDisconnect } from "wagmi";
 import { short } from "@/lib/time";
-import { ADDRESSES, addrUrl, ETH_FAUCET_URL } from "@/lib/env";
-import { calls, gasSponsored, send } from "@/lib/tx";
+import { ADDRESSES, addrUrl, ETH_FAUCET_URL, METAMASK_URL } from "@/lib/env";
+import { client } from "@/lib/chain";
+import { calls, send } from "@/lib/tx";
 import { fmtAmount, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 import { ErrorBox, Spinner, TxLink } from "./ui";
 
-/** Connector choices: a Base Account (passkey) first, then whatever browser wallets are installed. */
+/** Connector choices: installed browser wallets by name, MetaMask first. */
 function useWalletOptions() {
   const connectors = useConnectors();
-  const named = connectors.filter((c) => c.id !== "injected" && c.id !== "baseAccount");
+  const named = connectors
+    .filter((c) => c.id !== "injected")
+    .sort((a, b) => Number(/metamask/i.test(b.name)) - Number(/metamask/i.test(a.name)));
   const generic = connectors.find((c) => c.id === "injected");
   return [
-    ...connectors.filter((c) => c.id === "baseAccount").map((c) => ({ connector: c, label: "Sign in with a passkey", hint: "Base Account · no app, no gas needed" })),
-    ...named.map((c) => ({ connector: c, label: c.name, hint: "Browser wallet · pays its own test gas" })),
+    ...named.map((c) => ({ connector: c, label: c.name, hint: "Browser wallet" })),
     // Only offer the generic option when no wallet announced itself by name.
     ...(named.length === 0 && generic && typeof window !== "undefined" && "ethereum" in window
-      ? [{ connector: generic, label: "Browser wallet", hint: "Pays its own test gas" }]
+      ? [{ connector: generic, label: "Browser wallet", hint: "Your installed wallet" }]
       : []),
   ];
 }
@@ -84,6 +87,12 @@ export function ConnectOptions({ onDone }: { onDone?: () => void }) {
           <span className="text-xs text-muted">{o.hint}</span>
         </button>
       ))}
+      {options.length === 0 && (
+        <p className="text-sm text-fg/80">
+          No wallet found in this browser. <a className="link" href={METAMASK_URL} target="_blank" rel="noreferrer">Install MetaMask</a>, then
+          reload this page.
+        </p>
+      )}
       <p className="pt-1 text-xs text-muted">Testnet only. Never send real funds to these contracts.</p>
       <ErrorBox msg={err} />
     </div>
@@ -95,7 +104,7 @@ export function FundsPanel() {
   const { account } = useWallet();
   const [bal, setBal] = useState<bigint | null>(null);
   const [dec, setDec] = useState(6);
-  const [sponsored, setSponsored] = useState<boolean | null>(null);
+  const [eth, setEth] = useState<bigint | null>(null);
   const [busy, setBusy] = useState(false);
   const [tx, setTx] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -103,8 +112,10 @@ export function FundsPanel() {
   useEffect(() => {
     if (!account) return;
     tokenDecimals(ADDRESSES.token).then(setDec);
-    gasSponsored().then(setSponsored);
-    const load = () => tokenBalance(ADDRESSES.token, account.address).then(setBal);
+    const load = () => {
+      tokenBalance(ADDRESSES.token, account.address).then(setBal);
+      client.getBalance({ address: account.address }).then(setEth, () => setEth(null));
+    };
     load();
     const t = setInterval(load, 8000);
     return () => clearInterval(t);
@@ -113,7 +124,7 @@ export function FundsPanel() {
   if (!account) {
     return (
       <div className="border-t border-line pt-3">
-        <p className="mb-3 text-sm text-fg/80">Connect a wallet to stake and bet. A passkey account needs no app and no gas.</p>
+        <p className="mb-3 text-sm text-fg/80">Connect a browser wallet such as MetaMask to stake and bet.</p>
         <ConnectOptions />
       </div>
     );
@@ -141,17 +152,18 @@ export function FundsPanel() {
         <dd className="num text-right text-2xl font-semibold">
           {bal === null ? "…" : fmtAmount(bal, dec)} <span className="text-sm text-muted">AUSD</span>
         </dd>
-        <dt className="text-muted">Gas</dt>
-        <dd className="text-right">{sponsored === null ? "…" : sponsored ? "covered for you" : "paid by your wallet"}</dd>
+        <dt className="text-muted">Test ETH (gas)</dt>
+        <dd className="num text-right">{eth === null ? "…" : Number(formatEther(eth)).toPrecision(2)}</dd>
       </dl>
       <button type="button" className="btn-ghost mt-4 w-full" disabled={busy} onClick={() => void getAusd()}>
         {busy ? <><Spinner /> Requesting…</> : "Get test AUSD"}
       </button>
       {tx && <div className="mt-2 text-sm"><TxLink hash={tx} label="Faucet" /></div>}
-      {sponsored === false && (
+      {eth === 0n && (
         <p className="mt-3 text-xs text-muted">
-          Your wallet pays its own gas, so it needs a little Base Sepolia test ETH (free) from a{" "}
-          <a className="link" href={ETH_FAUCET_URL} target="_blank" rel="noreferrer">faucet</a>. A passkey account skips this step.
+          Transactions need a little Base Sepolia test ETH for gas (free) from a{" "}
+          <a className="link" href={ETH_FAUCET_URL} target="_blank" rel="noreferrer">faucet</a>, unless your wallet offers to cover the
+          fee (MetaMask sometimes does).
         </p>
       )}
       <ErrorBox msg={err} />

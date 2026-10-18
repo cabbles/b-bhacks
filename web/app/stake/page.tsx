@@ -116,7 +116,7 @@ function StakeInner() {
     if (!account || !cfg || !cohort || !compiled) return;
     setErr(null);
     try {
-      // The stake and the owner's bond go out together: one confirmation on a passkey wallet.
+      // The stake and the owner's bond go out together: one confirmation on wallets that batch.
       const batch = calls.stake(cohort.id, compiled.goal_hash, stakeAmount);
       if (bondRaw > 0n && cfg.bond_pool) batch.push(...calls.bond(cohort.id, bondRaw));
       setBusy("Confirm in your wallet…");

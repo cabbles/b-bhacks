@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { baseSepolia } from "viem/chains";
 import { authNonce, client, poolAbi } from "@/lib/chain";
 import { getConfig } from "@/lib/api";
-import { addrUrl, MOCK_CHAIN, MOCK_REFEREE, PAYMASTER_URL, REFEREE_URL, RPC_URL } from "@/lib/env";
+import { addrUrl, MOCK_CHAIN, MOCK_REFEREE, REFEREE_URL, RPC_URL } from "@/lib/env";
 import type { ChainConfig } from "@/lib/types";
 import { fmtAmount, tokenBalance, tokenDecimals, useWallet } from "@/lib/wallet";
 
@@ -85,7 +85,6 @@ export default function StatusPage() {
 
       const dec = await tokenDecimals(c.token, c.decimals);
       push({ name: "Token", ok: true, detail: `${dec} decimals` });
-      push({ name: "Gas sponsorship", ok: !!PAYMASTER_URL, detail: PAYMASTER_URL ? "paymaster set: passkey wallets pay no gas" : "no NEXT_PUBLIC_PAYMASTER_URL: every wallet pays its own test gas" });
 
       const now = Date.now() / 1000;
       const open = c.cohorts.filter((x) => x.stake_deadline > now);

@@ -8,8 +8,6 @@ const FORCE_MOCK = process.env.NEXT_PUBLIC_MOCK === "1";
 export const REFEREE_URL = FORCE_MOCK ? "" : clean(process.env.NEXT_PUBLIC_REFEREE_URL || deployments.referee_url);
 export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia.base.org";
 export const WEB_URL = clean(process.env.NEXT_PUBLIC_WEB_URL || deployments.web_url);
-// Coinbase Developer Platform paymaster for Base Sepolia. Its policy must allowlist only our contracts and the faucet.
-export const PAYMASTER_URL = process.env.NEXT_PUBLIC_PAYMASTER_URL || "";
 
 const dep = deployments as Record<string, unknown>;
 export const ADDRESSES = {
@@ -29,4 +27,5 @@ export const MOCK = MOCK_CHAIN || MOCK_REFEREE;
 export const EXPLORER = "https://sepolia.basescan.org";
 export const txUrl = (h: string) => `${EXPLORER}/tx/${h}`;
 export const addrUrl = (a: string) => `${EXPLORER}/address/${a}`;
-export const ETH_FAUCET_URL = "https://portal.cdp.coinbase.com/products/faucet";
+export const ETH_FAUCET_URL = "https://docs.base.org/base-chain/tools/network-faucets";
+export const METAMASK_URL = "https://metamask.io/download/";

@@ -4,11 +4,10 @@ Everything runs on free plans, with nothing on a laptop:
 
 | Piece | Where | What it does |
 |---|---|---|
-| Web app (`web/`) | **Vercel** (Hobby) | The site. Users connect their own wallet and send their own transactions. Reads the contracts directly. |
+| Web app (`web/`) | **Vercel** (Hobby) | The site. Users connect their own browser wallet (MetaMask first) and send their own transactions. Reads the contracts directly. |
 | Referee (`referee/`) | **Cloudflare Workers** + **D1**, cron every minute | Compiles goals, watches evidence, posts verdicts (referee key), and pays everyone out (keeper key). |
 | Models | **Gemini API**, free key | Goal compiling and the two substance judges. |
 | Contracts (`contracts/`) | **Base Sepolia** | `StakePool`, `MarketPool`, `CommitmentBond`. Test AUSD from Agora's faucet. |
-| Gas sponsorship (optional) | **Coinbase Developer Platform** paymaster | Passkey (Base Account) users pay no gas. |
 
 Testnet only. Nothing here holds real value, and the free Gemini tier may use prompts to improve Google's products (the referee only sends public evidence).
 
@@ -16,7 +15,7 @@ Testnet only. Nothing here holds real value, and the free Gemini tier may use pr
 
 Create these, and turn on two-factor auth (an authenticator app or passkey, not SMS) for each one. Taking over any of them means taking over a key or the site.
 
-- GitHub (already have), Cloudflare, Vercel, Google AI Studio, Coinbase Developer Platform, and optionally Alchemy (a keyed RPC; the public `sepolia.base.org` is rate-limited).
+- GitHub (already have), Cloudflare, Vercel, Google AI Studio, and optionally Alchemy (a keyed RPC; the public `sepolia.base.org` is rate-limited).
 - Install Foundry (`forge`, `cast`) and pnpm.
 
 ## 1. Keys
@@ -31,7 +30,7 @@ cast wallet address --account cashcow-referee   # repeat for each: proves the pa
 openssl rand -hex 32                  # ADMIN_KEY: store it in your password manager
 ```
 
-`-p` asks for the password only once and never confirms it, so a typo goes unnoticed: create each password in a password manager first, paste it, then check it with `cast wallet address` right away. Keep the passwords in the password manager. Fund all three with a little Base Sepolia ETH from a faucet (e.g. the Coinbase Developer Platform faucet); `cast wallet address --account cashcow-keeper` prints an address.
+`-p` asks for the password only once and never confirms it, so a typo goes unnoticed: create each password in a password manager first, paste it, then check it with `cast wallet address` right away. Keep the passwords in the password manager. Fund all three with a little Base Sepolia ETH from a faucet (see docs.base.org's network faucets); `cast wallet address --account cashcow-keeper` prints an address.
 
 Why a fresh referee key: the hackathon one lived on a laptop behind tunnels, and the contracts are being redeployed anyway, so rotating it costs nothing now. It can't be rotated later without another redeploy.
 
@@ -70,16 +69,7 @@ Check: `curl https://cashcow-referee.<you>.workers.dev/health` shows `chain`, `s
 
 Canvas stays off in production (its token is a real university account): don't set `CANVAS_TOKEN`.
 
-## 4. Gas sponsorship (optional, recommended)
-
-In the Coinbase Developer Platform, create a project and open **Paymaster** on **Base Sepolia**. Its URL (`https://api.developer.coinbase.com/rpc/v1/base-sepolia/...`) is visible to every visitor, so the policy is what protects it:
-
-- **Allowlist only these contracts and functions:** StakePool (`stake`, `createCohort`, `claimFor`), MarketPool (`bet`, `resolve`, `claimFor`), CommitmentBond (`bond`, `resolve`, `claimFor`), AUSD (`approve`), and the Agora faucet `0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C` (`requestFunds`).
-- **Set per-user limits** (operations and gas per user per day).
-
-Without it, everything still works; every wallet just pays its own (free, test) gas.
-
-## 5. Web app on Vercel
+## 4. Web app on Vercel
 
 Import the GitHub repo. **Root Directory** `web` (leave "Include files outside the root directory" on, the app imports `../shared`). Environment variables:
 
@@ -87,14 +77,13 @@ Import the GitHub repo. **Root Directory** `web` (leave "Include files outside t
 |---|---|
 | `NEXT_PUBLIC_REFEREE_URL` | the `workers.dev` URL from step 3 |
 | `NEXT_PUBLIC_RPC_URL` | a Base Sepolia RPC for the browser. A keyed URL is public: in Alchemy, restrict the key to your Vercel domain. |
-| `NEXT_PUBLIC_PAYMASTER_URL` | from step 4 (optional) |
 | `NEXT_PUBLIC_WEB_URL` | your Vercel URL, for invite links |
 
 Then lock the referee to the site: set `"CORS_ORIGINS": "https://<your-app>.vercel.app"` in `referee/wrangler.jsonc` and run `pnpm cf:deploy` again. Put both URLs into `shared/deployments.json` (`referee_url`, `web_url`) and commit.
 
 Vercel Hobby is for non-commercial use. If this becomes a business, move to Vercel Pro or host the web app elsewhere.
 
-## 6. Check it end to end
+## 5. Check it end to end
 
 1. Open `/status` on the site: every row green.
 2. Connect a wallet, **Get test AUSD**, create a market with the shortest times, stake on a real task, and bet from a second browser.

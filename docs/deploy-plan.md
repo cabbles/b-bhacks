@@ -18,6 +18,8 @@ Code for phases 1–5 is done on the `deploy` branch and tested locally (unit te
 
 Still to do, all needing accounts or keys: get a Gemini key and run a real compile and verdict; create keys and redeploy the contracts; deploy the Worker, the paymaster and the Vercel site; run the end-to-end check. Step by step: [`infra/README.md`](../infra/README.md).
 
+**Update (2026-10-18):** wallets are browser wallets only (MetaMask first). The Coinbase passkey wallet and its paymaster were dropped: Coinbase's sponsorship switch is shared between testnet and real mainnet, which meant real-money exposure for a test app, and MetaMask can cover gas itself on some networks. The wallet background below is kept for the record.
+
 ## Phase 0: Housekeeping
 - Commit the current WIP on `web-markets-bet`, merge it to main, then start a branch `deploy` for this work.
 

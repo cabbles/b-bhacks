@@ -1,8 +1,8 @@
 import { encodeFunctionData, parseEventLogs, type Hex, type TransactionReceipt } from "viem";
 import { baseSepolia } from "viem/chains";
-import { getCapabilities, getConnection, sendCalls, switchChain, waitForCallsStatus } from "wagmi/actions";
+import { getConnection, sendCalls, switchChain, waitForCallsStatus } from "wagmi/actions";
 import { bondAbi, erc20Abi, faucetAbi, marketAbi, poolAbi } from "./chain";
-import { ADDRESSES, MOCK_CHAIN, PAYMASTER_URL } from "./env";
+import { ADDRESSES, MOCK_CHAIN } from "./env";
 import * as fx from "./fixtures";
 import { wagmiConfig } from "./wagmi";
 
@@ -13,20 +13,9 @@ const need = (a: `0x${string}` | null, what: string) => {
   return a;
 };
 
-/** Can this wallet have its gas paid by our paymaster? Only smart wallets can; errors mean no. */
-export async function gasSponsored(): Promise<boolean> {
-  if (!PAYMASTER_URL || MOCK_CHAIN) return false;
-  try {
-    const caps = await getCapabilities(wagmiConfig, { chainId: baseSepolia.id });
-    return Boolean((caps as { paymasterService?: { supported?: boolean } }).paymasterService?.supported);
-  } catch {
-    return false;
-  }
-}
-
 /**
- * Send calls from the connected wallet and wait for them to land. Smart wallets get one batched, sponsored
- * confirmation; other wallets confirm each call in turn and pay their own gas. Throws if anything reverts.
+ * Send calls from the connected wallet and wait for them to land. Wallets that batch (EIP-5792, e.g. MetaMask's
+ * smart account) confirm once; others confirm each call in turn. Throws if anything reverts.
  */
 export async function send(calls: Call[]): Promise<{ hash: Hex; receipts: TransactionReceipt[] }> {
   if (MOCK_CHAIN) {
@@ -37,11 +26,9 @@ export async function send(calls: Call[]): Promise<{ hash: Hex; receipts: Transa
   if (conn.status !== "connected") throw new Error("Connect a wallet first.");
   if (conn.chainId !== baseSepolia.id) await switchChain(wagmiConfig, { chainId: baseSepolia.id });
 
-  const sponsored = await gasSponsored();
   const { id } = await sendCalls(wagmiConfig, {
     chainId: baseSepolia.id,
     calls,
-    capabilities: sponsored ? { paymasterService: { url: PAYMASTER_URL } } : undefined,
     // Wallets without batching (EIP-5792) send the calls one by one instead.
     experimental_fallback: true,
   });
