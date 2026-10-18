@@ -34,5 +34,5 @@ export function useLiveMarket(cohortId: number, dec: number) {
     bets = "Loading bets…";
   }
 
-  return { href, title, bets };
+  return { href, title, bets, owner: owner as `0x${string}` | "" };
 }

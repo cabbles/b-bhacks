@@ -9,6 +9,8 @@ import { ErrorBox, Spinner, Stat, StatusPill } from "@/components/ui";
 import { InviteLink } from "@/components/InviteLink";
 import { MarketTotals } from "@/components/MarketTotals";
 import { kindOf } from "@/lib/kinds";
+import { QuickBet, QuickBetPending } from "@/components/QuickBet";
+import { MOCK } from "@/lib/env";
 
 const ORDER: Record<GoalStatus, number> = { needs_human: 0, watching: 1, passed: 2, failed: 3 };
 
@@ -18,6 +20,8 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
   const { data, error } = usePoll<CohortResponse>(() => getCohort(id), 5_000, [id]);
   const [dec, setDec] = useState(6);
   const [created, setCreated] = useState(false);
+  const { data: cfg } = usePoll(getConfig, 10_000);
+  const [betRound, setBetRound] = useState(0);
   useEffect(() => {
     setCreated(new URLSearchParams(window.location.search).has("created"));
   }, []);
@@ -84,9 +88,29 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
             <dt className="text-muted">Deadline</dt>
             <dd className="num text-right">{fmtTime(cohort.goal_deadline)}</dd>
           </dl>
+          {stakingOpen && !solo && !MOCK && (
+            <div className="mt-5">
+              <div className="label">Place a bet</div>
+              {goals[0] && cfg?.market_pool ? (
+                <QuickBet
+                  key={betRound}
+                  bare
+                  cohortId={cohort.id}
+                  owner={goals[0].staker as `0x${string}`}
+                  title={goals[0].goal_text ?? `Market #${cohort.id}`}
+                  cfg={cfg}
+                  onClose={() => setBetRound((r) => r + 1)}
+                />
+              ) : (
+                <QuickBetPending
+                  reason={!goals[0] ? "Betting opens as soon as the owner confirms their task." : "Can't reach the betting service right now. Try again in a moment."}
+                />
+              )}
+            </div>
+          )}
           {stakingOpen && (
             <div className="mt-5 flex flex-col gap-3">
-              {solo ? <Link href={`/stake?cohort=${cohort.id}`} className="btn-primary">Make a solo stake</Link> : goals[0] ? <Link href={`/goals/${goals[0].goal_id}`} className="btn-primary">Bet on this task</Link> : null}
+              {solo ? <Link href={`/stake?cohort=${cohort.id}`} className="btn-primary">Make a solo stake</Link> : goals[0] ? <Link href={`/goals/${goals[0].goal_id}`} className="btn-ghost">View the task</Link> : null}
               {!solo && <InviteLink cohortId={cohort.id} />}
             </div>
           )}
@@ -106,7 +130,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
         <div className="label">How this market works</div>
         <ol className="grid grid-cols-1 gap-6 border-t border-line pt-4 sm:grid-cols-3">
           <li><span className="num text-sm text-muted">01</span><div className="font-display text-lg font-semibold">One task</div><p className="text-sm text-fg/75">One person puts up a task and their own stake. Finish: they get exactly it back. Miss: it goes to the NO bettors.</p></li>
-          <li><span className="num text-sm text-muted">02</span><div className="font-display text-lg font-semibold">Bet</div><p className="text-sm text-fg/75">Anyone can bet YES or NO on whether they finish, until betting closes. Open the task to bet.</p></li>
+          <li><span className="num text-sm text-muted">02</span><div className="font-display text-lg font-semibold">Bet</div><p className="text-sm text-fg/75">Anyone can bet YES or NO on whether they finish, until betting closes, right on this page.</p></li>
           <li><span className="num text-sm text-muted">03</span><div className="font-display text-lg font-semibold">Get paid</div><p className="text-sm text-fg/75">At the deadline the referee rules. The side that called it right splits the other side's bets.</p></li>
         </ol>
       </section>

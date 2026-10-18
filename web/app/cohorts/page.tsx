@@ -3,11 +3,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getConfig } from "@/lib/api";
 import { countdown, useNow, usePoll } from "@/lib/time";
-import type { Cohort } from "@/lib/types";
+import type { Cohort, RelayerConfig } from "@/lib/types";
 import { tokenDecimals } from "@/lib/wallet";
 import { ErrorBox, Spinner } from "@/components/ui";
 import { useLiveMarket } from "@/components/useLiveMarket";
 import { kindOf } from "@/lib/kinds";
+import { QuickBet } from "@/components/QuickBet";
+import { MOCK } from "@/lib/env";
 
 function phase(c: Cohort, now: number) {
   if (c.stake_deadline * 1000 > now) return "open";
@@ -15,8 +17,10 @@ function phase(c: Cohort, now: number) {
   return c.settled ? "paid out" : "judging";
 }
 
-function MarketRow({ c, dec, now, open }: { c: Cohort; dec: number; now: number; open: boolean }) {
+function MarketRow({ c, dec, now, open, cfg }: { c: Cohort; dec: number; now: number; open: boolean; cfg?: RelayerConfig }) {
   const live = useLiveMarket(c.id, dec);
+  const [betting, setBetting] = useState(false);
+  const canQuickBet = !MOCK && !!cfg?.market_pool && !!live.owner;
   if (!open) {
     return (
       <li>
@@ -41,7 +45,17 @@ function MarketRow({ c, dec, now, open }: { c: Cohort; dec: number; now: number;
           betting closes in {countdown(c.stake_deadline, now)} · deadline in {countdown(c.goal_deadline, now)}
         </div>
       </div>
-      <Link href={live.href} className="btn-primary">View &amp; bet</Link>
+      <div className="flex gap-2">
+        {canQuickBet && (
+          <button type="button" className={betting ? "btn-ghost" : "btn-primary"} aria-expanded={betting} onClick={() => setBetting((b) => !b)}>
+            {betting ? "Close" : "Bet"}
+          </button>
+        )}
+        <Link href={live.href} className={canQuickBet ? "btn-ghost" : "btn-primary"}>View</Link>
+      </div>
+      {betting && canQuickBet && (
+        <QuickBet cohortId={c.id} owner={live.owner as `0x${string}`} title={live.title} cfg={cfg!} onClose={() => setBetting(false)} />
+      )}
     </li>
   );
 }
@@ -87,7 +101,7 @@ export default function Markets() {
           ) : (
             <ul className="divide-y divide-line">
               {open.map((c) => (
-                <MarketRow key={c.id} c={c} dec={dec} now={now} open />
+                <MarketRow key={c.id} c={c} dec={dec} now={now} open cfg={cfg} />
               ))}
             </ul>
           )}
