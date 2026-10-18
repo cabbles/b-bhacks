@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 interface IERC20 {
     function transfer(address to, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
 }
 
 interface IERC3009 {
@@ -119,6 +120,23 @@ contract StakePool {
         bytes32 r,
         bytes32 s
     ) external {
+        uint256 amount = _recordStake(cohortId, staker, goalHash, nonce);
+        IERC3009(token).receiveWithAuthorization(staker, address(this), amount, validAfter, validBefore, nonce, v, r, s);
+        emit Staked(cohortId, staker, goalHash);
+    }
+
+    /// @notice Stake from the caller's own wallet: approve this pool for stakeAmount first.
+    ///         Works with any wallet, including smart wallets whose signatures ERC-3009 v/r/s cannot carry.
+    function stake(uint256 cohortId, bytes32 goalHash) external {
+        uint256 amount = _recordStake(cohortId, msg.sender, goalHash, authNonce(cohortId, goalHash));
+        if (!IERC20(token).transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
+        emit Staked(cohortId, msg.sender, goalHash);
+    }
+
+    function _recordStake(uint256 cohortId, address staker, bytes32 goalHash, bytes32 nonce)
+        private
+        returns (uint256 amount)
+    {
         Cohort storage c = cohorts[cohortId];
         if (c.stakeAmount == 0) revert UnknownCohort();
         if (block.timestamp > c.stakeDeadline) revert StakingClosed();
@@ -129,11 +147,7 @@ contract StakePool {
 
         st.goalHash = goalHash;
         c.stakerCount += 1;
-
-        IERC3009(token).receiveWithAuthorization(
-            staker, address(this), c.stakeAmount, validAfter, validBefore, nonce, v, r, s
-        );
-        emit Staked(cohortId, staker, goalHash);
+        return c.stakeAmount;
     }
 
     /// @notice One verdict per (cohort, staker), only by the referee, only after the goal deadline

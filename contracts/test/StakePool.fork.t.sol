@@ -3,11 +3,14 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {StakePool} from "../src/StakePool.sol";
+import {MarketPool} from "../src/MarketPool.sol";
+import {SmartWallet} from "./DirectCalls.t.sol";
 
 interface IAUSD {
     function balanceOf(address) external view returns (uint256);
     function transfer(address, uint256) external returns (bool);
     function DOMAIN_SEPARATOR() external view returns (bytes32);
+    function approve(address, uint256) external returns (bool);
 }
 
 /// Runs only with FORK_RPC_URL set: proves the real Base Sepolia AUSD accepts the pool's
@@ -57,5 +60,44 @@ contract StakePoolForkTest is Test {
         pool.settle(cohort);
         pool.claimFor(cohort, user);
         assertEq(IAUSD(AUSD).balanceOf(user), 100e6);
+    }
+
+    /// The direct path on real AUSD: a contract wallet (no private key) approves, stakes, is bet on, and is paid.
+    function test_realAusdDirectStakeAndBetFromContractWallet() public {
+        string memory rpc = vm.envOr("FORK_RPC_URL", string(""));
+        if (bytes(rpc).length == 0) return;
+        vm.createSelectFork(rpc);
+
+        address referee = makeAddr("referee");
+        StakePool pool = new StakePool(AUSD, referee);
+        MarketPool market = new MarketPool(address(pool));
+        uint64 sd = uint64(block.timestamp + 600);
+        uint64 gd = uint64(block.timestamp + 1200);
+        uint256 cohort = pool.createCohort(bytes32(0), sd, gd, 10e6);
+
+        SmartWallet wallet = new SmartWallet();
+        address bettor = makeAddr("bettor");
+        vm.startPrank(FAUCET);
+        IAUSD(AUSD).transfer(address(wallet), 100e6);
+        IAUSD(AUSD).transfer(bettor, 100e6);
+        vm.stopPrank();
+
+        wallet.exec(AUSD, abi.encodeCall(IAUSD.approve, (address(pool), 10e6)));
+        wallet.exec(address(pool), abi.encodeCall(pool.stake, (cohort, keccak256("goal"))));
+        assertEq(IAUSD(AUSD).balanceOf(address(pool)), 10e6);
+
+        vm.startPrank(bettor);
+        IAUSD(AUSD).approve(address(market), 5e6);
+        market.bet(cohort, address(wallet), false, 5e6);
+        vm.stopPrank();
+
+        vm.warp(gd + 1);
+        vm.prank(referee);
+        pool.postVerdict(cohort, address(wallet), true, bytes32(uint256(1)));
+        vm.warp(gd + pool.SETTLE_DELAY());
+        pool.settle(cohort);
+        pool.claimFor(cohort, address(wallet));
+        market.resolve(cohort, address(wallet));
+        assertEq(IAUSD(AUSD).balanceOf(address(wallet)), 100e6);
     }
 }

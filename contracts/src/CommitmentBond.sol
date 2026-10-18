@@ -84,17 +84,28 @@ contract CommitmentBond {
         bytes32 r,
         bytes32 s
     ) external nonReentrant {
+        bytes32 id = _recordBond(cohortId, owner, amount, nonce);
+        IERC3009(token).receiveWithAuthorization(owner, address(this), amount, validAfter, validBefore, nonce, v, r, s);
+        emit Bonded(id, cohortId, owner, amount);
+    }
+
+    /// Owner posts their bond from their own wallet: approve this contract for `amount` first. Works with any wallet.
+    function bond(uint256 cohortId, uint256 amount) external nonReentrant {
+        bytes32 id = _recordBond(cohortId, msg.sender, amount, bondNonce(cohortId, msg.sender, amount));
+        if (!IERC20(token).transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
+        emit Bonded(id, cohortId, msg.sender, amount);
+    }
+
+    function _recordBond(uint256 cohortId, address owner, uint256 amount, bytes32 nonce) private returns (bytes32 id) {
         if (owner == address(0) || amount == 0) revert BadParams();
         (bytes32 goalHash,,) = stakePool.stakes(cohortId, owner);
         if (goalHash == bytes32(0)) revert NoCommitment();
         (, uint64 bettingCloses,,,,,, bool settled,) = stakePool.cohorts(cohortId);
         if (block.timestamp >= bettingCloses || settled) revert BondingClosed();
         if (nonce != bondNonce(cohortId, owner, amount)) revert BadNonce();
-        bytes32 id = marketId(cohortId, owner);
+        id = marketId(cohortId, owner);
         if (bonds[id].amount != 0) revert AlreadyBonded();
         bonds[id].amount = amount;
-        IERC3009(token).receiveWithAuthorization(owner, address(this), amount, validAfter, validBefore, nonce, v, r, s);
-        emit Bonded(id, cohortId, owner, amount);
     }
 
     /// Anyone, once StakePool has settled the round. Pays the owner back or burns in the same call.

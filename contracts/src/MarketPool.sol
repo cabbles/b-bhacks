@@ -98,19 +98,45 @@ contract MarketPool {
         uint256 amount,
         Authorization calldata a
     ) external nonReentrant {
+        bytes32 id = _checkBet(cohortId, owner, bettor, yes, amount);
+        if (a.nonce != authNonce(cohortId, owner, bettor, yes, amount, sequences[bettor])) revert BadNonce();
+        sequences[bettor]++;
+        _applyBet(id, bettor, yes, amount);
+        IERC3009(token)
+            .receiveWithAuthorization(
+                bettor, address(this), amount, a.validAfter, a.validBefore, a.nonce, a.v, a.r, a.s
+            );
+        emit Bet(id, cohortId, owner, bettor, yes, amount);
+    }
+
+    /// Bet from the caller's own wallet: approve this pool for `amount` first. Works with any wallet.
+    function bet(uint256 cohortId, address owner, bool yes, uint256 amount) external nonReentrant {
+        bytes32 id = _checkBet(cohortId, owner, msg.sender, yes, amount);
+        _applyBet(id, msg.sender, yes, amount);
+        if (!IERC20(token).transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
+        emit Bet(id, cohortId, owner, msg.sender, yes, amount);
+    }
+
+    function _checkBet(uint256 cohortId, address owner, address bettor, bool yes, uint256 amount)
+        private
+        view
+        returns (bytes32 id)
+    {
         {
             (bytes32 goalHash,,) = stakePool.stakes(cohortId, owner);
             if (goalHash == bytes32(0)) revert NoCommitment();
             (, uint64 deadline,,,,,, bool settled,) = stakePool.cohorts(cohortId);
             if (block.timestamp >= deadline || settled) revert BettingClosed();
         }
-        bytes32 id = marketId(cohortId, owner);
+        id = marketId(cohortId, owner);
         Market storage m = markets[id];
         if (m.result != Result.Pending) revert BettingClosed();
         if (!yes && bettor == owner) revert OwnerCannotBetNo();
         if (bettor == address(0) || amount == 0 || amount > MAX_POOL - m.yesTotal - m.noTotal) revert BadParams();
-        if (a.nonce != authNonce(cohortId, owner, bettor, yes, amount, sequences[bettor])) revert BadNonce();
-        sequences[bettor]++;
+    }
+
+    function _applyBet(bytes32 id, address bettor, bool yes, uint256 amount) private {
+        Market storage m = markets[id];
         Position storage p = positions[id][bettor];
         if (yes) {
             m.yesTotal += amount;
@@ -119,11 +145,6 @@ contract MarketPool {
             m.noTotal += amount;
             p.noAmount += amount;
         }
-        IERC3009(token)
-            .receiveWithAuthorization(
-                bettor, address(this), amount, a.validAfter, a.validBefore, a.nonce, a.v, a.r, a.s
-            );
-        emit Bet(id, cohortId, owner, bettor, yes, amount);
     }
 
     /// A settled StakePool cannot accept late verdicts, so both pools always agree.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// Minimal ERC-20 + ERC-3009 receiveWithAuthorization with real EIP-712 signature checks.
+/// Minimal ERC-20 (with approve/transferFrom) + ERC-3009 receiveWithAuthorization with real EIP-712 signature checks.
 /// Domain mirrors testnet AUSD on Base Sepolia: name "Agora Dollar", version "1".
 contract MockAUSD {
     string public constant name = "AUSD";
@@ -12,6 +12,7 @@ contract MockAUSD {
     bytes32 public immutable DOMAIN_SEPARATOR;
 
     mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
     mapping(address => mapping(bytes32 => bool)) public authorizationState;
 
     constructor() {
@@ -40,6 +41,18 @@ contract MockAUSD {
 
     function transfer(address to, uint256 value) external returns (bool) {
         balanceOf[msg.sender] -= value;
+        balanceOf[to] += value;
+        return true;
+    }
+
+    function approve(address spender, uint256 value) external returns (bool) {
+        allowance[msg.sender][spender] = value;
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 value) external returns (bool) {
+        allowance[from][msg.sender] -= value;
+        balanceOf[from] -= value;
         balanceOf[to] += value;
         return true;
     }
