@@ -37,6 +37,16 @@ export const config = {
     token: (env.TOKEN_ADDRESS || dep.token || '') as `0x${string}` | '',
     refereeAddress: (dep.referee || '') as `0x${string}` | '',
     refereeKey: (env.REFEREE_PRIVATE_KEY ?? '') as `0x${string}` | '',
+    marketPool: (env.MARKET_POOL_ADDRESS || dep.market_pool || '') as `0x${string}` | '',
+    bondPool: (env.BOND_ADDRESS || dep.bond_pool || '') as `0x${string}` | '',
+    // Where the keeper's event scan starts. deployments.json's block only belongs to deployments.json's pool.
+    deployBlock: Number(env.DEPLOY_BLOCK || (env.POOL_ADDRESS ? 0 : dep.deployBlock) || 0),
+    // Pays gas for settle and payouts, which anyone may call. Kept apart from the referee key on purpose:
+    // it can't post verdicts, so a leak costs only its small ETH balance. Unset = keeper off.
+    keeperKey: (env.KEEPER_PRIVATE_KEY ?? '') as `0x${string}` | '',
+    keeperMs: Number(env.KEEPER_MS ?? 30_000),
+    // Max block range per eth_getLogs call; sepolia.base.org allows 200, keyed RPCs often more.
+    logChunk: BigInt(env.LOG_CHUNK ?? 200),
 
     // gemini: Gemini API with GEMINI_API_KEY (free tier works). api: Anthropic API with MODEL_API_KEY.
     // claude-cli: shell out to `claude -p` on a logged-in Claude subscription. off: deterministic checks only.

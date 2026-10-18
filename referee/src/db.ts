@@ -29,6 +29,15 @@ CREATE TABLE IF NOT EXISTS goals (
     decided_at TEXT,
     UNIQUE (cohort_id, staker)
 );
+-- Keeper: who staked and bet (from contract events), how far the event scan got, and rounds fully paid out.
+-- Keyed by pool address: cohort ids restart at 1 after a redeploy.
+CREATE TABLE IF NOT EXISTS keeper_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS keeper_stakers (pool TEXT NOT NULL, cohort_id INTEGER NOT NULL, staker TEXT NOT NULL, PRIMARY KEY (pool, cohort_id, staker));
+CREATE TABLE IF NOT EXISTS keeper_bettors (
+    pool TEXT NOT NULL, cohort_id INTEGER NOT NULL, owner TEXT NOT NULL, bettor TEXT NOT NULL,
+    PRIMARY KEY (pool, cohort_id, owner, bettor)
+);
+CREATE TABLE IF NOT EXISTS keeper_done (pool TEXT NOT NULL, cohort_id INTEGER NOT NULL, done_at TEXT NOT NULL, PRIMARY KEY (pool, cohort_id));
 CREATE TABLE IF NOT EXISTS observations (
     goal_id INTEGER NOT NULL,
     kind TEXT NOT NULL,       -- github_commit | url_fetch | canvas_submission

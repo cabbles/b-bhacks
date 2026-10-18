@@ -15,8 +15,8 @@ export const poolAbi = parseAbi([
     'function stakes(uint256, address) view returns (bytes32 goalHash, uint8 outcome, bool claimed)',
 ]);
 
-const chain = config.chainId === 11155111 ? sepolia : baseSepolia;
-const transport = http(config.rpcUrl || undefined);
+export const chain = config.chainId === 11155111 ? sepolia : baseSepolia;
+export const transport = http(config.rpcUrl || undefined);
 export const publicClient = createPublicClient({ chain, transport });
 const wallet = signerReady()
     ? createWalletClient({ chain, transport, account: privateKeyToAccount(config.refereeKey as Hex, { nonceManager }) })

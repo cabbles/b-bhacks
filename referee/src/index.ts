@@ -12,10 +12,12 @@ if (config.fixtures) {
 } else {
     const { routes } = await import('./routes.ts');
     const { startWorker } = await import('./worker.ts');
+    const { startKeeper } = await import('./keeper.ts');
     await app.register(routes);
     const { x402Routes } = await import('./x402.ts');
     await app.register(x402Routes);
     startWorker();
+    startKeeper();
 }
 
 await app.listen({ port: config.port, host: '0.0.0.0' });
