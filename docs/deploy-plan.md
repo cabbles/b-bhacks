@@ -24,6 +24,26 @@ File: `referee/src/model.ts`, `referee/src/config.ts`.
 - Remove the `claude-cli` path once Gemini works.
 
 ## Phase 2: Connected wallets in the web app (removes the need for a relayer)
+
+### Background: the two kinds of wallets
+A wallet is a key that proves "this account is mine" and lets you sign things.
+
+- **Regular wallet (MetaMask, Coinbase Wallet app, Rabby…).** A browser extension or phone app with a 12-word recovery phrase. The account *is* the key. **Every transaction needs ETH in that same account to pay gas.**
+- **Smart wallet (Coinbase Smart Wallet).** The account is a small program on-chain, controlled by a **passkey** (Face ID or fingerprint). Nothing to install, no recovery phrase. Because the account is a program, it can let a **paymaster** (a service that pays fees for users) pay its gas, so the user never needs ETH.
+
+**Why Coinbase Smart Wallet:** Base is Coinbase's chain, so their smart wallet and paymaster work best there. The paymaster is free on Base Sepolia, and sign-up is a single passkey prompt, which is the closest thing to today's "open the site and you're in" burner key. Other smart wallets would also work.
+
+**A naming trap:** "Coinbase" means three things. The **exchange** (buying crypto with ID checks) is *not used*. **Coinbase Wallet** is a regular wallet like MetaMask. **Coinbase Smart Wallet** is the passkey one. Users need no Coinbase account and no ID.
+
+**What users see:** a "Connect wallet" button.
+| Option | Setup | Gas |
+|---|---|---|
+| Sign up with passkey (Coinbase Smart Wallet) | One Face ID / fingerprint prompt | Paid by our free paymaster, no ETH needed |
+| MetaMask or another regular wallet | Already installed | User pays, so they need test ETH from a faucet (we link one) |
+
+Both get test AUSD from the same "Get test AUSD" button. To check at build time: MetaMask has been adding smart-account features, which may let it use the paymaster too. If so, MetaMask users won't need test ETH either.
+
+### Work
 - Add `wagmi` (with the viem the app already uses) and injected + Coinbase Wallet connectors. Skip WalletConnect for now so no project ID is needed. Replace the burner-key `useWallet` in `web/lib/wallet.ts` with a wagmi-backed hook that exposes the same shape (`address`, balance), so pages change as little as possible.
 - Stake: the user signs `ReceiveWithAuthorization` with `signTypedData`, using the existing `web/lib/erc3009.ts` typed-data builder, then submits `stakeWithAuthorization` from their own wallet. Bets and bonds work the same way: they sign, then submit themselves.
 - Replace each relayer call in `web/lib/api.ts` (`relayStake`, `relayBet`, `relayBond`, `relayClaim`, `createMarket`/`/groups`, market resolve and claim) with a direct `writeContract`. Read calls (`getConfig` cohort list, `getPredictionMarket`, `getBond`) move to the referee (Phase 3).
