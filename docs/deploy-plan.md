@@ -27,11 +27,15 @@ File: `referee/src/model.ts`, `referee/src/config.ts`.
 - Add `wagmi` (with the viem the app already uses) and injected + Coinbase Wallet connectors. Skip WalletConnect for now so no project ID is needed. Replace the burner-key `useWallet` in `web/lib/wallet.ts` with a wagmi-backed hook that exposes the same shape (`address`, balance), so pages change as little as possible.
 - Stake: the user signs `ReceiveWithAuthorization` with `signTypedData`, using the existing `web/lib/erc3009.ts` typed-data builder, then submits `stakeWithAuthorization` from their own wallet. Bets and bonds work the same way: they sign, then submit themselves.
 - Replace each relayer call in `web/lib/api.ts` (`relayStake`, `relayBet`, `relayBond`, `relayClaim`, `createMarket`/`/groups`, market resolve and claim) with a direct `writeContract`. Read calls (`getConfig` cohort list, `getPredictionMarket`, `getBond`) move to the referee (Phase 3).
-- Testnet funds: add a "Get test AUSD" button that calls the Agora faucet's `requestFunds(user)` from the user's wallet (same call as `relayer/src/fund.ts`; first check that any caller is allowed), plus a link to a Base Sepolia ETH faucet for gas. Trade-off: users need testnet ETH. Gasless can come back later with a smart wallet and paymaster.
+- Testnet AUSD: a "Get test AUSD" button that calls the Agora faucet `requestFunds(user)` (`0xd236…ee6C`) for the user. Checked 2026-10-17: a brand-new random address can call it.
+- Gas, default path: **Coinbase Smart Wallet + a free Base Sepolia paymaster** (Coinbase Developer Platform). Users sign up with a passkey (no extension, no seed phrase, no ETH), and the paymaster pays their gas. This is about as smooth as the old burner key, but nobody else holds their key. Use wagmi's `useSendCalls` with the `paymasterService` capability, so a sign-and-stake becomes one sponsored call.
+  - Signatures: a smart wallet signs with ERC-1271, not a plain ECDSA key. AUSD's implementation (`0xc1e3…12da`) calls `isValidSignature`, so it appears to accept them. Confirm with a real stake on testnet. If the wallet hasn't been deployed yet, its signature is wrapped in ERC-6492, so do a sponsored deploy (any first call) before the first ERC-3009 signature.
+  - Paymaster policy: allow only our contracts and functions (`StakePool`, `MarketPool`, `CommitmentBond`, the faucet), with per-user limits, so nobody can drain the sponsorship.
+- Gas, other wallets (MetaMask etc.): they pay their own gas, with a link to a Base Sepolia ETH faucet.
 - Update the "Join" page copy: connect a wallet instead of getting an automatic burner.
 
 ## Phase 3: Move the relayer's remaining jobs into the referee, then delete `relayer/`
-- **Keeper:** port `keeperTick`, `claimAll`, and the bond/market resolve from `relayer/src/index.ts` (lines ~330–381) into the referee's tick. It pays gas with the referee key, which already pays for `postVerdict`. Store "paid out" state in the DB instead of the in-memory `paidOut` Set.
+- **Keeper:** port `keeperTick`, `claimAll`, and the bond/market resolve from `relayer/src/index.ts` (lines ~330–381) into the referee's tick. Pay its gas with a **separate keeper key** (settle, claim and resolve can be called by anyone, so this key has no special power), not the referee key. If the keeper key leaks, only its small ETH balance is lost. Store "paid out" state in the DB instead of the in-memory `paidOut` Set.
 - **Index + reads:** each tick, scan `CohortCreated` / `Staked` / `Bet` / bond events in chunks of 200 blocks or fewer (keep the chunking from relayer `chain.ts`) into DB tables. Serve `/config` (cohorts), `/markets/:cohort/:owner`, and `/bonds/...` from the referee with the same response shapes the web already parses.
 - Remove `relayer/`, `infra/run-relayer.sh`, `relayer_url` in `shared/deployments.json`, and `RELAYER_URL` in `web/lib/env.ts`.
 
@@ -48,6 +52,32 @@ File: `referee/src/model.ts`, `referee/src/config.ts`.
 - Import the repo with project root `web/`, and turn on "include files outside root" (the app imports `../shared`). pnpm workspace install.
 - Env: `NEXT_PUBLIC_REFEREE_URL=https://<referee>.workers.dev`, `NEXT_PUBLIC_RPC_URL`, `NEXT_PUBLIC_WEB_URL`. Commit the stable URLs to `shared/deployments.json`, then delete the tunnel docs and scripts (`infra/README.md`, `web/scripts/run-live.sh`, `referee/scripts/run-live.sh`) and update the README.
 - Note: Vercel Hobby is for non-commercial use only. Moving the web to Cloudflare (OpenNext) or Vercel Pro is a later decision, needed only if this becomes a business.
+
+## Security (applies to every phase)
+
+**Keys: one key per job, each holding as little as possible**
+| Key | Can do | Where it lives | If it leaks |
+|---|---|---|---|
+| Referee key (`0x57CB…eD3B`, fixed in `StakePool`) | Post verdicts | Cloudflare Worker secret only | False verdicts can redirect forfeits. Rotating it means redeploying `StakePool`. |
+| Keeper key (new) | Pay gas for settle and claim (anyone can call these) | Cloudflare Worker secret only | Its small ETH balance |
+| Treasury key (relayer) | Faucet + gas | **Retired with the relayer**; move its leftover test funds out | — |
+- Never put a key in a file that gets committed, in a `NEXT_PUBLIC_*` variable, in logs or in error messages. Cloudflare secrets can't be read back after they're set. Delete the laptop `.env` copies once the Worker is live.
+- Generate fresh keeper and admin keys for the deploy; don't reuse hackathon keys that went through laptops and tunnels. Keep each key funded with only a few days of gas, plus a low-balance alert.
+- Mainnet hardening (Phase 6): change `StakePool` to accept **EIP-712-signed verdicts that anyone can submit**. Then the referee key never needs ETH, can live in a KMS or hardware signer, and can be rotated behind a timelock.
+
+**Accounts.** 2FA (passkey or authenticator app, not SMS) on GitHub, Cloudflare, Vercel, Google (Gemini key), Coinbase Developer Platform and the RPC provider. Taking over any of these accounts means taking over a key.
+
+**Referee API**
+- `ADMIN_KEY`: 32+ random bytes, compared in constant time. Admin and override routes only.
+- Rate-limit `/goals/compile` and `/goals` per IP (Cloudflare free rate-limit rule, plus Turnstile on compile) so nobody can burn the free Gemini quota or fill the DB.
+- CORS: browser routes allow only the Vercel origin. `/x402/*` stays open (it's a public paid API).
+- Keep every existing defense: untrusted evidence quoted as data (`quote()`), schema-constrained output, failing closed when a model call fails, first-seen timing, control proofs.
+- The Gemini key has its own Google Cloud project with a quota cap. Free-tier prompts may be used by Google; only public evidence is sent, never secrets.
+- `GITHUB_TOKEN`: a fine-grained token with read-only public access. Canvas stays off in production (its token is a real university account).
+
+**Supply chain.** Pin dependency versions (lockfile committed), run `pnpm audit` before each deploy, and turn on Dependabot alerts. No secrets in GitHub Actions logs.
+
+**Before each deploy:** `git log -p` secret scan, `pnpm --filter redteam referee`, and check that the Worker and Vercel env lists contain nothing unexpected.
 
 ## Phase 6 (later, not part of this work): mainnet checklist
 Mainnet doesn't make the testnet problems go away; it trades them for real-money ones:
