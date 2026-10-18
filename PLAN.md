@@ -282,3 +282,25 @@ If CP2 slips past 3:00, cut `canvas_submission` and the `substance` model check,
 - `redteam/results.md` shows caught and fooled counts per category.
 - The README states the number of real stakers, attack attempts, and human overrides from the live cohort.
 - Public repo, public deployment URL, 2-minute video.
+
+## 12. Future: evidence connectors users can add (not built yet)
+
+**Today** the platforms are hardcoded: the referee checks GitHub (with one server-wide `GITHUB_TOKEN`), public URLs, and Canvas (one server-wide `CANVAS_TOKEN`, limited to the team's own account). The goal: platforms become **connectors** that users switch on and connect with their own account. GitHub would be one of them, not a given.
+
+**Two separate pieces.** The access code is the easy part. Each platform also needs a connector: code that knows what evidence looks like there and how to check it (GitHub: commits and diffs; Canvas: a submission; Strava: an activity). A pasted token alone can't tell the referee what "done" means, so new platforms still need a connector written once, by us or by contributors. After that, any user can turn it on.
+
+**Design**
+
+1. **Connector registry.** One interface per platform: `id`, how it authenticates (`none` | `oauth` | `token`), the criteria fields it understands, and `snapshot()` / `poll()` / `judge()`. Today's `collectors/github.ts`, `url.ts` and `canvas.ts` become the first three. Goal compiling only offers the connectors a user has enabled.
+2. **User-connected accounts.** A "Connections" page where a user links a platform to their wallet. **Prefer OAuth** (e.g. a GitHub App with read-only, per-repo access) over pasted tokens: scopes are fixed and the user can revoke it from the platform. Pasted tokens only where a platform has no OAuth, and then checked to be read-only before they're accepted.
+3. **Binding to the wallet.** Linking is signed by the wallet (a message naming the account), so a token can only back that wallet's goals. The connected account then also proves control, standing in for today's nonce file.
+4. **Storage.** Encrypted per user (AES-GCM with a Worker-secret key), never logged, never sent to the models, never in a verdict. Deleted when the user disconnects or once their goals are settled.
+
+**Rules that keep it honest**
+
+- **Missing evidence fails the goal.** If a user revokes access before the deadline, the referee can't look, and that counts as a fail, so revoking can't dodge a loss or sabotage bettors.
+- **Private evidence stays private.** Verdicts are public, so a connector publishes a summary plus hashes of what it saw, not the raw private content.
+- **Least privilege.** Every connector declares the narrowest read-only scope it needs, and the UI shows it before the user connects.
+- **The same hardening as today:** evidence is quoted as untrusted data, the injection tripwire runs, and two models must agree.
+
+**Order:** (1) refactor the existing three into connectors, with no user credentials yet; (2) user OAuth for GitHub, which also unlocks private repos; (3) more connectors; (4) maybe a generic "API check" connector (a URL plus a field that must match) for platforms without a dedicated one. Before mainnet, holding users' platform credentials needs its own security review.
