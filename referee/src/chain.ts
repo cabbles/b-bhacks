@@ -23,6 +23,15 @@ const wallet = signerReady()
     ? createWalletClient({ chain, transport, account: privateKeyToAccount(config.refereeKey as Hex, { nonceManager }) })
     : null;
 
+/** The referee key's public address (null if unset), for the health check. */
+export const signerAddress = () => wallet?.account.address ?? null;
+
+/** The referee the pool contract will accept verdicts from. */
+export async function poolReferee(): Promise<string | null> {
+    if (!chainReady()) return null;
+    return publicClient.readContract({ address: config.pool as Hex, abi: parseAbi(['function referee() view returns (address)']), functionName: 'referee' });
+}
+
 export type Cohort = {
     id: number;
     rule_hash: string;

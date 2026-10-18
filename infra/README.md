@@ -27,10 +27,11 @@ Three wallets, each with one job. Each is an **encrypted keystore** (password pr
 cast wallet new cashcow-deployer -p   # deploys the contracts; no special rights afterwards
 cast wallet new cashcow-referee -p    # posts verdicts; becomes the referee baked into StakePool
 cast wallet new cashcow-keeper -p     # pays gas for settle and payouts (anyone may call those)
+cast wallet address --account cashcow-referee   # repeat for each: proves the password works
 openssl rand -hex 32                  # ADMIN_KEY: store it in your password manager
 ```
 
-Keep each keystore's password in a password manager. Fund all three with a little Base Sepolia ETH from a faucet (e.g. the Coinbase Developer Platform faucet); `cast wallet address --account cashcow-keeper` prints an address.
+`-p` asks for the password only once and never confirms it, so a typo goes unnoticed: create each password in a password manager first, paste it, then check it with `cast wallet address` right away. Keep the passwords in the password manager. Fund all three with a little Base Sepolia ETH from a faucet (e.g. the Coinbase Developer Platform faucet); `cast wallet address --account cashcow-keeper` prints an address.
 
 Why a fresh referee key: the hackathon one lived on a laptop behind tunnels, and the contracts are being redeployed anyway, so rotating it costs nothing now. It can't be rotated later without another redeploy.
 
@@ -54,18 +55,18 @@ pnpm exec wrangler d1 create cashcow-referee     # put the printed database_id i
 pnpm cf:deploy                                    # prints https://cashcow-referee.<you>.workers.dev
 ```
 
-Secrets, piped in so they never show on screen (each prompts for the keystore password):
+Secrets, passed along without ever showing on screen (each prompts for the keystore password). The key is decrypted first and uploaded only if that worked; piping straight into wrangler would upload an empty secret after a wrong password:
 
 ```bash
-cast wallet decrypt-keystore cashcow-referee | grep -oE '0x[0-9a-fA-F]{64}' | pnpm exec wrangler secret put REFEREE_PRIVATE_KEY
-cast wallet decrypt-keystore cashcow-keeper  | grep -oE '0x[0-9a-fA-F]{64}' | pnpm exec wrangler secret put KEEPER_PRIVATE_KEY
+K=$(cast wallet decrypt-keystore cashcow-referee | grep -oE '0x[0-9a-fA-F]{64}') && [ -n "$K" ] && printf '%s' "$K" | pnpm exec wrangler secret put REFEREE_PRIVATE_KEY; unset K
+K=$(cast wallet decrypt-keystore cashcow-keeper  | grep -oE '0x[0-9a-fA-F]{64}') && [ -n "$K" ] && printf '%s' "$K" | pnpm exec wrangler secret put KEEPER_PRIVATE_KEY; unset K
 pnpm exec wrangler secret put GEMINI_API_KEY      # from aistudio.google.com; give it its own Google Cloud project with a quota cap
 pnpm exec wrangler secret put GITHUB_TOKEN        # fine-grained token, public repositories read-only, no other scopes
 pnpm exec wrangler secret put ADMIN_KEY
 pnpm exec wrangler secret put RPC_URL             # e.g. your Alchemy Base Sepolia URL (it embeds a key, so it's a secret)
 ```
 
-Check: `curl https://cashcow-referee.<you>.workers.dev/health` shows `chain`, `signer`, `models`, `keeper` and `github` all `true`.
+Check: `curl https://cashcow-referee.<you>.workers.dev/health` shows `chain`, `signer`, `signer_matches_pool`, `models`, `keeper` and `github` all `true`, and the two public addresses are the ones you expect. `signer_matches_pool: false` means the referee key is not the referee written into StakePool, so every verdict would be refused.
 
 Canvas stays off in production (its token is a real university account): don't set `CANVAS_TOKEN`.
 

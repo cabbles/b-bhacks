@@ -4,7 +4,8 @@ import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
 import { chainReady, config, signerReady } from './config.ts';
 import { ensureSchema, withLease } from './db.ts';
-import { keeperReady, keeperTick } from './keeper.ts';
+import { keeperAddress, keeperReady, keeperTick } from './keeper.ts';
+import { poolReferee, signerAddress } from './chain.ts';
 import { modelsReady } from './model.ts';
 import { routes } from './routes.ts';
 import { tick } from './worker.ts';
@@ -34,9 +35,22 @@ export function createApp() {
         console.error(`[http] ${c.req.method} ${new URL(c.req.url).pathname}: ${err.message}`);
         return c.json({ error: 'internal error' }, 500);
     });
-    app.get('/health', (c) =>
-        c.json({ ok: true, chain: chainReady(), signer: signerReady(), models: modelsReady(), keeper: keeperReady(), github: Boolean(config.githubToken) }),
-    );
+    app.get('/health', async (c) => {
+        // Public addresses only. signer_matches_pool is false if the key is not the referee the contract accepts.
+        const signer = signerAddress();
+        const expected = await poolReferee().catch(() => null);
+        return c.json({
+            ok: true,
+            chain: chainReady(),
+            signer: signerReady(),
+            signer_address: signer,
+            signer_matches_pool: Boolean(signer && expected && signer.toLowerCase() === expected.toLowerCase()),
+            keeper: keeperReady(),
+            keeper_address: keeperAddress(),
+            models: modelsReady(),
+            github: Boolean(config.githubToken),
+        });
+    });
     routes(app);
     x402Routes(app);
     return app;
