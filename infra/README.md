@@ -65,7 +65,14 @@ pnpm exec wrangler secret put ADMIN_KEY
 pnpm exec wrangler secret put RPC_URL             # e.g. your Alchemy Base Sepolia URL (it embeds a key, so it's a secret)
 ```
 
-Check: `curl https://cashcow-referee.<you>.workers.dev/health` shows `chain`, `signer`, `signer_matches_pool`, `models`, `keeper` and `github` all `true`, and the two public addresses are the ones you expect. `signer_matches_pool: false` means the referee key is not the referee written into StakePool, so every verdict would be refused.
+**GitHub sign-in** (stakers prove a repo is theirs by connecting GitHub; tasks are only accepted on repos they can push to). Create a GitHub OAuth App (GitHub → Settings → Developer settings → OAuth Apps) with the callback `https://cashcow-referee.<you>.workers.dev/auth/github/callback`, keep "Expire user access tokens" on, and put its client id in `wrangler.jsonc` (`GITHUB_OAUTH_CLIENT_ID`, with `WEB_URL` = your site). Then:
+
+```bash
+openssl rand -base64 32 | tr -d '\n' | pnpm exec wrangler secret put TOKEN_ENC_KEY   # encrypts stored sign-in tokens
+pnpm exec wrangler secret put GITHUB_OAUTH_CLIENT_SECRET                             # paste the app's client secret
+```
+
+Check: `curl https://cashcow-referee.<you>.workers.dev/health` shows `chain`, `signer`, `signer_matches_pool`, `models`, `keeper`, `github` and `github_sign_in` all `true`, and the two public addresses are the ones you expect. `signer_matches_pool: false` means the referee key is not the referee written into StakePool, so every verdict would be refused.
 
 Canvas stays off in production (its token is a real university account): don't set `CANVAS_TOKEN`.
 

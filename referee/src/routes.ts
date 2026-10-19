@@ -6,6 +6,7 @@ import { getCohort, verifyStake } from './chain.ts';
 import { CompileError, compileGoal } from './compile.ts';
 import { override, takeSnapshot } from './engine.ts';
 import { decideAndPost, postIfReady } from './worker.ts';
+import { canPush } from './github-auth.ts';
 import { hashJson, type Criteria } from './types.ts';
 
 export const ATTACK_CATEGORIES = [
@@ -135,6 +136,15 @@ export function routes(app: Hono) {
         }
         if (criteria.type === 'canvas_submission' && !config.canvasAllowed.includes(criteria.staker.toLowerCase()))
             return bad(c, 400, 'Canvas goals are limited to the team demo account');
+        if (criteria.type === 'url_live' && !config.urlTasks) return bad(c, 400, 'Page tasks are turned off for now');
+        if (criteria.type === 'github_commits') {
+            // Checked again here, not only at compile: the criteria come from the client and could be edited.
+            const p = criteria.params as { repo: string; github_login?: string };
+            const access = await canPush(criteria.staker, p.repo);
+            if (!access.ok) return bad(c, 400, access.reason);
+            if (p.github_login?.toLowerCase() !== access.login.toLowerCase())
+                return bad(c, 400, 'criteria name a different GitHub account than the one connected to this wallet');
+        }
 
         const isAttack = Boolean(b.is_attack);
         // Web sends the category as a "[category] note" prefix; an explicit attack_category also works.

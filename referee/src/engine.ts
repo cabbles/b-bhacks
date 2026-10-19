@@ -141,7 +141,12 @@ async function judgeGithub(g: GoalRow, c: Criteria): Promise<Outcome> {
     let controlDetail: string;
     if (!info.exists) controlDetail = `repo ${p.repo} not found`;
     else if (info.private) controlDetail = `repo ${p.repo} is private`;
-    else {
+    else if (p.github_login) {
+        // Push access was checked with the staker's own GitHub sign-in when they staked (github-auth.ts).
+        control = true;
+        controlDetail = `@${p.github_login} had push access to ${p.repo} when staking (checked through their GitHub sign-in)`;
+    } else {
+        // Goals staked before GitHub sign-in proved control with a nonce file.
         control = await fileExists(p.repo, p.branch, `.referee/${c.nonce}`);
         controlDetail = control ? `nonce file .referee/${c.nonce} found on ${p.branch}` : `nonce file .referee/${c.nonce} not found on ${p.branch}`;
     }

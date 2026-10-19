@@ -16,7 +16,8 @@ export type Criteria = {
     params: Record<string, unknown>;
 };
 
-export type GithubParams = { repo: string; branch: string; min_commits: number };
+// github_login: the connected GitHub account that had push access when the task was staked (replaces the nonce file).
+export type GithubParams = { repo: string; branch: string; min_commits: number; github_login?: string };
 export type UrlParams = { url: string; must_contain: string };
 export type CanvasParams = { course_id: number; assignment_id: number; min_bytes: number };
 

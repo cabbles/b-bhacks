@@ -10,6 +10,7 @@ import { modelsReady } from './model.ts';
 import { routes } from './routes.ts';
 import { tick } from './worker.ts';
 import { x402Routes } from './x402.ts';
+import { githubAuthReady, githubAuthRoutes } from './github-auth.ts';
 
 export function createApp() {
     const app = new Hono();
@@ -49,9 +50,11 @@ export function createApp() {
             keeper_address: keeperAddress(),
             models: modelsReady(),
             github: Boolean(config.githubToken),
+            github_sign_in: githubAuthReady(),
         });
     });
     routes(app);
+    githubAuthRoutes(app);
     x402Routes(app);
     return app;
 }

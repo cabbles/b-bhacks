@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { config } from './config.ts';
 import { getCohort, getOpenCohort } from './chain.ts';
 import { quote, structuredCall } from './model.ts';
+import { canPush } from './github-auth.ts';
 import { type Criteria, type GoalType, hashJson } from './types.ts';
 
 const GOAL_TYPES = ['github_commits', 'url_live', 'canvas_submission'] as const;
@@ -82,8 +83,13 @@ export async function compileGoal(input: CompileInput) {
         const repo = (out.repo ?? '').replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/, '');
         if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new CompileError('Could not find a GitHub repo. Include it as owner/name.');
         const minCommits = Math.min(20, Math.max(1, out.min_commits ?? 2));
-        params = { repo, branch: out.branch || 'main', min_commits: minCommits };
-        controlProof = `Commit an empty file at .referee/${nonce} on branch ${params.branch} of ${repo}.`;
+        // The staker's connected GitHub account must be able to push to the repo; this replaces the nonce file.
+        const access = await canPush(input.staker, repo);
+        if (!access.ok) throw new CompileError(access.reason);
+        params = { repo, branch: out.branch || 'main', min_commits: minCommits, github_login: access.login };
+        controlProof = `Push access verified for @${access.login}. Only commits the referee first sees after you stake count.`;
+    } else if (type === 'url_live' && !config.urlTasks) {
+        throw new CompileError('Page tasks are turned off for now. Use a public GitHub repo you can push to.');
     } else if (type === 'url_live') {
         let url: URL;
         try {

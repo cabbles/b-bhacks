@@ -34,7 +34,8 @@
             "properties": {
               "repo": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
               "branch": { "type": "string", "minLength": 1 },
-              "min_commits": { "type": "integer", "minimum": 1 }
+              "min_commits": { "type": "integer", "minimum": 1 },
+              "github_login": { "type": "string", "pattern": "^[A-Za-z0-9-]{1,39}$" }
             }
           }
         }

@@ -33,6 +33,19 @@ function Code({ children }: { children: string }) {
 export function ControlProof({ criteria, referee }: { criteria: Criteria; referee?: string }) {
   const p = criteria.params as Record<string, string | number>;
   const fromReferee = referee ? <p className="text-xs text-muted">Referee: {referee}</p> : null;
+  if (criteria.type === "github_commits" && p.github_login) {
+    return (
+      <div className="space-y-2 text-sm">
+        <p>
+          Nothing to set up: GitHub confirmed <strong>@{String(p.github_login)}</strong> can push to <strong>{String(p.repo)}</strong>.
+        </p>
+        <p className="text-muted">
+          Only commits the referee first sees after you stake count. Commit dates are ignored, so backdating does nothing.
+        </p>
+        {fromReferee}
+      </div>
+    );
+  }
   if (criteria.type === "github_commits") {
     const cmd = `mkdir -p .referee && echo ${criteria.nonce} > .referee/${criteria.nonce}\ngit add .referee && git commit -m "referee: ${criteria.nonce}" && git push origin ${p.branch ?? "main"}`;
     return (

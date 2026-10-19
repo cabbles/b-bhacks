@@ -19,11 +19,16 @@
     }
   ],
   // Non-secret settings. Keys, tokens and the RPC URL (it may embed a key) are secrets, set with `wrangler secret put`:
-  // REFEREE_PRIVATE_KEY, KEEPER_PRIVATE_KEY, GEMINI_API_KEY, GITHUB_TOKEN, ADMIN_KEY, RPC_URL
+  // REFEREE_PRIVATE_KEY, KEEPER_PRIVATE_KEY, GEMINI_API_KEY, GITHUB_TOKEN, ADMIN_KEY, RPC_URL,
+  // GITHUB_OAUTH_CLIENT_SECRET, TOKEN_ENC_KEY
   "vars": {
     "MODEL_PROVIDER": "gemini",
     // The site's origin(s), comma-separated, e.g. "https://cashcow.vercel.app". Empty allows any origin.
-    "CORS_ORIGINS": "https://cashcow-beryl-five.vercel.app"
+    "CORS_ORIGINS": "https://cashcow-beryl-five.vercel.app",
+    // Where "Connect GitHub" sends people back to, and the GitHub OAuth App's public client id
+    // (its secret, GITHUB_OAUTH_CLIENT_SECRET, and TOKEN_ENC_KEY are secrets).
+    "WEB_URL": "https://cashcow-beryl-five.vercel.app",
+    "GITHUB_OAUTH_CLIENT_ID": "Ov23liodOqjNLKnrO5aM"
   },
   "observability": { "enabled": true }
 }

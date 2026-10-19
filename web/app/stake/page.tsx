@@ -14,18 +14,12 @@ import { MyMarkets } from "@/components/MyMarkets";
 import { ControlProof } from "@/components/ControlProof";
 import { ErrorBox, Notice, Spinner } from "@/components/ui";
 
-const TYPE_OPTIONS: { value: GoalType | ""; label: string }[] = [
-  { value: "", label: "Let the referee decide" },
-  { value: "github_commits", label: "GitHub commits" },
-  { value: "url_live", label: "A URL goes live" },
-  // Referee only accepts this for wallets in CANVAS_ALLOWED_STAKERS (the team's own demo account).
-  { value: "canvas_submission", label: "Canvas assignment submitted (team demo)" },
-];
+// Page and Canvas tasks are off for now: tasks are commits to a public repo the staker can push to.
+const TYPE_OPTIONS: { value: GoalType | ""; label: string }[] = [{ value: "github_commits", label: "GitHub commits" }];
 
 const EXAMPLES = [
   "Push 2 commits adding a dark mode toggle to alice/portfolio on main",
-  "Get https://myproject.dev live with a page that says \"Join the waitlist\"",
-  "Publish my essay at https://alice.dev/essay with a section called \"Conclusion\"",
+  "Push 3 commits that add tests for the parser in alice/compiler on main",
 ];
 
 function StakeInner() {
@@ -42,7 +36,7 @@ function StakeInner() {
   // A market created at /cohorts/new arrives with the task and the owner's bond (their separate stake).
   const [text, setText] = useState(() => params.get("task") ?? "");
   const bondAusd = Number(params.get("bond") ?? 0);
-  const [typeHint, setTypeHint] = useState<GoalType | "">("");
+  const [typeHint, setTypeHint] = useState<GoalType | "">("github_commits");
 
   const [compiled, setCompiled] = useState<CompileResponse | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -228,7 +222,7 @@ function StakeInner() {
             </section>
 
             <section className="rule pt-4">
-              <div className="label">Before the deadline</div>
+              <div className="label">Your repo</div>
               <ControlProof criteria={compiled.criteria} referee={compiled.control_proof} />
             </section>
 

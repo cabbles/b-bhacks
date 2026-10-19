@@ -1,3 +1,4 @@
+import { getAddress } from "viem";
 import { ADDRESSES, MOCK_CHAIN, MOCK_REFEREE, REFEREE_URL } from "./env";
 import { bondAbi, client, erc20Abi, marketAbi, marketIdOf, poolAbi } from "./chain";
 import * as fx from "./fixtures";
@@ -102,6 +103,28 @@ export async function compileGoal(args: {
 }): Promise<CompileResponse> {
   if (MOCK_REFEREE) return delay(700).then(() => fx.fxCompile(args.text, args.staker, args.type_hint));
   return http(REFEREE_URL, "/goals/compile", post(args));
+}
+
+// ---------- Connect GitHub (the referee checks you can push to a task's repo) ----------
+
+export type GithubStatus = { configured: boolean; linked: boolean; login: string | null };
+
+/** Must match referee/src/github-auth.ts linkMessage exactly: the referee verifies this signature. */
+export const githubLinkMessage = (action: "connect" | "disconnect", wallet: `0x${string}`, issuedAt: string) =>
+  `Cash Cow: ${action} GitHub ${action === "connect" ? "to" : "from"} wallet ${getAddress(wallet)}\nIssued at: ${issuedAt}`;
+
+export async function getGithubStatus(wallet: `0x${string}`): Promise<GithubStatus> {
+  if (MOCK_REFEREE) return { configured: true, linked: true, login: "mock-user" };
+  return http(REFEREE_URL, `/auth/github/status?wallet=${wallet}`);
+}
+
+/** Returns GitHub's sign-in URL; the referee sends the browser back to returnPath afterwards. */
+export async function startGithubConnect(args: { wallet: `0x${string}`; signature: `0x${string}`; issued_at: string; return_path: string }): Promise<{ url: string }> {
+  return http(REFEREE_URL, "/auth/github/start", post(args));
+}
+
+export async function disconnectGithub(args: { wallet: `0x${string}`; signature: `0x${string}`; issued_at: string }): Promise<{ linked: false }> {
+  return http(REFEREE_URL, "/auth/github/disconnect", post(args));
 }
 
 // ---------- mock store: goals staked in mock mode live in localStorage and get a verdict after MOCK_JUDGE_MS ----------

@@ -68,6 +68,9 @@ CREATE TABLE IF NOT EXISTS keeper_bettors (
     PRIMARY KEY (pool, cohort_id, owner, bettor)
 );
 CREATE TABLE IF NOT EXISTS keeper_done (pool TEXT NOT NULL, cohort_id INTEGER NOT NULL, done_at TEXT NOT NULL, PRIMARY KEY (pool, cohort_id));
+-- "Connect GitHub": wallet -> GitHub account, with the sign-in token encrypted (github-auth.ts).
+CREATE TABLE IF NOT EXISTS github_links (wallet TEXT PRIMARY KEY, github_id INTEGER NOT NULL, login TEXT NOT NULL, token_enc TEXT NOT NULL, refresh_enc TEXT, linked_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS oauth_states (state TEXT PRIMARY KEY, wallet TEXT NOT NULL, return_path TEXT NOT NULL DEFAULT '/stake', expires_ms INTEGER NOT NULL);
 -- Short-lived locks so overlapping cron runs never do the same work twice.
 CREATE TABLE IF NOT EXISTS leases (name TEXT PRIMARY KEY, until_ms INTEGER NOT NULL);
 -- Rate limiting that holds across Worker instances (in-memory counters would not).

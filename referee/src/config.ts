@@ -48,6 +48,13 @@ export const config = {
     modelB: env.MODEL_NAME_B || defaultModels().b,
 
     githubToken: env.GITHUB_TOKEN ?? '',
+    // "Connect GitHub" (github-auth.ts): a GitHub OAuth App's id and secret, and a 32-byte base64 key that encrypts
+    // the stored sign-in tokens. All three are needed for GitHub tasks.
+    githubClientId: env.GITHUB_OAUTH_CLIENT_ID ?? '',
+    githubClientSecret: env.GITHUB_OAUTH_CLIENT_SECRET ?? '',
+    tokenKey: env.TOKEN_ENC_KEY ?? '',
+    // Where the GitHub sign-in sends people back to.
+    webUrl: (env.WEB_URL || dep.web_url || '').replace(/\/$/, ''),
     adminKey: env.ADMIN_KEY ?? '',
     // Browser origins allowed to call the referee, comma-separated (e.g. https://cashcow.vercel.app).
     // Empty allows any origin (local dev). /x402 is a public API and always allows any origin.
@@ -65,6 +72,8 @@ export const config = {
     // Wait this long after the criteria deadline before deciding, so a final poll lands.
     decideGraceMs: Number(env.DECIDE_GRACE_MS ?? 45_000),
     maxGoalsPerCohort: Number(env.MAX_GOALS_PER_COHORT ?? 60),
+    // "A page goes live" tasks are off until there is a better ownership proof than a code on the page.
+    urlTasks: env.URL_TASKS === '1',
     // Skip on-chain stake verification (local dev only).
     skipStakeCheck: env.SKIP_STAKE_CHECK === '1',
 };
