@@ -28,9 +28,6 @@
       ],
       "@shared/*": [
         "../shared/*"
-      ],
-      "@redteam/*": [
-        "../redteam/*"
       ]
     }
   },

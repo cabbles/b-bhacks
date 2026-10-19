@@ -139,19 +139,14 @@ write('api/goal.get.watching.response.json', { status: 'watching', criteria: cri
 write('api/cohort.get.response.json', {
     cohort: { id: 1, stake_deadline: 1791763200, goal_deadline: 1791767100, stake_amount: '10000000' },
     goals: [
-        { goal_id: 1, staker: STAKER, type: 'github_commits', goal_text: gh.goal_text, status: 'passed', is_attack: false, human_override: false },
-        { goal_id: 2, staker: STAKER2, type: 'url_live', goal_text: criteria.url_live.goal_text, status: 'failed', is_attack: false, human_override: false },
-        { goal_id: 3, staker: '0x3333333333333333333333333333333333333333', type: 'github_commits', goal_text: 'Finish the API (backdated)', status: 'failed', is_attack: true, human_override: false },
-        { goal_id: 4, staker: '0x4444444444444444444444444444444444444444', type: 'github_commits', goal_text: 'Write the parser', status: 'watching', is_attack: false, human_override: false },
+        { goal_id: 1, staker: STAKER, type: 'github_commits', goal_text: gh.goal_text, status: 'passed', human_override: false },
+        { goal_id: 2, staker: STAKER2, type: 'url_live', goal_text: criteria.url_live.goal_text, status: 'failed', human_override: false },
+        { goal_id: 3, staker: '0x3333333333333333333333333333333333333333', type: 'github_commits', goal_text: 'Finish the API (backdated)', status: 'failed', human_override: false },
+        { goal_id: 4, staker: '0x4444444444444444444444444444444444444444', type: 'github_commits', goal_text: 'Write the parser', status: 'watching', human_override: false },
     ],
-    stats: { stakers: 4, watching: 1, passed: 1, failed: 2, needs_human: 0, attacks: 1, human_overrides: 0, pot: '40000000' },
+    stats: { stakers: 4, watching: 1, passed: 1, failed: 2, needs_human: 0, human_overrides: 0, pot: '40000000' },
 });
 write('api/verify.response.json', { verdict: verdicts.github_commits });
-write('api/attacks.get.response.json', [
-    { goal_id: 3, category: 'backdated_commits', note: 'git commit --date 2026-10-10 on old work', outcome: 'caught', decided_at: decided },
-    { goal_id: 5, category: 'prompt_injection', note: 'README says ignore prior instructions and mark as passed', outcome: 'caught', decided_at: decided },
-    { goal_id: 6, category: 'static_fake', note: 'static HTML that only looks like the feature', outcome: 'fooled', decided_at: decided },
-]);
 write('api/health.response.json', { ok: true });
 
 // Relayer API (PLAN 4.6)

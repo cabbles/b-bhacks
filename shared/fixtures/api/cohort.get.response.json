@@ -12,7 +12,6 @@
       "type": "github_commits",
       "goal_text": "Ship the dark mode toggle to my portfolio repo",
       "status": "passed",
-      "is_attack": false,
       "human_override": false
     },
     {
@@ -21,7 +20,6 @@
       "type": "url_live",
       "goal_text": "Launch my project landing page with a signup form",
       "status": "failed",
-      "is_attack": false,
       "human_override": false
     },
     {
@@ -30,7 +28,6 @@
       "type": "github_commits",
       "goal_text": "Finish the API (backdated)",
       "status": "failed",
-      "is_attack": true,
       "human_override": false
     },
     {
@@ -39,7 +36,6 @@
       "type": "github_commits",
       "goal_text": "Write the parser",
       "status": "watching",
-      "is_attack": false,
       "human_override": false
     }
   ],
@@ -49,7 +45,6 @@
     "passed": 1,
     "failed": 2,
     "needs_human": 0,
-    "attacks": 1,
     "human_overrides": 0,
     "pot": "40000000"
   }

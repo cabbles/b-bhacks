@@ -17,7 +17,6 @@ import {
     type Verdict,
 } from './types.ts';
 
-// NOTE: nothing in this file may read goals.is_attack / attack_*; the engine must not know.
 
 const iso = (ms = Date.now()) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 const criteriaOf = (g: GoalRow) => JSON.parse(g.criteria_json) as Criteria;

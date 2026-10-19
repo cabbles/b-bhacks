@@ -9,25 +9,6 @@ import { decideAndPost, postIfReady } from './worker.ts';
 import { canPush } from './github-auth.ts';
 import { hashJson, type Criteria } from './types.ts';
 
-export const ATTACK_CATEGORIES = [
-    'backdated_commits',
-    'someone_elses_repo',
-    'filler_commits',
-    'prompt_injection',
-    'fake_static_page',
-    'other',
-] as const;
-
-function guessCategory(note: string): string {
-    const n = note.toLowerCase();
-    if (/backdat|--date|old commit|timestamp/.test(n)) return 'backdated_commits';
-    if (/someone else|other.*repo|fork|not my repo/.test(n)) return 'someone_elses_repo';
-    if (/whitespace|filler|readme|churn|empty commit/.test(n)) return 'filler_commits';
-    if (/ignore|instruction|prompt|inject|mark .*pass/.test(n)) return 'prompt_injection';
-    if (/static|fake|placeholder|mock/.test(n)) return 'fake_static_page';
-    return 'other';
-}
-
 const bad = (c: Context, code: number, error: string) => c.json({ error }, code as any);
 const body = (c: Context) => c.req.json().catch(() => ({})) as Promise<any>;
 
@@ -87,12 +68,6 @@ function publicGoal(g: GoalRow) {
     };
 }
 
-function attackOutcome(g: GoalRow) {
-    if (g.status === 'passed') return 'fooled';
-    if (g.status === 'failed') return 'caught';
-    return null;
-}
-
 export function routes(app: Hono) {
     app.get('/health', (c) => c.json({ ok: true }));
 
@@ -146,20 +121,11 @@ export function routes(app: Hono) {
                 return bad(c, 400, 'criteria name a different GitHub account than the one connected to this wallet');
         }
 
-        const isAttack = Boolean(b.is_attack);
-        // Web sends the category as a "[category] note" prefix; an explicit attack_category also works.
-        const raw = isAttack ? String(b.attack_note ?? '') : '';
-        const prefix = /^\[([a-z_]+)\]\s*/.exec(raw);
-        const note = isAttack ? (prefix ? raw.slice(prefix[0].length) : raw).slice(0, 500) : null;
-        const declared = b.attack_category ?? prefix?.[1];
-        const category = isAttack
-            ? ATTACK_CATEGORIES.includes(declared) ? declared : guessCategory(note ?? '')
-            : null;
         const info = await db().run(
-            `INSERT INTO goals (cohort_id, staker, goal_hash, type, criteria_json, stake_tx_hash, cohort_goal_deadline,
-                is_attack, attack_category, attack_note, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+            `INSERT INTO goals (cohort_id, staker, goal_hash, type, criteria_json, stake_tx_hash, cohort_goal_deadline, created_at)
+                VALUES (?,?,?,?,?,?,?,?)`,
             cohortId, criteria.staker, goalHash, criteria.type, JSON.stringify(criteria), b.stake_tx_hash,
-            cohort?.goal_deadline ?? null, isAttack ? 1 : 0, category, note, nowIso(),
+            cohort?.goal_deadline ?? null, nowIso(),
         );
         const goalId = info.lastId;
         try {
@@ -191,7 +157,6 @@ export function routes(app: Hono) {
                 type: g.type,
                 goal_text: JSON.parse(g.criteria_json).goal_text,
                 status: g.status,
-                is_attack: Boolean(g.is_attack),
                 human_override: Boolean(g.human_override),
                 verdict_tx_hash: g.verdict_tx_hash ?? undefined,
             })),
@@ -201,7 +166,6 @@ export function routes(app: Hono) {
                 passed: by('passed'),
                 failed: by('failed'),
                 needs_human: by('needs_human'),
-                attacks: rows.filter((r) => r.is_attack).length,
                 human_overrides: rows.filter((r) => r.human_override).length,
                 // Goals whose verdict is not on chain yet (still watching, deciding, or posting). Settle only at 0,
                 // or once the settle time has passed and needs_human goals are knowingly left to refund.
@@ -234,21 +198,6 @@ export function routes(app: Hono) {
         const g = await getGoal(id);
         if (g) await postIfReady(g).catch((e) => console.error(`[routes] goal ${id}: post failed: ${(e as Error).message}`));
         return c.json({ verdict });
-    });
-
-    app.get('/attacks', async (c) => {
-        const rows = await db().all<GoalRow>('SELECT * FROM goals WHERE is_attack = 1 ORDER BY id DESC');
-        return c.json(
-            rows
-                .filter((g) => attackOutcome(g))
-                .map((g) => ({
-                    goal_id: g.id,
-                    category: g.attack_category ?? 'other',
-                    note: g.attack_note ?? '',
-                    outcome: attackOutcome(g),
-                    decided_at: g.decided_at,
-                })),
-        );
     });
 
     // Not in the frozen API; for the admin queue and the README numbers.

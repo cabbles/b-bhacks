@@ -2,7 +2,6 @@
 // so countdowns and staking windows behave during a rehearsal.
 import cfgJson from "@shared/fixtures/api/relayer.config.response.json";
 import cohortJson from "@shared/fixtures/api/cohort.get.response.json";
-import attacksJson from "@shared/fixtures/api/attacks.get.response.json";
 import compileJson from "@shared/fixtures/api/compile.response.json";
 import crGithub from "@shared/fixtures/criteria.github_commits.json";
 import crUrl from "@shared/fixtures/criteria.url_live.json";
@@ -11,7 +10,6 @@ import vGithub from "@shared/fixtures/verdict.github_commits.json";
 import vUrl from "@shared/fixtures/verdict.url_live.json";
 import vCanvas from "@shared/fixtures/verdict.canvas_submission.json";
 import type {
-  Attack,
   Cohort,
   CohortResponse,
   CompileResponse,
@@ -76,7 +74,6 @@ export function fxGoal(id: string): GoalResponse | undefined {
   return { ...base, verdict, verdict_tx_hash: FX_TX, human_override: verdict.human_override };
 }
 
-export const fxAttacks: Attack[] = attacksJson as Attack[];
 
 export const fxCompile = (text: string, staker: `0x${string}`, typeHint?: GoalType): CompileResponse => {
   const type: GoalType = typeHint || (/https?:\/\//.test(text) ? "url_live" : "github_commits");

@@ -4,8 +4,6 @@ import { bondAbi, client, erc20Abi, marketAbi, marketIdOf, poolAbi } from "./cha
 import * as fx from "./fixtures";
 import { isMarket } from "./kinds";
 import type {
-  Attack,
-  AttackCategory,
   ChainConfig,
   Cohort,
   CohortResponse,
@@ -131,7 +129,7 @@ export async function disconnectGithub(args: { wallet: `0x${string}`; signature:
 
 const MOCK_GOALS_KEY = "ref.mockGoals";
 const MOCK_JUDGE_MS = 20_000;
-type MockGoal = GoalResponse & { created_ms: number; is_attack?: boolean; attack_category?: string; attack_note?: string };
+type MockGoal = GoalResponse & { created_ms: number };
 
 function mockGoals(): Record<string, MockGoal> {
   try {
@@ -141,12 +139,12 @@ function mockGoals(): Record<string, MockGoal> {
   }
 }
 
-/** Mock judging: honest goals pass, declared cheat attempts are caught. */
+/** Mock judging: every goal passes after MOCK_JUDGE_MS. */
 function judged(g: MockGoal): GoalResponse {
   // Entries saved before created_ms existed are treated as already judged.
   const created = Number.isFinite(g.created_ms) ? g.created_ms : Date.now() - MOCK_JUDGE_MS;
   if (Date.now() - created < MOCK_JUDGE_MS) return g;
-  const passed = !g.is_attack;
+  const passed = true;
   return {
     ...g,
     status: passed ? "passed" : "failed",
@@ -159,9 +157,6 @@ export async function submitGoal(args: {
   cohort_id: number;
   criteria: Criteria;
   stake_tx_hash: string;
-  is_attack?: boolean;
-  attack_category?: AttackCategory;
-  attack_note?: string;
 }): Promise<{ goal_id: number | string }> {
   if (MOCK_REFEREE) {
     const goal_id = "m" + Date.now().toString(36);
@@ -172,9 +167,6 @@ export async function submitGoal(args: {
       stake_tx_hash: args.stake_tx_hash,
       cohort_id: args.cohort_id,
       created_ms: Date.now(),
-      is_attack: args.is_attack,
-      attack_category: args.attack_category,
-      attack_note: args.attack_note,
     };
     try {
       localStorage.setItem(MOCK_GOALS_KEY, JSON.stringify(all));
@@ -201,7 +193,7 @@ export async function getCohort(id: number): Promise<CohortResponse> {
       .filter(([, g]) => (g.cohort_id ?? 1) === id)
       .map(([goal_id, g]) => {
         const j = judged(g);
-        return { goal_id, staker: j.criteria.staker, status: j.status, goal_text: j.criteria.goal_text, type: j.criteria.type, is_attack: g.is_attack };
+        return { goal_id, staker: j.criteria.staker, status: j.status, goal_text: j.criteria.goal_text, type: j.criteria.type };
       });
     const goals = [...mine, ...base.goals];
     const count = (st: string) => goals.filter((g) => g.status === st).length;
@@ -213,7 +205,6 @@ export async function getCohort(id: number): Promise<CohortResponse> {
       watching: count("watching"),
       needs_human: count("needs_human"),
       pot: (BigInt(base.cohort.stake_amount) * BigInt(goals.length)).toString(),
-      attacks: (base.stats.attacks ?? 0) + Object.values(mockGoals()).filter((g) => g.is_attack).length,
     };
     return { ...base, goals, stats };
   }
@@ -230,24 +221,6 @@ export async function getCohort(id: number): Promise<CohortResponse> {
   return { ...r, cohort, stats: { ...r.stats, pot } };
 }
 
-export async function getAttacks(): Promise<Attack[]> {
-  if (MOCK_REFEREE) {
-    const mine: Attack[] = Object.entries(mockGoals())
-      .filter(([, g]) => g.is_attack)
-      .map(([goal_id, g]) => {
-        const j = judged(g);
-        return {
-          goal_id,
-          category: g.attack_category ?? "other",
-          note: g.attack_note ?? "",
-          outcome: j.verdict ? (j.verdict.passed ? "fooled" : "caught") : null,
-          decided_at: j.verdict?.decided_at ?? null,
-        };
-      });
-    return [...fx.fxAttacks, ...mine];
-  }
-  return http(REFEREE_URL, "/attacks");
-}
 
 // Separate YES/NO funds; reads only. Bets, resolves and claims are sent from the wallet (lib/tx.ts).
 export async function getPredictionMarket(cohort: number, owner: `0x${string}`, bettor: `0x${string}`): Promise<PredictionMarket> {

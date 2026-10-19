@@ -78,7 +78,6 @@ export type CohortGoal = {
   status: GoalStatus;
   goal_text?: string;
   type?: GoalType;
-  is_attack?: boolean;
   human_override?: boolean;
 };
 
@@ -89,19 +88,10 @@ export type CohortStats = {
   watching: number;
   needs_human: number;
   pot: string; // raw token units
-  attacks?: number;
   human_overrides?: number;
 };
 
 export type CohortResponse = { cohort: Cohort; goals: CohortGoal[]; stats: CohortStats };
-
-export type Attack = {
-  goal_id: number | string;
-  category: string;
-  note: string;
-  outcome: "caught" | "fooled" | null;
-  decided_at: string | null;
-};
 
 /** Contract addresses and cohorts, read from the chain (lib/api.ts getConfig). */
 export type ChainConfig = {
@@ -116,45 +106,6 @@ export type ChainConfig = {
   cohorts: Cohort[];
 };
 
-// Must match referee/src/routes.ts ATTACK_CATEGORIES; anything else is guessed from the note.
-export const ATTACK_CATEGORIES = [
-  "backdated_commits",
-  "someone_elses_repo",
-  "filler_commits",
-  "prompt_injection",
-  "fake_static_page",
-  "other",
-] as const;
-export type AttackCategory = (typeof ATTACK_CATEGORIES)[number];
-
-/** One line per strategy, shown on the Fool the Ref challenge. */
-export const ATTACK_HINT: Record<AttackCategory, string> = {
-  backdated_commits: "Commit old work with a fake author date so it looks new.",
-  someone_elses_repo: "Point the referee at work you did not do.",
-  filler_commits: "Whitespace, renames and README churn that look like progress.",
-  prompt_injection: "Hide instructions for the AI in a README, commit message or page.",
-  fake_static_page: "A static mock that only looks like the finished feature.",
-  other: "Something we have not thought of. The best ones go in the video.",
-};
-
-export const ATTACK_LABEL: Record<string, string> = {
-  backdated_commits: "Backdated commits",
-  someone_elses_repo: "Someone else's repo",
-  foreign_repo: "Someone else's repo",
-  fake_page: "Fake static page",
-  onchain_fake_verdict: "Verdict from a non-referee address",
-  onchain_early_verdict: "Verdict before the deadline",
-  onchain_early_settle: "Settle before deadline + 10 min",
-  onchain_redirect_auth: "Reuse a signature for another goal",
-  onchain_replay_auth: "Replay a used stake signature",
-  onchain_double_claim: "Claim the same stake twice",
-  onchain_operator_withdraw: "Operator withdraws the pot",
-  filler_commits: "Filler commits",
-  prompt_injection: "Prompt injection",
-  fake_static_page: "Fake static page",
-  static_fake: "Fake static page",
-  other: "Other",
-};
 
 export type PredictionMarket = {
   address: `0x${string}`;

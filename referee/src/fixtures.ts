@@ -55,10 +55,8 @@ export function fixtureRoutes(app: Hono) {
     app.get('/cohorts/:id', (c) =>
         c.json(pick(fx, 'cohort') ?? {
             cohort: { id: Number(c.req.param('id')), stake_deadline: 0, goal_deadline: 0, stake_amount: '10000000' },
-            goals: [{ goal_id: 1, staker: criteria.staker, type: criteria.type, goal_text: criteria.goal_text, status: 'watching', is_attack: false, human_override: false }],
-            stats: { stakers: 1, watching: 1, passed: 0, failed: 0, needs_human: 0, attacks: 0, human_overrides: 0, pot: '10000000' },
+            goals: [{ goal_id: 1, staker: criteria.staker, type: criteria.type, goal_text: criteria.goal_text, status: 'watching', human_override: false }],
+            stats: { stakers: 1, watching: 1, passed: 0, failed: 0, needs_human: 0, human_overrides: 0, pot: '10000000' },
         }));
     app.post('/goals/:id/verify', (c) => c.json({ verdict }));
-    app.get('/attacks', (c) =>
-        c.json(pick(fx, 'attacks') ?? [{ goal_id: 2, category: 'backdated_commits', note: 'git commit --date 2020', outcome: 'caught', decided_at: '2026-10-11T23:01:00Z' }]));
 }

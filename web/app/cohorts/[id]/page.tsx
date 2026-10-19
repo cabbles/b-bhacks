@@ -158,7 +158,7 @@ export default function CohortBoard({ params }: { params: { id: string } }) {
         <div className="flex items-baseline justify-between">
           <div className="label">{solo ? "Solo stakers and their tasks" : "The task · tap to bet"}</div>
           <div className="label">
-            {stats.human_overrides ?? 0} human overrides · <Link className="hover:text-fg" href="/integrity">How it stays fair →</Link>
+            {stats.human_overrides ?? 0} human overrides · <Link className="hover:text-fg" href="/how-it-works">How it stays fair →</Link>
           </div>
         </div>
         <ul className="border-t border-line">

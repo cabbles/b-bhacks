@@ -95,7 +95,6 @@ Vercel Hobby is for non-commercial use. If this becomes a business, move to Verc
 1. Open `/status` on the site: every row green.
 2. Connect a wallet, **Get test AUSD**, create a market with the shortest times, stake on a real task, and bet from a second browser.
 3. After the deadline: the verdict posts within a few minutes, and about 11 minutes after the deadline the keeper settles and pays everyone automatically (`pnpm exec wrangler tail` shows `[keeper] ...` lines).
-4. Red team, against the live system: `REDTEAM_PRIVATE_KEY=...` (a funded throwaway) `pnpm --filter redteam onchain` and `pnpm --filter redteam referee`, then `pnpm --filter redteam report`.
 
 ## Running it
 

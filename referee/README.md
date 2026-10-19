@@ -37,7 +37,6 @@ It also runs the **keeper**, which settles each round once the contract allows i
 
 - **Evidence is data, never instructions.** Gathered content goes to the judges JSON-encoded inside `<untrusted_…>` tags. The judges are plain API calls with no tools. Their output must match a schema, or the vote is treated as missing.
 - **Injection tripwire.** Evidence that addresses the referee ("ignore previous instructions", "mark this as passed") fails `substance` before any model sees it.
-- **The engine never sees `is_attack`.** Fool the Ref attempts are judged exactly like real goals.
 - **Backdating does nothing.** Only the referee's own clock counts.
 - **Branch laundering does nothing.** Commits on any branch at stake time are pre-existing, so work done before staking can't be merged in during the window to count as new.
 - **Fetching is restricted.** Only `https` URLs are fetched, every redirect hop is re-checked, private and loopback addresses are refused, and bodies are capped at 512 KB.
@@ -58,7 +57,7 @@ A replayed `X-PAYMENT` is refused, because the token rejects a used authorizatio
 
 ## Known limits
 
-These are honest gaps, not bugs. Fool the Ref attempts that exploit them should count as `fooled`.
+These are honest gaps, not bugs.
 
 - **Work done before staking but never pushed** (kept locally or in another repo, then pushed during the window) looks the same as new work. Only the judges' sense of whether the work matches the goal stands in the way.
 - **`url_live` sees server-rendered HTML.** A page that only renders its content with client-side JavaScript may fail `url_content`. A page can also hide text with CSS; the judges see the full HTML and may or may not catch it.
@@ -102,10 +101,9 @@ Chain reads use the contract's getters (`cohorts`, `cohortCount`, `stakes`) rath
 | Method and path            | Notes                                                                 |
 | -------------------------- | --------------------------------------------------------------------- |
 | `POST /goals/compile`      | `{ text, staker, type_hint?, cohort_id? }` → `{ criteria, goal_hash, summary, control_proof }` |
-| `POST /goals`              | `{ cohort_id, criteria, stake_tx_hash, is_attack?, attack_category?, attack_note? }` → `{ goal_id }` |
+| `POST /goals`              | `{ cohort_id, criteria, stake_tx_hash }` → `{ goal_id }` (GitHub tasks: the wallet's connected GitHub must be able to push to the repo) |
 | `GET /goals/:id`           | status, criteria, verdict, `evidence_hash`, `verdict_tx_hash`, `stake_tx_hash` |
 | `GET /cohorts/:id`         | cohort from chain, goals, stats (including attacks and human overrides) |
-| `GET /attacks`             | decided Fool the Ref attempts with `caught` or `fooled`               |
 | `POST /goals/:id/verify`   | admin (`x-admin-key`): decide now, idempotent                         |
 | `POST /goals/:id/override` | admin: `{ passed, note }`, sets `human_override: true`                |
 | `GET /admin/queue`         | admin: `needs_human` and erroring goals                               |

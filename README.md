@@ -13,21 +13,20 @@ Built at B@BHacks 2.0. Tracks: AUSD, YZi Labs, General (Most Creative).
 ## What makes it different
 
 1. **The referee observes evidence itself.** It never trusts uploads or claimed timestamps. It records when it first saw each commit, so a commit backdated with `git commit --date` does not count.
-2. **It is built to be hard to cheat.** Control proofs, first-seen timing, a two-model substance check, and prompt-injection hardening run on every task. We attack it ourselves with scripted cheats (`redteam/`) and publish the results on the Integrity page, including anything it missed. Cheating is something the system prevents, not a feature.
+2. **It is built to be hard to cheat.** GitHub sign-in (only repos you can push to count), first-seen timing, a two-model substance check, and prompt-injection hardening run on every task. The site's **How it works** page lists each guarantee and what enforces it.
 3. **Every ruling is checkable, and the referee cannot profit.** Verdicts are hashed and posted on-chain, and the browser re-verifies them. The contract has no owner withdrawal; if no verdict is posted, the staker gets a full refund.
 4. **Agents pay the referee per ruling in AUSD over x402; stakers never pay.** Other apps and AI agents can buy a one-off ruling for 0.10 AUSD with HTTP `402 Payment Required` and a gasless ERC-3009 signature, and get back a ruling signed by the referee key. Payment settles only after the ruling is delivered. Details: [`referee/README.md`](referee/README.md#x402-the-referee-as-a-paid-api).
 
-## Two core features
+## How it works
 
-- **Individual: bet on yourself (live).** Stake AUSD on your own task. Deliver and you get your stake back plus an equal share of the stakes of everyone in the same round who missed theirs; miss it and you lose it. No house, no fee.
-- **Market: bet on whether someone finishes (`MarketPool` on Base Sepolia; addresses in `shared/deployments.json`).** Anyone can bet YES or NO on any task. A separate `MarketPool` takes AUSD bets and resolves from the final verdict on `StakePool`. The owner’s wallet cannot bet NO. Winners share the betting pot; missing verdicts or an empty winning side mean refunds. Contract tests and goal-page betting/claim controls are included; payouts happen automatically. See [deployment and rules](docs/market-pool.md).
+Every task is a public market. The creator describes a task (commits to a public GitHub repo they can push to) and puts up their own stake. Anyone else can bet YES or NO on whether they finish; the creator can't bet on their own market (the contract refuses it). At the deadline the referee rules. Finish: the creator's stake comes back and YES wins the betting pot. Miss: the stake goes to the NO bettors, or is burned if nobody bet NO. No verdict, or nobody on the winning side, means refunds. Payouts are sent automatically. Contracts: `StakePool` (records the task for the referee's verdict), `MarketPool` (YES/NO bets), `CommitmentBond` (the creator's stake); addresses in `shared/deployments.json`.
 
 ## Sponsor tracks
 
 | Track | What we built for it |
 | ----- | -------------------- |
 | **Best Use of AUSD** | Every stake and payout is AUSD on Base Sepolia, moved with ERC-3009 `ReceiveWithAuthorization` so users never hold gas. The referee is also a paid API: agents buy rulings over **x402** with ERC-3009 `TransferWithAuthorization` (live, tested on-chain). |
-| **YZi Labs** | A trusted AI agent that moves money: every decision is hashed and posted on-chain, re-verified in the browser, and red-teamed in public (13 attacks, 0 missed). The contract gives the operator no way to take funds. |
+| **YZi Labs** | A trusted AI agent that moves money: every decision is hashed and posted on-chain, and re-verified in the browser. The contract gives the operator no way to take funds. |
 | **General (Most Creative)** | An AI referee that gathers its own evidence instead of trusting uploads, plus a YES/NO market on whether people actually finish. |
 
 ## How it works
@@ -55,7 +54,6 @@ flowchart LR
 | `contracts/` | `StakePool.sol`, Foundry tests, deploy script                |
 | `referee/`   | Referee API, evidence collectors, verdict engine             |
 | `web/`       | Next.js app (join, stake, verdict, market, integrity)  |
-| `redteam/`   | Scripted cheats and results table                            |
 | `shared/`    | Schemas, ABI, deployments, fixtures, canonical JSON helper   |
 | `docs/`      | Demo script and screenshots                                  |
 
@@ -76,7 +74,7 @@ Contract addresses and the referee URL come from `shared/deployments.json`; `NEX
 | Stake         | `/stake?cohort=1`|
 | Goal/verdict  | `/goals/:id`     |
 | Market (current: `/cohorts`) | `/cohorts/:id` |
-| Integrity (safeguards, test results) | `/integrity` |
+| How it works (guarantees) | `/how-it-works` |
 | System status (pre-flight) | `/status` |
 
 In mock mode, a goal you stake is judged 20 seconds later, so you can rehearse the whole flow without a backend.
@@ -110,29 +108,8 @@ _Filled in at code freeze (4:20 PT)._
 | Verdicts posted on-chain | TBD |
 | Human overrides | TBD |
 
-## Red team
-
-Scripted cheats run against the live referee and contract with real stakes. Full report: [redteam/results.md](redteam/results.md). **13 caught, 0 missed.** An honest control goal still passed.
-
-| Attack | Caught | Missed | Stopped by |
-| ------ | ------ | ------ | ---------- |
-| Backdated commits (`git commit --date`) | 1 | 0 | first-seen timing |
-| Someone else's repo | 1 | 0 | nonce control proof |
-| Filler commits (whitespace, README churn) | 1 | 0 | two-model substance check |
-| Prompt injection in README and commit messages | 1 | 0 | injection tripwire, data-not-instructions |
-| Static page faking the feature | 1 | 0 | substance check |
-| Verdict posted by a non-referee address (x2) | 2 | 0 | `NotReferee` |
-| Verdict before the deadline / settle too early | 2 | 0 | `TooEarly` |
-| Relayer reuses a signature for another goal | 1 | 0 | `BadNonce` (nonce binds cohort + goal) |
-| Replay a used stake signature | 1 | 0 | `AlreadyStaked` |
-| Claim the same stake twice | 1 | 0 | `AlreadyClaimed` |
-| Operator withdraws the pot | 1 | 0 | no such function exists |
-
-The settled-cohort double-claim test reverted with `AlreadyClaimed`.
-
 ## Safety
 
 - Testnet only. No mainnet deployment exists.
 - No function in `StakePool` sends funds to the owner, the referee, or the keeper.
 - Content the referee gathers is passed to models as quoted data. Model output must validate against a schema, or the check fails closed.
-- Red-team goals are flagged as tests so the results can be counted honestly; the verdict engine never sees that flag.

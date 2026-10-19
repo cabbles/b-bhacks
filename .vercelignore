@@ -10,11 +10,6 @@
 !/referee
 /referee/*
 !/referee/package.json
-!/redteam
-/redteam/*
-!/redteam/package.json
-# The Integrity page shows the red-team results (data only).
-!/redteam/results
 # Never upload these, even inside the allowed folders.
 **/node_modules
 **/.next
