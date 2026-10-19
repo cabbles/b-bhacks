@@ -106,13 +106,21 @@ async function send(address: Address, abi: Abi, functionName: string, args: read
 
 /* ------------------------------------------------------------ payouts */
 
-/** Settle one round and pay everyone in it. Returns true when nothing is left to do. */
+/**
+ * Settle one round and pay everyone in it. Returns true only when a pass found nothing to do: any pass that sends a
+ * transaction is followed by a fresh one next run, because reads right after a write can come from an RPC node that
+ * has not seen it yet (it once reported a refund as 0 straight after settle, and the round was closed unpaid).
+ */
 async function payOut(cohortId: number): Promise<boolean> {
+    const sendsBefore = sends;
     const id = BigInt(cohortId);
     const pool = config.pool as Address;
     const c = await publicClient.readContract({ address: pool, abi: poolAbi, functionName: 'cohorts', args: [id] });
     if (c[4] === 0) return true; // nobody staked: nothing to settle or pay
-    if (!c[7]) await send(pool, poolAbi, 'settle', [id]);
+    if (!c[7]) {
+        await send(pool, poolAbi, 'settle', [id]);
+        return false; // pay out next run, reading the settled state fresh
+    }
 
     let done = true;
     const attempt = async (fn: () => Promise<unknown>) => {
@@ -169,7 +177,7 @@ async function payOut(cohortId: number): Promise<boolean> {
                 });
         }
     }
-    return done;
+    return done && sends === sendsBefore;
 }
 
 export async function keeperTick(): Promise<void> {
