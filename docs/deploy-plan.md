@@ -107,6 +107,29 @@ Both get test AUSD from the same "Get test AUSD" button. To check at build time:
 
 **Before each deploy:** `git log -p` secret scan, `pnpm --filter redteam referee`, and check that the Worker and Vercel env lists contain nothing unexpected.
 
+## To do: publish the contract source on Basescan
+
+**Why:** MetaMask's scanner flags the site as "malicious" when someone creates a market or bets. Its reasons include a brand-new domain and contracts with no published source. Publishing ("verifying") the source lets anyone read on Basescan exactly what the contracts do, and is the strongest trust signal we can add. It doesn't change the contracts or need a redeploy.
+
+**What's needed:** a free Etherscan API key (etherscan.io → API keys; one key covers Base Sepolia).
+
+**Steps:**
+
+```bash
+cd contracts
+export ETHERSCAN_API_KEY=...   # never commit it
+forge verify-contract 0x2f3060762463c88A71781c06418bDd4Ea7b7c77A src/StakePool.sol:StakePool --chain base-sepolia \
+  --constructor-args $(cast abi-encode "c(address,address)" 0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC 0xDE284483a14bf92681e4e4Bcc88D6D3B9C3e1fad)
+forge verify-contract 0x096f62F8bc6b80a1635dC1FAbBce43017cAB3197 src/MarketPool.sol:MarketPool --chain base-sepolia \
+  --constructor-args $(cast abi-encode "c(address)" 0x2f3060762463c88A71781c06418bDd4Ea7b7c77A)
+forge verify-contract 0x327B28E3143B48a50cD55208f615363646E5eDFD src/CommitmentBond.sol:CommitmentBond --chain base-sepolia \
+  --constructor-args $(cast abi-encode "c(address)" 0x096f62F8bc6b80a1635dC1FAbBce43017cAB3197)
+```
+
+Addresses are the current ones in `shared/deployments.json`; use those if they've changed. Each contract page on sepolia.basescan.org should then show a green "Contract Source Code Verified" check.
+
+**Related, after verifying:** report the false positive to MetaMask's phishing-detection team and to Blockaid (the scanner MetaMask uses). A custom domain instead of `*.vercel.app` would also help the site build a reputation over time.
+
 ## Phase 6 (later, not part of this work): mainnet checklist
 Mainnet doesn't make the testnet problems go away; it trades them for real-money ones:
 - **Money:** real AUSD and real ETH gas. The referee pays for every verdict and payout (cents each on Base, but not zero). Confirm that mainnet AUSD exists on Base and supports ERC-3009.
